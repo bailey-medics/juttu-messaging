@@ -120,3 +120,34 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"message {self.pk} in {self.conversation_id}"
+
+
+class ReadPoint(models.Model):
+    """How far one person has read in one conversation.
+
+    The newest message they have seen, by its id, which only grows. Unlike
+    a message this row changes, as reading moves on; it says what a person
+    has seen, never what anybody said.
+    """
+
+    conversation = models.ForeignKey(
+        Conversation, on_delete=models.PROTECT, related_name="read_points"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="read_points",
+    )
+    last_read_message_id = models.BigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["conversation", "user"],
+                name="conversations_read_point_once",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} read {self.conversation_id} to {self.last_read_message_id}"

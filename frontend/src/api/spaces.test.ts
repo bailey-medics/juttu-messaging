@@ -43,9 +43,11 @@ describe("the spaces and conversations clients", () => {
       }),
     ).toBe(true);
 
-    stubFetchJson({ conversations: [{ id: 3, kind: "direct", title: "Sam Patel" }] });
+    stubFetchJson({
+      conversations: [{ id: 3, kind: "direct", title: "Sam Patel", unread_count: 0 }],
+    });
     await expect(listConversations(1)).resolves.toEqual([
-      { id: 3, kind: "direct", title: "Sam Patel" },
+      { id: 3, kind: "direct", title: "Sam Patel", unread_count: 0 },
     ]);
   });
 

@@ -11,6 +11,8 @@ export interface ConversationSummary {
   kind: "channel" | "direct";
   /** A channel's name, or the other people in a direct conversation. */
   title: string;
+  /** Messages from others the person has not read yet. */
+  unread_count: number;
 }
 
 export interface ChatMessage {
@@ -31,7 +33,8 @@ export function isConversationSummary(value: unknown): value is ConversationSumm
     isRecord(value) &&
     typeof value.id === "number" &&
     (value.kind === "channel" || value.kind === "direct") &&
-    typeof value.title === "string"
+    typeof value.title === "string" &&
+    typeof value.unread_count === "number"
   );
 }
 
@@ -127,4 +130,9 @@ export async function listReplies(messageId: number): Promise<ChatMessage[]> {
     "replies",
     isChatMessage,
   );
+}
+
+/** Say the person has seen everything up to message *messageId*. */
+export async function markRead(conversationId: number, messageId: number): Promise<void> {
+  await apiRequest("POST", `/conversations/${conversationId}/read`, { message_id: messageId });
 }

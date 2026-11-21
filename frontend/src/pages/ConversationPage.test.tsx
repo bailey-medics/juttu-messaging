@@ -67,7 +67,7 @@ describe("the conversation page", () => {
 
   it("opens a conversation from its space, with its title", async () => {
     stubFetchRoutes({
-      ...spaceRoutes([{ id: 11, kind: "channel", title: "general" }]),
+      ...spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 0 }]),
       "/api/conversations/11/messages": { body: { messages: [hello] } },
     });
     renderAt("/spaces/7");
@@ -83,7 +83,7 @@ describe("the conversation page", () => {
     stubFetchRoutes({
       ...spaceRoutes([]),
       "POST /api/spaces/7/conversations": {
-        body: { id: 12, kind: "direct", title: "Alex Morgan" },
+        body: { id: 12, kind: "direct", title: "Alex Morgan", unread_count: 0 },
         status: 201,
       },
       "/api/conversations/12/messages": { body: { messages: [] } },
@@ -108,7 +108,7 @@ describe("the conversation page", () => {
 
   it("reopens a direct conversation that already exists", async () => {
     stubFetchRoutes({
-      ...spaceRoutes([{ id: 12, kind: "direct", title: "Alex Morgan" }]),
+      ...spaceRoutes([{ id: 12, kind: "direct", title: "Alex Morgan", unread_count: 0 }]),
       "/api/conversations/12/messages": { body: { messages: [] } },
     });
     renderAt("/spaces/7");
@@ -180,5 +180,32 @@ describe("the conversation page", () => {
     renderAt("/conversations/11");
 
     expect(await screen.findByRole("button", { name: "Reply" })).toBeInTheDocument();
+  });
+
+  it("marks the conversation read up to its newest message on opening", async () => {
+    stubFetchRoutes({
+      "/api/auth/me": { body: SIGNED_IN },
+      "/api/conversations/11/messages": { body: { messages: [hello, { ...hello, id: 25 }] } },
+      "POST /api/conversations/11/read": { body: null, status: 204 },
+    });
+
+    renderAt("/conversations/11");
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/conversations/11/read",
+        expect.objectContaining({ method: "POST", body: JSON.stringify({ message_id: 25 }) }),
+      ),
+    );
+  });
+
+  it("shows each conversation's unread count in its space", async () => {
+    stubFetchRoutes(
+      spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 3 }]),
+    );
+
+    renderAt("/spaces/7");
+
+    expect(await screen.findByLabelText("3 unread")).toBeInTheDocument();
   });
 });

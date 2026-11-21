@@ -3,6 +3,7 @@
 from django.urls import URLPattern, path
 
 from app.conversations.views import (
+    MarkReadView,
     MessagesView,
     RepliesView,
     SpaceConversationsView,
@@ -18,6 +19,11 @@ urlpatterns: list[URLPattern] = [
         "conversations/<int:conversation_id>/messages",
         MessagesView.as_view(),
         name="conversation-messages",
+    ),
+    path(
+        "conversations/<int:conversation_id>/read",
+        MarkReadView.as_view(),
+        name="conversation-read",
     ),
     path(
         "messages/<int:message_id>/replies",

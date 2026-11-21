@@ -7,7 +7,8 @@ Quill Medical's messaging.
 """
 
 from django.db import transaction
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, F, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 
 from app.accounts.models import User
 from app.audit.models import AuditAction
@@ -17,6 +18,7 @@ from app.conversations.models import (
     ConversationKind,
     Message,
     Participant,
+    ReadPoint,
 )
 from app.spaces.models import Space
 from app.spaces.services import is_in
@@ -45,6 +47,48 @@ def conversations_for(user: User, space: Space) -> QuerySet[Conversation]:
         .distinct()
         .order_by("created_at", "pk")
     )
+
+
+def unread_counts(user: User, conversation_ids: list[int]) -> dict[int, int]:
+    """How many messages *user* has not read, in each conversation named.
+
+    One query for all of them: messages by somebody else, newer than the
+    person's read point in that conversation, or every one if they have
+    none. Replies in threads count too. A conversation with none unread is
+    left out of the answer.
+    """
+    read_to = ReadPoint.objects.filter(
+        user=user, conversation_id=OuterRef("conversation_id")
+    ).values("last_read_message_id")[:1]
+
+    counted = (
+        Message.objects.filter(conversation_id__in=conversation_ids)
+        .exclude(author=user)
+        .annotate(read_to=Coalesce(Subquery(read_to), 0))
+        .filter(id__gt=F("read_to"))
+        .values("conversation_id")
+        .annotate(unread=Count("id"))
+    )
+
+    return {row["conversation_id"]: row["unread"] for row in counted}
+
+
+def mark_read(user: User, conversation: Conversation, message_id: int) -> None:
+    """Move *user*'s read point in *conversation* up to *message_id*.
+
+    Never back: reading an older message on a second device leaves the
+    point where it was. A message id from another conversation is ignored.
+    """
+    belongs = conversation.messages.filter(pk=message_id).exists()
+    if not belongs:
+        return
+
+    point, _ = ReadPoint.objects.get_or_create(
+        user=user, conversation=conversation
+    )
+    if message_id > point.last_read_message_id:
+        point.last_read_message_id = message_id
+        point.save(update_fields=["last_read_message_id", "updated_at"])
 
 
 def can_read(user: User, conversation: Conversation) -> bool:

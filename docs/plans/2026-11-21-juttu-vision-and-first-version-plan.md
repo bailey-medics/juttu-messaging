@@ -153,7 +153,7 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 17: Unread state
 
-- [ ] Each person's last-read point in each conversation, unread counts in the list, and marking read on opening. Backend, frontend and tests.
+- [x] Each person's last-read point in each conversation, unread counts in the list, and marking read on opening. Backend, frontend and tests. Built as `ReadPoint`, the newest message id a person has seen in a conversation, which only moves forward. `GET /api/spaces/{id}/conversations` gives each conversation its `unread_count`, counted for the whole list in one query: messages by others newer than the read point, replies included. Opening a conversation or a thread posts `POST /api/conversations/{id}/read` with the newest message shown, and a space's list shows `UnreadBadge`. Marking read is not audited: a read point records what somebody has seen, never a change to what anybody said or may do, and an entry on every opening would bury the entries that matter.
 
 ## Phase 18: Live delivery
 

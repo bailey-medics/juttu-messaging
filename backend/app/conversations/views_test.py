@@ -353,3 +353,92 @@ def test_somebody_who_cannot_read_the_conversation_cannot_read_its_threads(
     response = signed_in(priya).get(f"/api/messages/{secret.pk}/replies")
 
     assert response.status_code == 404
+
+
+def unread_of(client: Client, space: Space) -> dict[int, int]:
+    listed = client.get(f"/api/spaces/{space.pk}/conversations").json()
+    return {c["id"]: c["unread_count"] for c in listed["conversations"]}
+
+
+def test_messages_from_others_are_unread_until_marked(
+    alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    post(general, "One", by=alex)
+    latest = post(general, "Two", by=alex)
+    post(general, "Mine", by=priya)
+    client = signed_in(priya)
+
+    assert unread_of(client, release)[general.pk] == 2
+
+    marked = client.post(
+        f"/api/conversations/{general.pk}/read",
+        {"message_id": latest.pk},
+        content_type="application/json",
+    )
+
+    assert marked.status_code == 204
+    assert unread_of(client, release)[general.pk] == 0
+
+
+def test_a_reply_in_a_thread_counts_as_unread(
+    alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    question = post(general, "Who is on call?", by=priya)
+    signed_in(priya).post(
+        f"/api/conversations/{general.pk}/read",
+        {"message_id": question.pk},
+        content_type="application/json",
+    )
+
+    post(general, "I am.", by=alex, thread=question)
+
+    assert unread_of(signed_in(priya), release)[general.pk] == 1
+
+
+def test_the_read_point_never_moves_back(
+    alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    first = post(general, "One", by=alex)
+    second = post(general, "Two", by=alex)
+    client = signed_in(priya)
+
+    for message in (second, first):
+        client.post(
+            f"/api/conversations/{general.pk}/read",
+            {"message_id": message.pk},
+            content_type="application/json",
+        )
+
+    assert unread_of(client, release)[general.pk] == 0
+
+
+def test_a_message_from_another_conversation_moves_nothing(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    other = start_channel(release, "random", by=sam)
+    post(general, "Unread", by=alex)
+    elsewhere = post(other, "Much later", by=alex)
+    client = signed_in(priya)
+
+    client.post(
+        f"/api/conversations/{general.pk}/read",
+        {"message_id": elsewhere.pk},
+        content_type="application/json",
+    )
+
+    assert unread_of(client, release)[general.pk] == 1
+
+
+def test_nobody_marks_a_conversation_they_cannot_read(
+    sam: User, alex: User, priya: User, release: Space
+) -> None:
+    direct = start_direct(release, [sam], by=alex)
+    message = post(direct, "Between us", by=alex)
+
+    response = signed_in(priya).post(
+        f"/api/conversations/{direct.pk}/read",
+        {"message_id": message.pk},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404

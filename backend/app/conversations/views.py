@@ -22,11 +22,13 @@ from app.conversations.services import (
     ConversationRefused,
     can_read,
     conversations_for,
+    mark_read,
     messages_in,
     post,
     replies_to,
     start_channel,
     start_direct,
+    unread_counts,
 )
 from app.organisations.competencies import Competency
 from app.organisations.services import holds
@@ -84,7 +86,7 @@ def readable_conversation(user: User, conversation_id: int) -> Conversation:
 
 
 def conversation_body(
-    conversation: Conversation, user: User
+    conversation: Conversation, user: User, unread: int = 0
 ) -> dict[str, object]:
     if conversation.kind == ConversationKind.CHANNEL:
         title = conversation.name
@@ -96,7 +98,12 @@ def conversation_body(
         ]
         title = ", ".join(sorted(others))
 
-    return {"id": conversation.pk, "kind": conversation.kind, "title": title}
+    return {
+        "id": conversation.pk,
+        "kind": conversation.kind,
+        "title": title,
+        "unread_count": unread,
+    }
 
 
 def message_body(message: Message) -> dict[str, object]:
@@ -135,11 +142,13 @@ class SpaceConversationsView(APIView):
     def get(self, request: Request, space_id: int) -> Response:
         user = caller(request)
         space = readable_space(user, space_id)
-        found = conversations_for(user, space)
+        found = list(conversations_for(user, space))
+        unread = unread_counts(user, [c.pk for c in found])
+        bodies = [
+            conversation_body(c, user, unread.get(c.pk, 0)) for c in found
+        ]
 
-        return Response(
-            {"conversations": [conversation_body(c, user) for c in found]}
-        )
+        return Response({"conversations": bodies})
 
     def post(self, request: Request, space_id: int) -> Response:
         user = caller(request)
@@ -247,3 +256,25 @@ class RepliesView(APIView):
         replies = replies_to(message)
 
         return Response({"replies": [message_body(m) for m in replies]})
+
+
+class ReadSerializer(serializers.Serializer[dict[str, Any]]):
+    """The newest message the person has seen."""
+
+    message_id = serializers.IntegerField(min_value=1)
+
+
+class MarkReadView(APIView):
+    """``POST`` moves the caller's read point in a conversation forward."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        serializer = ReadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        mark_read(user, conversation, serializer.validated_data["message_id"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

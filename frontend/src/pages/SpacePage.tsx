@@ -18,6 +18,7 @@ import {
   type SpacePerson,
 } from "@/api/spaces";
 import { useAuth } from "@/auth/AuthContext";
+import { UnreadBadge } from "@/components/badge";
 import EllipsisMenu from "@/components/ellipsis-menu/EllipsisMenu";
 import type { FormSubmitResult } from "@/components/form/Form";
 import PageSpinner from "@/components/loading-spinner/PageSpinner";
@@ -150,6 +151,7 @@ export default function SpacePage() {
         columns={[
           { header: "Name", render: (c) => c.title },
           { header: "Kind", render: (c) => (c.kind === "channel" ? "Channel" : "Direct") },
+          { header: "Unread", render: (c) => <UnreadBadge count={c.unread_count} /> },
         ]}
         getRowKey={(c) => c.id}
         onRowClick={open}

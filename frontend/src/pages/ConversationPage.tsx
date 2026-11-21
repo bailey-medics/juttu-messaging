@@ -3,7 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router";
 
 import { ApiError, isRecord } from "@/api/client";
-import { listMessages, listReplies, sendMessage, type ChatMessage } from "@/api/conversations";
+import {
+  listMessages,
+  listReplies,
+  markRead,
+  sendMessage,
+  type ChatMessage,
+} from "@/api/conversations";
 import { useAuth } from "@/auth/AuthContext";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
 import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
@@ -15,6 +21,18 @@ import { apiFailure } from "./apiFailure";
 /** The conversation's title, as the page that linked here passed it on. */
 function titleFrom(state: unknown): string {
   return isRecord(state) && typeof state.title === "string" ? state.title : "Conversation";
+}
+
+/**
+ * Say the person has seen these messages, by the newest of them. A failure
+ * only leaves them counted as unread, so it is not shown.
+ */
+function markSeen(conversationId: number, seen: ChatMessage[]) {
+  const newest = Math.max(0, ...seen.map((m) => m.id));
+
+  if (newest > 0) {
+    markRead(conversationId, newest).catch(() => {});
+  }
 }
 
 /** The action that opens a message's thread. */
@@ -69,7 +87,9 @@ export default function ConversationPage() {
 
   const load = useCallback(async () => {
     try {
-      setMessages(await listMessages(id));
+      const found = await listMessages(id);
+      setMessages(found);
+      markSeen(id, found);
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
         setMissing(true);
@@ -97,7 +117,9 @@ export default function ConversationPage() {
     setRepliesLoading(true);
 
     try {
-      setReplies(await listReplies(messageId));
+      const found = await listReplies(messageId);
+      setReplies(found);
+      markSeen(id, found);
     } catch (failure) {
       showMessage({ variant: "error", title: apiFailure(failure) });
     } finally {

@@ -11,7 +11,7 @@ function space(extra: Record<string, { body: unknown; status?: number }> = {}) {
     "/api/auth/me": { body: SIGNED_IN },
     "/api/spaces/7": { body: release },
     "/api/spaces/7/conversations": {
-      body: { conversations: [{ id: 11, kind: "channel", title: "general" }] },
+      body: { conversations: [{ id: 11, kind: "channel", title: "general", unread_count: 0 }] },
     },
     "/api/spaces/7/members": {
       body: { members: [{ id: 1, username: "sam", name: "Sam Patel" }] },
