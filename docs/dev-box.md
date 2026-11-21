@@ -72,6 +72,23 @@ These steps are done once, on the dev box, by a person.
    are already there, because a new pair would end every phone's
    subscription. Until the keys are set, push notifications are off.
 
+7. Let each deploy keep a card up to date in Juttu, once:
+   1. Sign in to the copy as an organisation admin, and open **Senders**.
+   2. Tap **Register sender**, name it "Deploys", and choose the channel its
+      cards should appear in.
+   3. Copy the secret it shows, which it shows only once, and add it to
+      `local/box.env` as one line:
+
+      ```sh
+      JUTTU_BOX_INLET_SECRET=<the secret>
+      ```
+
+   From the next deploy on, the channel shows one card per deploy:
+   "Deploying", then "Deployed" or "Failed at" the step that broke. Both of
+   those notify everybody in the channel who has not turned notifications
+   off. Until the secret is set, a deploy says so and sends no card. A card
+   that cannot be sent never stops a deploy.
+
 ## Deploy the latest main
 
 ```sh

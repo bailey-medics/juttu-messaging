@@ -18,6 +18,11 @@
 # this working tree, so what runs is exactly what was merged. Its settings
 # live in local/box.env, which git ignores; the first deploy makes that file
 # with a random database password and a random Django secret key.
+#
+# Each deploy keeps a card up to date in Juttu itself, through the inlet,
+# once JUTTU_BOX_INLET_SECRET is in local/box.env: "Deploying" when it
+# starts, then "Deployed" or "Failed at <step>", both of which notify. A
+# card that cannot be sent never stops a deploy.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -159,11 +164,62 @@ push_keys() {
 	echo "Added push keys to ${env_file}. Deploy again so the backend reads them."
 }
 
+# The deploy card's key, title and the step the deploy is on, for the trap
+# that reports a failure. Empty until the deploy knows its commit.
+card_key=""
+card_title=""
+card_step=""
+
+# Send one event about this deploy's card to the copy that is running now.
+# The secret goes to curl on its standard input, so it is never in the
+# list of running processes. Never fails: a card is not worth a deploy.
+send_card() {
+	local line="$1"
+	local needs_somebody="$2"
+	local secret
+	local port
+	local body
+
+	secret="$(setting JUTTU_BOX_INLET_SECRET)"
+	if [ -z "${secret}" ] || [ -z "${card_key}" ]; then
+		return 0
+	fi
+
+	port="$(setting JUTTU_BOX_PORT)"
+	body="$(printf '{"key": "%s", "title": "%s", "line": "%s", "needs_somebody": %s}' \
+		"${card_key}" "${card_title}" "${line}" "${needs_somebody}")"
+
+	if ! printf 'Authorization: Bearer %s\n' "${secret}" |
+		curl --fail --silent --show-error --max-time 10 \
+			--header @- --header "Content-Type: application/json" \
+			--data-binary "${body}" \
+			"http://127.0.0.1:${port:-8290}/api/inlet/events" >/dev/null; then
+		echo "The deploy card was not updated: Juttu did not take the event." >&2
+	fi
+
+	return 0
+}
+
+# Run on every exit from a deploy: a deploy that stopped early says where.
+report_failure() {
+	local code=$?
+
+	if [ "${code}" -ne 0 ]; then
+		send_card "Failed at ${card_step}" true
+	fi
+
+	return "${code}"
+}
+
 deploy() {
 	local ref="${1:-origin/main}"
 	local commit tag port address
 
 	ensure_env_file
+
+	if [ -z "$(setting JUTTU_BOX_INLET_SECRET)" ]; then
+		echo "No JUTTU_BOX_INLET_SECRET in ${env_file}, so this deploy sends no card."
+	fi
 
 	git -C "${root}" fetch --quiet origin main
 	commit="$(git -C "${root}" rev-parse --verify --quiet "${ref}^{commit}")" || {
@@ -171,6 +227,12 @@ deploy() {
 		exit 1
 	}
 	tag="$(git -C "${root}" rev-parse --short=12 "${commit}")"
+
+	card_key="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${tag}"
+	card_title="Deploy ${tag:0:7}"
+	card_step="exporting"
+	send_card "Deploying" false
+	trap report_failure EXIT
 
 	echo "==> exporting ${ref} (${tag}) into local/box-build"
 	rm -rf "${build_dir}"
@@ -182,9 +244,13 @@ deploy() {
 		exit 1
 	fi
 
+	card_step="building and starting"
 	echo "==> building and starting"
 	JUTTU_BOX_TAG="${tag}" box_compose up --detach --build --wait --remove-orphans
 	echo "${tag}" >"${local_dir}/box-deployed"
+
+	trap - EXIT
+	send_card "Deployed" true
 
 	port="$(setting JUTTU_BOX_PORT)"
 	address="$(setting JUTTU_BOX_ADDRESS)"

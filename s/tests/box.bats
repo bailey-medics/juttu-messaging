@@ -29,8 +29,33 @@ setup() {
 echo "JUTTU_BOX_TAG=\${JUTTU_BOX_TAG:-} docker \$*" >>"${BATS_TEST_TMPDIR}/calls"
 echo "\${JUTTU_BOX_ALLOWED_HOSTS:-}" >>"${BATS_TEST_TMPDIR}/hosts"
 echo "\${JUTTU_BOX_TRUSTED_ORIGINS-unset}" >>"${BATS_TEST_TMPDIR}/origins"
+exit "\${DOCKER_EXIT:-0}"
 STUB
 	chmod +x "${bin}/docker"
+
+	cat >"${bin}/curl" <<STUB
+#!/usr/bin/env bash
+echo "\$*" >>"${BATS_TEST_TMPDIR}/curl"
+cat >>"${BATS_TEST_TMPDIR}/curl-stdin"
+exit "\${CURL_EXIT:-0}"
+STUB
+	chmod +x "${bin}/curl"
+}
+
+# A local/box.env with a sender's secret, so deploys send their card.
+with_inlet_secret() {
+	mkdir -p "${repo}/local"
+	cat >"${repo}/local/box.env" <<'EOF'
+JUTTU_BOX_POSTGRES_PASSWORD=x
+JUTTU_BOX_SECRET_KEY=y
+JUTTU_BOX_PORT=8290
+JUTTU_BOX_INLET_SECRET=7.made-up-secret
+EOF
+}
+
+# The JSON body of each event sent, one a line.
+card_events() {
+	sed -n 's/.*--data-binary \(.*\) http:.*/\1/p' "${BATS_TEST_TMPDIR}/curl"
 }
 
 box() {
@@ -231,4 +256,67 @@ STUB
 	done
 
 	[ ! -f "${BATS_TEST_TMPDIR}/calls" ]
+}
+
+@test "a deploy with no inlet secret says so, and sends no card" {
+	box deploy
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"No JUTTU_BOX_INLET_SECRET in ${repo}/local/box.env, so this deploy sends no card."* ]]
+	[ ! -f "${BATS_TEST_TMPDIR}/curl" ]
+}
+
+@test "a deploy sends its card as it starts and when it is deployed, both on one key" {
+	with_inlet_secret
+	local short
+	short="$(git -C "${repo}" rev-parse --short=7 origin/main)"
+
+	box deploy
+
+	[ "$status" -eq 0 ]
+	[ "$(card_events | wc -l)" -eq 2 ]
+	[[ "$(card_events | sed -n 1p)" == *"\"title\": \"Deploy ${short}\", \"line\": \"Deploying\", \"needs_somebody\": false"* ]]
+	[[ "$(card_events | sed -n 2p)" == *"\"line\": \"Deployed\", \"needs_somebody\": true"* ]]
+	[ "$(card_events | grep -o '"key": "deploy-[^"]*"' | sort -u | wc -l)" -eq 1 ]
+	grep -q "http://127.0.0.1:8290/api/inlet/events" "${BATS_TEST_TMPDIR}/curl"
+}
+
+@test "the inlet secret goes to curl on its input, never in its arguments" {
+	with_inlet_secret
+
+	box deploy
+
+	[ "$(sort -u "${BATS_TEST_TMPDIR}/curl-stdin")" = "Authorization: Bearer 7.made-up-secret" ]
+	run ! grep -q "made-up-secret" "${BATS_TEST_TMPDIR}/curl"
+}
+
+@test "a failed deploy says where it stopped, and notifies" {
+	with_inlet_secret
+
+	DOCKER_EXIT=1 box deploy
+
+	[ "$status" -ne 0 ]
+	[[ "$(card_events | tail -1)" == *"\"line\": \"Failed at building and starting\", \"needs_somebody\": true"* ]]
+	run ! grep -q '"line": "Deployed"' "${BATS_TEST_TMPDIR}/curl"
+}
+
+@test "a ref with nothing to deploy fails at exporting" {
+	with_inlet_secret
+	git -C "${repo}" rm -q compose.box.yml
+	git -C "${repo}" commit -q -m "no compose"
+
+	box deploy HEAD
+
+	[ "$status" -eq 1 ]
+	[[ "$(card_events | tail -1)" == *"\"line\": \"Failed at exporting\""* ]]
+}
+
+@test "a card Juttu does not take never stops the deploy" {
+	with_inlet_secret
+
+	CURL_EXIT=7 box deploy
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"The deploy card was not updated: Juttu did not take the event."* ]]
+	[ "$(cat "${repo}/local/box-deployed")" = "$(git -C "${repo}" rev-parse --short=12 origin/main)" ]
 }
