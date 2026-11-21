@@ -17,6 +17,17 @@ const ACTION_ICON = {
     "Use IconButton from @/components/button: it requires an aria-label, which an icon-only button needs to be announced as more than 'button'.",
 };
 
+/**
+ * Nor may Mantine's Loader: a bare ring has no text, so a screen reader user
+ * hears nothing while they wait. The bubble spinner says "Loading".
+ */
+const LOADER = {
+  name: "@mantine/core",
+  importNames: ["Loader"],
+  message:
+    "Use BubbleSpinner or PageSpinner from @/components/loading-spinner: a bare Loader has no text, so a screen reader user hears nothing while they wait.",
+};
+
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "storybook-static"] },
   {
@@ -34,7 +45,7 @@ export default tseslint.config(
       "@typescript-eslint/no-floating-promises": "error",
       // Type guards, not `as`, for anything that crosses the network.
       "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
-      "no-restricted-imports": ["error", { paths: [ACTION_ICON] }],
+      "no-restricted-imports": ["error", { paths: [ACTION_ICON, LOADER] }],
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -44,6 +55,15 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+  },
+  // The one button that shows a small ring while it works, with the button's
+  // own label saying what is happening, as in Quill Medical.
+  {
+    files: [
+      "src/components/button/ButtonPairRed.tsx",
+      "src/components/button/ButtonPair.stories.tsx",
+    ],
+    rules: { "no-restricted-imports": ["error", { paths: [ACTION_ICON] }] },
   },
   // The icon-button wrappers themselves, each of which sets its own name.
   {

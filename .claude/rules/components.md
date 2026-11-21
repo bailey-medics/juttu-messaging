@@ -90,6 +90,14 @@ the components it brings, such as cards, icons, buttons and the spinner.
   and in dark mode; `a11y.test` is set to `error` in `.storybook/preview.tsx`.
 - **A rule override on one story needs a comment saying why**, on that
   story's `parameters.a11y`, never in `.storybook/preview.tsx`.
+- **A wait is `BubbleSpinner` or `PageSpinner`**, from
+  `components/loading-spinner/`: `PageSpinner` where the wait stands in
+  for the whole page, `BubbleSpinner` for part of a page already showing.
+  Both say "Loading" to a screen reader. Importing Mantine's `Loader`
+  directly fails lint, because a bare ring has no text.
+- **A page that throws shows `ErrorState`, never a white screen.**
+  `RootLayout` wraps every page in `ErrorBoundary`, and the router shows
+  `RouteErrorFallback` for a route that fails before it renders.
 - **Anything clickable is a button or a link.** A click handler on a `div`
   cannot be reached from the keyboard.
 - **Text colours come from the tokens in `theme.ts`**, which

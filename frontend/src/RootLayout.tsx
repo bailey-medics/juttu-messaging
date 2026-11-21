@@ -1,6 +1,7 @@
 import { AppShell, Container } from "@mantine/core";
 import { Outlet } from "react-router";
 
+import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
 import InstallButton from "@/components/install-button/InstallButton";
 import TopRibbon from "@/components/ribbon";
 import { HEADER_HEIGHT } from "@/layout";
@@ -25,7 +26,11 @@ export default function RootLayout() {
       </AppShell.Header>
       <AppShell.Main>
         <Container size="md">
-          <Outlet />
+          {/* A page that throws shows the fallback inside the frame, so the
+              ribbon stays and somebody can still go home. */}
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </Container>
       </AppShell.Main>
     </AppShell>

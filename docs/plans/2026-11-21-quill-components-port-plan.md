@@ -38,11 +38,11 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 4: Feedback and states
 
-- [ ] Port the components that tell somebody what is happening: `ErrorState`, `ErrorBoundary` and `RouteErrorFallback` (wired into the router as its `errorElement`), `ConfirmModal` (leaving out `PasswordConfirmModal` until accounts exist), `OfflineModal`, `UpdatingBanner`, and `ResultMessage` and `StateMessage` from `components/message-cards/`. Build `PageSpinner` on an animation of Juttu's speech bubble, the same shape as its icon in `frontend/scripts/make-icons.py`, drawn as an SVG in the brand navy and mark colours, as Quill's `QuillSpinner` animates its quill. For somebody whose system asks for reduced motion it shows the bubble still, as Quill's does. Use it as the router's fallback while a page loads. Leave out `QuillSpinner`.
+- [x] Port the components that tell somebody what is happening: `ErrorState`, `ErrorBoundary` and `RouteErrorFallback` (wired into the router as its `errorElement`), `ConfirmModal` (leaving out `PasswordConfirmModal` until accounts exist), `OfflineModal`, `UpdatingBanner`, and `ResultMessage` and `StateMessage` from `components/message-cards/`. Build `PageSpinner` on an animation of Juttu's speech bubble, the same shape as its icon in `frontend/scripts/make-icons.py`, drawn as an SVG in the brand navy and mark colours, as Quill's `QuillSpinner` animates its quill. For somebody whose system asks for reduced motion it shows the bubble still, as Quill's does. Use it as the router's fallback while a page loads. Leave out `QuillSpinner`.
 
 ## Phase 5: Forms
 
-- [ ] Add `react-hook-form`, as Quill's forms use, and port `components/form/`: `Form`, `FormContext`, `FormStatus`, `FormStatusNarrow`, `SubmitButton`, `TextField`, `EmailField`, `PasswordField`, `TextAreaField`, `CheckboxField`, `RadioField`, `SelectField`, `MultiSelectField`, `SolidSwitch`, `FilterSelect` and `FilterModal`, and `DirtyFormNavigation` from `components/warnings/`, which warns before somebody leaves a form unsaved. Leave out `DateField` until a page needs a date, since it brings `@mantine/dates`. Port the form half of Quill's touch-target and disabled-control tests. This phase is what the vision plan's sign-in page, its Phase 9, is built from.
+- [ ] Add `react-hook-form`, as Quill's forms use, and port `components/form/`: `Form`, `FormContext`, `FormStatus`, `FormStatusNarrow`, `SubmitButton`, `TextField`, `EmailField`, `PasswordField`, `TextAreaField`, `CheckboxField`, `RadioField`, `SelectField`, `MultiSelectField`, `SolidSwitch`, `FilterSelect` and `FilterModal`, and `DirtyFormNavigation` from `components/warnings/`, which warns before somebody leaves a form unsaved. Leave out `DateField` until a page needs a date, since it brings `@mantine/dates`. Port the form half of Quill's touch-target and disabled-control tests. Bring `components/page-message/` too, whose `PageMessageDisplay` draws with `FormStatus`, and put its slot back in `PageHeader`, as Quill has it. This phase is what the vision plan's sign-in page, its Phase 9, is built from.
 
 ## Phase 6: Layout and navigation
 
@@ -84,7 +84,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Found while building
 
-- **`PageHeader` came across without Quill's page-message slot** - 21 November 2026, Phase 1. Quill's `PageHeader` shows a page's status messages under the title, through `components/page-message/`, which no phase listed. Phase 4, the feedback components, brings `components/page-message/` and puts the slot back.
+- **`PageHeader` came across without Quill's page-message slot** - 21 November 2026, Phase 1. Quill's `PageHeader` shows a page's status messages under the title, through `components/page-message/`, which no phase listed. It was meant for Phase 4, but `PageMessageDisplay` draws its messages with `FormStatus`, a form component, so Phase 5 brings `components/page-message/` and puts the slot back.
 
 - **The icon register started in Phase 1** - Quill's `ErrorMessage` uses `IconAlertCircle` from `components/icons/appIcons.ts`. Phase 1 added `@tabler/icons-react` and an `appIcons.ts` holding that one icon; Phase 2 brings the rest of the register and the `Icon` wrapper.
 
@@ -99,3 +99,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **`AppIconElement` names a Tabler icon element** - Phase 3. Typing `Icon`'s `icon` prop as a Tabler icon, to avoid a cast, meant every component that hands it an icon needs the same type. `components/icons` exports it as `AppIconElement`, which `ActionCard` and `StatusStrip` use.
 
 - **`HealthStatus` announces through `LiveStatus`** - Phase 3. It built its own live region before; it now uses Quill's `LiveStatus`, a hidden status region, and Quill's `success` and `alert` badge colours.
+
+- **The error boundaries came across without reporting or feedback** - Phase 4. Quill's `ErrorBoundary` and `RouteErrorFallback` send each error to Quill's error reporting and offer a "Tell us what happened" feedback form, through `lib/error-reporting` and `lib/feedback`. Juttu has neither, so its boundaries log the error to the console and offer a reload. Both are features for a later plan.
+
+- **Juttu's spinner is three dots pulsing inside its speech bubble** - Phase 4. `BubbleSpinner` draws the icon's bubble as a still SVG, with three small boxes over it that pulse in turn, as a conversation shows somebody typing. Like Quill's quill, only `transform` and `opacity` animate, and only on HTML boxes, and it holds still for anybody who asks for less motion. ESLint now refuses Mantine's `Loader`, as Quill's does.

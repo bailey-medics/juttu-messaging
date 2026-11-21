@@ -1,6 +1,10 @@
 import { screen, within } from "@testing-library/react";
 
-import { renderAt, stubFetchJson } from "@/test/render";
+import { createMemoryRouter, RouterProvider } from "react-router";
+
+import RootLayout from "@/RootLayout";
+import { routes } from "@/routes";
+import { renderAt, renderWithTheme, stubFetchJson } from "@/test/render";
 
 describe("routes", () => {
   beforeEach(() => {
@@ -42,5 +46,27 @@ describe("routes", () => {
       "href",
       "/",
     );
+  });
+
+  it("keeps the ribbon and shows the fallback when a page throws", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    function Broken(): never {
+      throw new Error("This page broke");
+    }
+    const router = createMemoryRouter([
+      { element: <RootLayout />, children: [{ index: true, element: <Broken /> }] },
+    ]);
+
+    renderWithTheme(<RouterProvider router={router} />);
+
+    expect(screen.getByRole("banner")).toHaveTextContent("Juttu");
+    expect(screen.getByTestId("error-boundary-fallback")).toBeInTheDocument();
+  });
+
+  it("gives the root route Juttu's error page and its page spinner", () => {
+    const [root] = routes;
+
+    expect(root?.errorElement).toBeDefined();
+    expect(root?.hydrateFallbackElement).toBeDefined();
   });
 });

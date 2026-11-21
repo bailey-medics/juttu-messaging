@@ -1,0 +1,165 @@
+/**
+ * ErrorState Component
+ *
+ * What a user is shown when something has failed. One design in two sizes:
+ * `page` replaces the view, `inline` sits inside the layout where a section
+ * failed to load.
+ *
+ * **It is a red `StateMessage` card**, the same card the app uses for "this
+ * is not available", in the alert colour. Until 29 September 2026 it was a
+ * light Mantine `Alert`: a 10% tint with no border, which on a page read as
+ * plain text. A failed save was missed that way, so it now looks like the
+ * other messages and cannot be mistaken for body copy.
+ *
+ * **It does not accept an error object, and that is the point.** Pages pass a
+ * message somebody wrote for a person to read. The alternative - handing it
+ * `err.message` - puts whatever the backend returned on screen, which for a
+ * long time meant raw text from EHRbase, HAPI FHIR or the database appearing
+ * in front of whoever was standing there. That is fixed at the source now, but
+ * the restriction stays structural rather than advisory, because a convention
+ * is exactly what the pages that hand-rolled this already broke.
+ *
+ * The error `code` is welcome, and shown in small print. It is a fixed
+ * vocabulary, it discloses nothing, and it is what a support call can be
+ * matched against in the logs.
+ */
+
+import { useEffect, useRef } from "react";
+import { Box, Center, Group } from "@mantine/core";
+import { IconAlertTriangle } from "@/components/icons/appIcons";
+import IconTextButton from "@/components/button/IconTextButton";
+import iconTextButtonIcons from "@/components/button/iconTextButtonIcons";
+import StateMessage from "@/components/message-cards/StateMessage";
+import { BodyTextInline } from "@/components/typography";
+import { statusTextColour } from "@/styles/semanticColours";
+import classes from "./ErrorState.module.css";
+
+type IconName = keyof typeof iconTextButtonIcons;
+
+export interface ErrorStateAction {
+  /** Button label, e.g. "Try again" or "Reload page" */
+  label: string;
+  /** Registered icon name. Defaults to a refresh arrow. */
+  icon?: IconName;
+  onClick: () => void;
+}
+
+export interface ErrorStateProps {
+  /**
+   * What went wrong, written for a person to read.
+   *
+   * Never `err.message`: see the note above. If you find yourself without
+   * anything to say here, that is the question this component exists to
+   * force, not a reason to pass the error through.
+   */
+  message: string;
+  /** Heading above the message. Defaults to "Something went wrong". */
+  title?: string;
+  /** Backend error code, shown small so a support call can be traced. */
+  code?: string;
+  /** Optional recovery action. Omit when there is nothing useful to offer. */
+  action?: ErrorStateAction;
+  /**
+   * A second, lesser action beside the first, shown outlined. Only
+   * alongside `action`: a lone secondary action has nothing to defer to.
+   */
+  secondaryAction?: ErrorStateAction;
+  /**
+   * `page` replaces the view and is right for a crash or a view that cannot
+   * render at all. `inline` sits in the layout and is right for a section
+   * that failed to load, or a form submission that failed - blanking the page
+   * there would throw away whatever the user had typed.
+   */
+  variant?: "page" | "inline";
+}
+
+export default function ErrorState({
+  message,
+  title = "Something went wrong",
+  code,
+  action,
+  secondaryAction,
+  variant = "inline",
+}: ErrorStateProps) {
+  const inlineRef = useRef<HTMLDivElement>(null);
+
+  // Brought into view as it appears, to the middle of the screen. An
+  // inline error usually sits at the top of a form while the person is at
+  // its foot, having just pressed save, so it was there and unseen. Focus
+  // moves to it too, so a keyboard user carries on from the error rather
+  // than from the button. Again when the message changes, since a second
+  // failure is as easy to miss as the first.
+  useEffect(() => {
+    const element = inlineRef.current;
+    if (variant !== "inline" || !element) return;
+
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    element.scrollIntoView?.({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
+    });
+    element.focus({ preventScroll: true });
+  }, [variant, message]);
+
+  const card = (
+    <StateMessage
+      colour="alert"
+      icon={<IconAlertTriangle />}
+      title={title}
+      description={message}
+    >
+      {code ? (
+        <BodyTextInline c={statusTextColour("alert")}>Reference: {code}</BodyTextInline>
+      ) : null}
+      {action ? (
+        <Group gap="sm" mt="xs">
+          <IconTextButton
+            icon={action.icon ?? "refresh"}
+            label={action.label}
+            onClick={action.onClick}
+          />
+          {secondaryAction ? (
+            <IconTextButton
+              icon={secondaryAction.icon ?? "refresh"}
+              label={secondaryAction.label}
+              onClick={secondaryAction.onClick}
+              variant="outline"
+              // The card's own text colour, so the outline and label read
+              // on the alert red; the primary colour's did not.
+              color={statusTextColour("alert")}
+            />
+          ) : null}
+        </Group>
+      ) : null}
+    </StateMessage>
+  );
+
+  if (variant === "page") {
+    return (
+      <Center mih="60vh" data-testid="error-state">
+        <Box maw="36rem" w="100%">
+          {card}
+        </Box>
+      </Center>
+    );
+  }
+
+  // Announced as it appears: a section failing inside a page is easy to
+  // miss without it.
+  return (
+    <Box
+      ref={inlineRef}
+      className={classes.inline}
+      data-testid="error-state"
+      role="alert"
+      // Focusable only by script, so it can take focus as it appears
+      // without joining the tab order.
+      tabIndex={-1}
+    >
+      {card}
+    </Box>
+  );
+}
