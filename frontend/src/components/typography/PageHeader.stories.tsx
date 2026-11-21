@@ -2,9 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import PageHeader from "./PageHeader";
 import BodyText from "./BodyText";
 import { Box, Stack } from "@mantine/core";
-// Quill's AddButton and IconTextButton come in Phase 2 of the Quill
-// components plan; until then the actions are Mantine's plain Button.
-import { Button } from "@mantine/core";
+import AddButton from "@/components/button/AddButton";
+import IconTextButton from "@/components/button/IconTextButton";
 import { StoryNote } from "@/stories/variants";
 
 const meta = {
@@ -40,7 +39,7 @@ export const Default: Story = {
 export const WithAction: Story = {
   args: {
     title: "Users",
-    action: <Button>Add user</Button>,
+    action: <AddButton label="Add user" />,
   },
 };
 
@@ -51,7 +50,7 @@ export const WithAction: Story = {
 export const WithActionWrapped: Story = {
   args: {
     title: "Patient management",
-    action: <Button variant="outline">Their user account</Button>,
+    action: <IconTextButton icon="user" label="Their user account" />,
   },
   render: (args) => (
     <>
@@ -67,7 +66,7 @@ export const WithActionWrapped: Story = {
 export const WithCentredAction: Story = {
   args: {
     title: "Administration",
-    action: <Button variant="outline">Settings</Button>,
+    action: <IconTextButton icon="settings" label="Settings" />,
     actionAlign: "center",
   },
 };
@@ -77,7 +76,7 @@ export const WithSubtitle: Story = {
   args: {
     title: "Dr Jane Smith",
     subtitle: "At Oncology",
-    action: <Button variant="outline">Their user account</Button>,
+    action: <IconTextButton icon="user" label="Their user account" />,
   },
 };
 

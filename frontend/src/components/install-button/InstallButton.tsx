@@ -1,5 +1,4 @@
-import { Button } from "@mantine/core";
-
+import IconTextButton from "@/components/button/IconTextButton";
 import type { InstallPromptCapture } from "@/pwa/installPrompt";
 import { useInstallPrompt } from "@/pwa/useInstallPrompt";
 
@@ -22,9 +21,15 @@ export default function InstallButton({ capture }: InstallButtonProps) {
     return null;
   }
 
+  // Quill's IconTextButton, as an amber outline: a filled navy button would
+  // vanish on the navy ribbon, and amber on navy is about 6.6:1.
   return (
-    <Button variant="white" onClick={() => void install()}>
-      Install Juttu
-    </Button>
+    <IconTextButton
+      icon="download"
+      label="Install Juttu"
+      variant="outline"
+      color="secondary"
+      onClick={() => void install()}
+    />
   );
 }

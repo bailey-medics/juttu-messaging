@@ -20,6 +20,12 @@ the components it brings, such as cards, icons, buttons and the spinner.
   has exactly one, and it is the page's only `h1` and its browser-tab
   title. Section headings within a page use **`<Heading>`**, always an
   `h2`.
+- **Wrap every Tabler icon in `<Icon>`**, from `components/icons/Icon.tsx`:
+  `<Icon icon={<IconPencil />} />`, never `<IconPencil />` on its own.
+  Import icons only from `components/icons/appIcons.ts`, and register a
+  new icon there first, in the re-export and in `iconCatalogue`.
+- **An icon-only button is `IconButton`**, which needs an accessible name
+  (`aria-label`) to compile.
 - **Every new component has a `.stories.tsx` and a `.test.tsx` beside
   it.** `src/stories.test.tsx` finds and renders every story by itself.
 
@@ -42,6 +48,16 @@ the components it brings, such as cards, icons, buttons and the spinner.
   widths and font sizes. Breakpoints use `em`, through the theme.
 - **Responsive**: use `theme.breakpoints.sm` (`40em`, 640px) for the
   phone and desktop split, through `useMediaQuery`.
+- **Button layout**:
+  - Use `ButtonPair` or `ButtonPairRed` for a pair of actions (submit and
+    cancel, confirm and dismiss). They sit right-aligned on a desktop and
+    stack full width on a phone.
+  - Wrap a button on its own in `<Group justify="flex-end">`, so it sits
+    on the right.
+  - A page's header action, such as an `AddButton`, goes in
+    `PageHeader`'s `action` prop, never in a hand-built
+    `<Group justify="space-between">`. Pass `actionAlign="center"` for
+    something shorter than the title, such as a badge.
 - **A disabled control keeps the ordinary pointer.** Never give one
   `cursor: not-allowed`. `src/styles/disabled-controls.css` overrides
   Mantine's default for every Mantine control. Something in progress is

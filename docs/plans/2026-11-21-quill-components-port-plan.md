@@ -26,9 +26,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 2: Icons, buttons and tooltips
 
-- [ ] Add `@tabler/icons-react`, Quill's icon set, and port `components/icons/`: the `Icon` wrapper every icon goes through, `appIcons.tsx` as the one register of icons Juttu uses, and `NavIcon`, `PassIcon` and `FailIcon`. Leave out `PublicNavIcon`. Port `AppTooltip` from `components/tooltip/`.
+- [x] Add `@tabler/icons-react`, Quill's icon set, and port `components/icons/`: the `Icon` wrapper every icon goes through, `appIcons.tsx` as the one register of icons Juttu uses, and `NavIcon`, `PassIcon` and `FailIcon`. Leave out `PublicNavIcon`. Port `AppTooltip` from `components/tooltip/`.
 
-- [ ] Port Quill's buttons from `components/button/`: `ButtonPair`, `ButtonPairRed`, `AddButton`, `IconButton`, `IconTextButton`, `SearchButton`, `ExtraButton`, `BurgerButton`, `PreviousNextButton` and `ActionCardButton`, with their stories and tests. Leave out `PublicButton`. Rebuild `InstallButton` on `IconTextButton`. Port the button half of Quill's `styles/touch-targets.test.tsx` and `styles/disabled-controls.test.tsx`, which hold Juttu's touch-target and disabled-pointer stylesheets to their word; the form half comes in Phase 5. Add the icon and button rules to `.claude/rules/components.md`.
+- [x] Port Quill's buttons from `components/button/`: `ButtonPair`, `ButtonPairRed`, `AddButton`, `IconButton`, `IconTextButton`, `SearchButton`, `ExtraButton`, `BurgerButton`, `PreviousNextButton` and `ActionCardButton`, with their stories and tests. Leave out `PublicButton`. Rebuild `InstallButton` on `IconTextButton`. Port the button half of Quill's `styles/touch-targets.test.tsx` and `styles/disabled-controls.test.tsx`, which hold Juttu's touch-target and disabled-pointer stylesheets to their word; the form half comes in Phase 5. Add the icon and button rules to `.claude/rules/components.md`.
 
 ## Phase 3: Cards, badges and status
 
@@ -93,3 +93,5 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **Every story is found and rendered by itself** - `src/stories.test.tsx` finds every `*.stories.tsx` with `import.meta.glob`, instead of a list kept by hand, and Storybook wraps every story in a memory router, as Quill's does.
 
 - **The home page's title is "Home"** - `PageHeader` sets the browser tab's title too, so a home page titled "Juttu" would read "Juttu - Juttu". The ribbon already shows the name.
+
+- **Phase 2 brought two of Phase 3's helpers early** - Quill's `PassIcon` and `FailIcon` read `components/badge/badgeColours.ts`, and Quill's colour tables live in `styles/semanticColours.ts`, so both came across in Phase 2, unchanged. The icon catalogue story draws its tiles with Mantine's `Paper` until Phase 3 brings `BaseCard`.

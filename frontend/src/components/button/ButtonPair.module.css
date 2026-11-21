@@ -1,0 +1,25 @@
+.group {
+  flex-direction: column;
+}
+
+.group > button {
+  width: 100%;
+}
+
+@media (width >= 40em) {
+  .group {
+    flex-direction: row;
+  }
+
+  .group > button {
+    width: auto;
+  }
+}
+
+.fullWidth {
+  flex-direction: column;
+}
+
+.fullWidth > button {
+  width: 100%;
+}
