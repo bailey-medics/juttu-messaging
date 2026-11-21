@@ -12,18 +12,20 @@ import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import connection, transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 from pywebpush import WebPushException, webpush  # type: ignore[import-untyped]
 
 from app.accounts.models import User
 from app.audit.models import AuditAction
 from app.audit.record import record
 from app.config import PushKeys
-from app.conversations.models import ConversationKind, Message
-from app.push.models import PushSubscription
+from app.conversations.models import Conversation, ConversationKind, Message
+from app.push.models import Looking, PushSubscription
 from app.spaces.services import members_of
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,10 @@ TIME_TO_LIVE_SECONDS = 12 * 60 * 60
 
 #: How long to wait for a push service to answer.
 TIMEOUT_SECONDS = 10
+
+#: How long a "looking at this conversation" mark lasts. The page renews it
+#: every half minute while it is on screen.
+LOOKING_SECONDS = 60
 
 #: The answers a push service gives for a subscription that has gone.
 GONE = frozenset({404, 410})
@@ -104,10 +110,39 @@ def forget(user: User, endpoint: str) -> None:
     )
 
 
+def looking(user: User, conversation: Conversation, *, now: bool) -> None:
+    """Mark *user* as looking at *conversation* for a minute, or not at all.
+
+    Not audited: it changes nothing anybody reads, and lapses by itself.
+    """
+    if not now:
+        Looking.objects.filter(user=user, conversation=conversation).delete()
+        return
+
+    Looking.objects.update_or_create(
+        user=user,
+        conversation=conversation,
+        defaults={
+            "until": timezone.now() + timedelta(seconds=LOOKING_SECONDS)
+        },
+    )
+
+
 def recipients(message: Message) -> QuerySet[User]:
-    """Everybody who may read *message*, except the person who wrote it."""
+    """Everybody who may read *message* and is not looking at it already.
+
+    The person who wrote it is left out, and so is anybody with the
+    conversation on screen now, who sees the message arrive live.
+    """
     conversation = message.conversation
-    people = members_of(conversation.space).exclude(pk=message.author_id)
+    watching = Looking.objects.filter(
+        conversation=conversation, until__gt=timezone.now()
+    ).values("user_id")
+    people = (
+        members_of(conversation.space)
+        .exclude(pk=message.author_id)
+        .exclude(pk__in=watching)
+    )
 
     if conversation.kind == ConversationKind.DIRECT:
         people = people.filter(

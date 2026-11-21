@@ -11,10 +11,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.conversations.views import caller
+from app.conversations.views import caller, readable_conversation
 from app.push.models import PushSubscription
-from app.push.serializers import EndpointSerializer, SubscriptionSerializer
-from app.push.services import forget, subscribe
+from app.push.serializers import (
+    EndpointSerializer,
+    LookingSerializer,
+    SubscriptionSerializer,
+)
+from app.push.services import forget, looking, subscribe
 
 
 class PushKeyView(APIView):
@@ -61,5 +65,26 @@ class RemoveSubscriptionView(APIView):
         serializer.is_valid(raise_exception=True)
 
         forget(user, serializer.validated_data["endpoint"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class LookingView(APIView):
+    """``POST`` says the caller has a conversation on screen, or not.
+
+    A conversation they cannot read answers 404, as one that does not exist
+    would.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = caller(request)
+        serializer = LookingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        conversation = readable_conversation(user, data["conversation"])
+
+        looking(user, conversation, now=data["looking"])
 
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -1,7 +1,8 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import HomePage from "@/pages/HomePage";
-import { stubFetchJson } from "@/test/render";
+import { stubFetchJson, stubFetchRoutes } from "@/test/render";
 import { renderWithRouter } from "@/test/test-utils";
 
 describe("HomePage", () => {
@@ -31,5 +32,55 @@ describe("HomePage", () => {
     renderWithRouter(<HomePage />);
 
     expect(screen.getByText("Checking")).toBeInTheDocument();
+  });
+
+  it("says when this browser cannot show notifications", async () => {
+    stubFetchJson({ status: "ok" });
+
+    renderWithRouter(<HomePage />);
+
+    expect(
+      await screen.findByText("This browser cannot show notifications.", { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("turns notifications on for this device", async () => {
+    const subscription = {
+      endpoint: "https://fcm.googleapis.com/fcm/send/abc",
+      toJSON: () => ({
+        endpoint: "https://fcm.googleapis.com/fcm/send/abc",
+        keys: { p256dh: "BKey", auth: "secret" },
+      }),
+    };
+    const pushManager = {
+      getSubscription: vi.fn(async () => null),
+      subscribe: vi.fn(async () => subscription),
+    };
+    vi.stubGlobal("PushManager", class {});
+    vi.stubGlobal("Notification", {
+      permission: "default",
+      requestPermission: vi.fn(async () => "granted"),
+    });
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: { ready: Promise.resolve({ pushManager }) },
+    });
+    stubFetchRoutes({
+      "/api/health": { body: { status: "ok" } },
+      "/api/push/key": { body: { public_key: "AQID" } },
+      "POST /api/push/subscriptions": { body: { count: 1 }, status: 201 },
+    });
+
+    renderWithRouter(<HomePage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Enable notifications" }));
+
+    expect(
+      await screen.findByText("This device gets a notification when a message arrives."),
+    ).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/push/subscriptions",
+      expect.objectContaining({ method: "POST" }),
+    );
+    Reflect.deleteProperty(navigator, "serviceWorker");
   });
 });

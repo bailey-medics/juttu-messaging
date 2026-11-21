@@ -15,6 +15,16 @@ function ShowState() {
   );
 }
 
+function SignOutButton() {
+  const { signOut } = useAuth();
+
+  return (
+    <button type="button" onClick={() => void signOut()}>
+      Sign out
+    </button>
+  );
+}
+
 function renderProvider() {
   return render(
     <AuthProvider>
@@ -74,5 +84,44 @@ describe("AuthProvider", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => render(<ShowState />)).toThrow("useAuth must be used inside AuthProvider");
+  });
+
+  it("forgets this device's notifications before signing out", async () => {
+    const endpoint = "https://fcm.googleapis.com/fcm/send/abc";
+    const unsubscribe = vi.fn(async () => true);
+    vi.stubGlobal("Notification", { permission: "granted" });
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          pushManager: { getSubscription: async () => ({ endpoint, unsubscribe }) },
+        }),
+      },
+    });
+    stubFetchRoutes({
+      "/api/auth/me": { body: SIGNED_IN },
+      "POST /api/push/subscriptions/remove": { body: null, status: 204 },
+      "POST /api/auth/sign-out": { body: null, status: 204 },
+    });
+    render(
+      <AuthProvider>
+        <ShowState />
+        <SignOutButton />
+      </AuthProvider>,
+    );
+    await screen.findByText("signed in as sam");
+
+    await act(async () => {
+      screen.getByRole("button", { name: "Sign out" }).click();
+    });
+
+    expect(await screen.findByText("unauthenticated")).toBeInTheDocument();
+    const posted = vi
+      .mocked(fetch)
+      .mock.calls.map(([url]) => url)
+      .filter((url) => url !== "/api/auth/me");
+    expect(posted).toEqual(["/api/push/subscriptions/remove", "/api/auth/sign-out"]);
+    expect(unsubscribe).toHaveBeenCalled();
+    Reflect.deleteProperty(navigator, "serviceWorker");
   });
 });

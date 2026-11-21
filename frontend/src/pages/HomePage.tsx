@@ -4,11 +4,38 @@ import { useEffect, useState } from "react";
 import { checkHealth } from "@/api/health";
 import BaseCard from "@/components/base-card/BaseCard";
 import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
+import { NotificationsCard } from "@/components/notifications";
 import { BodyText, PageHeader } from "@/components/typography";
+import { browserPush, enablePush, pushState, type PushState } from "@/pwa/push";
 
-/** The first page: says what Juttu is, and whether its backend is up. */
+/**
+ * The first page: says what Juttu is, whether its backend is up, and
+ * whether this device shows notifications.
+ */
 export default function HomePage() {
   const [state, setState] = useState<HealthState>("checking");
+  const [push, setPush] = useState<PushState | "checking">("checking");
+  const [enabling, setEnabling] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    pushState(browserPush)
+      .then(setPush)
+      .catch(() => setPush("unsupported"));
+  }, []);
+
+  async function enable() {
+    setEnabling(true);
+    setFailed(false);
+
+    try {
+      setPush(await enablePush(browserPush));
+    } catch {
+      setFailed(true);
+    } finally {
+      setEnabling(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,6 +56,12 @@ export default function HomePage() {
       <BaseCard>
         <HealthStatus state={state} />
       </BaseCard>
+      <NotificationsCard
+        state={push}
+        busy={enabling}
+        failed={failed}
+        onEnable={() => void enable()}
+      />
     </Stack>
   );
 }

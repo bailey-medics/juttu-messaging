@@ -3,6 +3,7 @@
 from django.urls import URLPattern, path
 
 from app.push.views import (
+    LookingView,
     PushKeyView,
     RemoveSubscriptionView,
     SubscriptionsView,
@@ -10,6 +11,7 @@ from app.push.views import (
 
 urlpatterns: list[URLPattern] = [
     path("key", PushKeyView.as_view(), name="push-key"),
+    path("looking", LookingView.as_view(), name="push-looking"),
     path(
         "subscriptions", SubscriptionsView.as_view(), name="push-subscriptions"
     ),

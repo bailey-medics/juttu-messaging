@@ -5,7 +5,8 @@
  *
  * Ported from Quill Medical's. The rules for what may come from the cache
  * live in `src/pwa/cachingRules.ts`, with their tests; this file only wires
- * them to Workbox. Push notifications arrive in a later phase.
+ * them to Workbox. What a push shows, and where tapping it goes, live in
+ * `src/pwa/pushMessages.ts`, with their tests.
  */
 
 import { clientsClaim } from "workbox-core";
@@ -14,6 +15,7 @@ import { registerRoute } from "workbox-routing";
 import { NetworkOnly } from "workbox-strategies";
 
 import { cachingRuleFor, OFFLINE_PAGE, type RequestFacts } from "@/pwa/cachingRules";
+import { notificationFor, openIn, urlOf } from "@/pwa/pushMessages";
 
 declare let self: ServiceWorkerGlobalScope;
 
@@ -59,4 +61,36 @@ self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") {
     void self.skipWaiting();
   }
+});
+
+// A push from the backend: show it. The backend sends none to somebody
+// looking at the conversation, so every push is shown.
+self.addEventListener("push", (event) => {
+  let payload: unknown = null;
+  try {
+    payload = event.data?.json();
+  } catch {
+    // Shown as a plain "Juttu" notification below.
+  }
+
+  const { title, options } = notificationFor(payload, "/android-chrome-192x192.png");
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Tapping a notification opens its conversation, in the app if it is open.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windows) =>
+        openIn(
+          urlOf(event.notification.data),
+          windows,
+          (url) => self.clients.openWindow(url),
+          self.location.origin,
+        ),
+      ),
+  );
 });

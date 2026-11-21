@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getSession, signIn as apiSignIn, signOut as apiSignOut } from "@/api/auth";
+import { browserPush, disablePush } from "@/pwa/push";
 
 import { AuthContext, type AuthState, type AuthContextValue } from "./AuthContext";
 
@@ -46,6 +47,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {
+    // While the session still lets the server be told, so the next person
+    // on this device is not sent this person's notifications.
+    await disablePush(browserPush);
     await apiSignOut();
 
     setState({ status: "unauthenticated", signedOut: true });

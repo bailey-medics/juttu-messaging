@@ -29,3 +29,35 @@ class PushSubscription(models.Model):
 
     def __str__(self) -> str:
         return f"Push subscription {self.pk} for user {self.user_id}"
+
+
+class Looking(models.Model):
+    """Somebody has a conversation open, and on screen, until a time.
+
+    The conversation page says so every half minute while it is visible,
+    and the mark lapses a minute later, so a phone that was closed or put
+    away stops counting without having to say so. Nobody is sent a push
+    about a conversation they are looking at.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    conversation = models.ForeignKey(
+        "conversations.Conversation",
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    until = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "conversation"], name="push_looking_once"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"User {self.user_id} looking at {self.conversation_id}"

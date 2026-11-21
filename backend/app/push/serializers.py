@@ -43,6 +43,13 @@ class SubscriptionSerializer(serializers.Serializer[dict[str, Any]]):
     keys = KeysSerializer()
 
 
+class LookingSerializer(serializers.Serializer[dict[str, Any]]):
+    """Which conversation the person has on screen, or has put away."""
+
+    conversation = serializers.IntegerField(min_value=1)
+    looking = serializers.BooleanField()
+
+
 class EndpointSerializer(serializers.Serializer[dict[str, Any]]):
     """The subscription to forget, named by its endpoint."""
 

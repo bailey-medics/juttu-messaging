@@ -16,6 +16,7 @@ import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
 import { PageHeader } from "@/components/typography";
 import { useLiveMessages } from "@/live/LiveContext";
+import { useLooking } from "@/live/useLooking";
 
 import { apiFailure } from "./apiFailure";
 
@@ -129,6 +130,9 @@ export default function ConversationPage() {
       current.map((m) => (m.id === sent.thread ? { ...m, reply_count: m.reply_count + 1 } : m)),
     );
   }, []);
+
+  // Nobody is sent a push about the conversation they are looking at.
+  useLooking(id);
 
   useLiveMessages(({ conversation, message }) => {
     if (conversation !== id) {

@@ -4,6 +4,7 @@ import base64
 import json
 import threading
 from collections.abc import Callable
+from datetime import timedelta
 from io import StringIO
 from types import SimpleNamespace
 
@@ -11,6 +12,7 @@ import pytest
 from django.core.management import call_command
 from django.db import connection
 from django.test import Client, override_settings
+from django.utils import timezone
 from py_vapid import Vapid  # type: ignore[import-untyped]
 from pytest_django.fixtures import Settings as DjangoSettings
 from pywebpush import WebPushException  # type: ignore[import-untyped]
@@ -28,7 +30,7 @@ from app.organisations.services import (
 from app.push import services
 from app.push.endpoints import is_push_endpoint
 from app.push.management.commands.generate_push_keys import key_pair
-from app.push.models import PushSubscription
+from app.push.models import Looking, PushSubscription
 from app.push.services import Push, deliver, forget, push_for, subscribe
 from app.spaces.models import Space
 from app.spaces.services import add_to_space, create_space, remove_from_space
@@ -526,3 +528,100 @@ class TestKeys:
             "JUTTU_BOX_VAPID_PUBLIC_KEY",
             "JUTTU_BOX_VAPID_PRIVATE_KEY",
         ]
+
+
+class TestLooking:
+    @pytest.fixture(autouse=True)
+    def push_on(self, settings: DjangoSettings) -> None:
+        settings.PUSH_KEYS = KEYS
+
+    def say(self, user: User, conversation: int, looking: bool) -> int:
+        response = signed_in(user).post(
+            "/api/push/looking",
+            {"conversation": conversation, "looking": looking},
+            content_type="application/json",
+        )
+
+        return response.status_code
+
+    def test_nobody_looking_at_the_conversation_is_sent_a_push(
+        self,
+        sent: Sent,
+        sam: User,
+        alex: User,
+        priya: User,
+        general: Conversation,
+    ) -> None:
+        for user in (alex, priya):
+            subscribe(user, endpoint(user.username), P256DH, AUTH)
+
+        assert self.say(alex, general.pk, True) == 204
+        deliver(post(general, "Hello", by=sam).pk)
+
+        assert [address for address, _ in sent] == [endpoint("priya")]
+
+    def test_putting_it_away_means_pushes_again(
+        self, sent: Sent, sam: User, alex: User, general: Conversation
+    ) -> None:
+        subscribe(alex, endpoint("alex"), P256DH, AUTH)
+        self.say(alex, general.pk, True)
+
+        assert self.say(alex, general.pk, False) == 204
+        deliver(post(general, "Hello", by=sam).pk)
+
+        assert [address for address, _ in sent] == [endpoint("alex")]
+
+    def test_the_mark_lapses_after_a_minute(
+        self, sent: Sent, sam: User, alex: User, general: Conversation
+    ) -> None:
+        subscribe(alex, endpoint("alex"), P256DH, AUTH)
+        self.say(alex, general.pk, True)
+        Looking.objects.update(until=timezone.now() - timedelta(seconds=1))
+
+        deliver(post(general, "Hello", by=sam).pk)
+
+        assert [address for address, _ in sent] == [endpoint("alex")]
+
+    def test_looking_elsewhere_still_pushes(
+        self,
+        sent: Sent,
+        sam: User,
+        alex: User,
+        release: Space,
+        general: Conversation,
+    ) -> None:
+        subscribe(alex, endpoint("alex"), P256DH, AUTH)
+        other = start_channel(release, "random", by=sam)
+        self.say(alex, other.pk, True)
+
+        deliver(post(general, "Hello", by=sam).pk)
+
+        assert [address for address, _ in sent] == [endpoint("alex")]
+
+    def test_the_mark_is_renewed_not_repeated(
+        self, alex: User, general: Conversation
+    ) -> None:
+        self.say(alex, general.pk, True)
+        self.say(alex, general.pk, True)
+
+        mark = Looking.objects.get()
+        assert mark.until > timezone.now() + timedelta(seconds=50)
+
+    def test_a_conversation_the_person_cannot_read_answers_not_found(
+        self, sam: User, release: Space, priya: User, alex: User
+    ) -> None:
+        direct = start_direct(release, [alex], by=sam)
+
+        assert self.say(priya, direct.pk, True) == 404
+        assert Looking.objects.count() == 0
+
+    def test_somebody_signed_out_cannot_say_so(
+        self, client: Client, general: Conversation
+    ) -> None:
+        response = client.post(
+            "/api/push/looking",
+            {"conversation": general.pk, "looking": True},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 403
