@@ -47,6 +47,16 @@ These steps are done once, on the dev box, by a person.
    `https://<the box's private network name>:8290/api/health`. It answers
    `{"status":"ok"}`.
 
+5. Make the first account, once, typing its username and a password of
+   at least fifteen characters:
+
+   ```sh
+   just box-first-account
+   ```
+
+   Nothing is seeded and there is no default password. It refuses once
+   any account exists: every later account comes from an invite.
+
 ## Deploy the latest main
 
 ```sh

@@ -38,7 +38,7 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 - [x] **Who is an organisation admin in the first version?** - All four developers. There is no bottleneck, and the admin-only rule limits nothing until the team grows; it is there for the organisations that come later. Answered in `/t-g`, 21 November 2026.
 
-- [x] **How is each phase planned in detail?** - With `/t-p`. This plan is the map; each phase gets its own plan, written with `/t-p` before it is built and broken into steps that each fit one pull request. `/t-f` runs those plans, not this one. Answered in `/t-g`, 21 November 2026.
+- [x] **How is each phase planned in detail?** - With `/t-p`. This plan is the map; each phase gets its own plan, written with `/t-p` before it is built and broken into steps that each fit one pull request. `/t-f` runs those plans, not this one. Answered in `/t-g`, 21 November 2026. Replaced: see "Does `/t-f` run this plan directly?" below.
 
 - [x] **Which things get a living card in the first version (Phases 21 and 22, numbered 5 when asked)?** - Not fixed up front. Cards are modular: each kind of card is its own module, added when the team needs it, and what a kind shows and when it notifies is decided then. Mark: "we need to be modular as the project grows". Answered in `/t-g`, 21 November 2026.
 
@@ -52,23 +52,36 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 - [x] **Where does the first version run?** - On the dev box, in Docker, reached over the team's private network, which the team already has. Mark: build and test locally "before I do all of the leg work of hosting on an external server". Renting a server and choosing a domain move to the external hosting work at the end. This replaces the earlier answer that left them as jobs before the build. Answered 21 November 2026.
 
-- [ ] **How do live messages reach the app (Phase 18)?** Server-sent events are simpler and pass through proxies easily; a WebSocket carries traffic both ways and suits typing indicators later. Blocks Phase 18 only.
+- [x] **How do live messages reach the app (Phase 18)?** Server-sent events are simpler and pass through proxies easily; a WebSocket carries traffic both ways and suits typing indicators later. Blocks Phase 18 only. - Server-sent events, with Gunicorn moved to its threaded workers. The backend ran two synchronous workers, and each open live connection holds a worker for as long as the tab is open, so two tabs would have stalled it; a threaded worker gives each connection a thread instead. WebSockets would have meant ASGI, Django Channels and probably Redis. Typing indicators, if wanted later, are a second step. Answered in `/t-g`, 21 November 2026.
 
-- [ ] **Which kind of card is built first (Phase 22)?** Cards are modular and each kind is decided as needed, so the first is named when the team reaches it. Blocks Phase 22 only.
+- [x] **Which kind of card is built first (Phase 22)?** Cards are modular and each kind is decided as needed, so the first is named when the team reaches it. Blocks Phase 22 only. - A CI run: one card per pipeline run on a branch or pull request, showing running, passed or failed, and notifying only on a failure. Answered in `/t-g`, 21 November 2026.
+- [x] **Which layer encrypts messages on disk (Phase 14)?** - The disk or the Postgres volume, encrypted by the box's operating system. Juttu's code handles no keys, so search and agents work as normal. Each stored message still carries its format version and a field naming how its body is protected, at first "none at application level", so a space can move to stronger protection later. Answered in `/t-g`, 21 November 2026.
+- [x] **How is the first account made (Phase 8)?** Invites arrive only in Phase 12, and need an admin to send them. - A `just` recipe runs a Django management command that asks for a username and password and makes that person an organisation admin. Nothing is seeded in code and there is no default password; it is run once per environment. Answered in `/t-g`, 21 November 2026.
+- [x] **How do CI events reach the inlet (Phase 22)?** The dev box is on the team's private network, so GitHub cannot send it a webhook. - A small sender on the box asks GitHub's API for recent runs every minute or so and posts each change to the inlet, with its own inlet secret like any other sender. Outbound only: nothing on the box is exposed. It reads with a read-only GitHub token kept in the box's environment file. Answered in `/t-g`, 21 November 2026.
+- [x] **How does an invite reach the person (Phase 12)?** - By email, through Amazon SES in London, ported from Quill Medical's sending code with its `EMAIL_FROM` setting and its allow-list of recipients for development. It sends from an address on the domain Quill already has verified in SES, in Quill's development email account, and moves to Juttu's own domain when one is bought. Answered in `/t-g`, 21 November 2026.
+- [x] **Where do the vision plan's pull requests go?** - On top of the Phase 8 pull request of the components work, #21, the one still open: Mark merged #1 to #20 on 21 November 2026. A new stack key names the new area. Answered in `/t-g`, 21 November 2026.
+- [x] **Does `/t-f` run this plan directly?** An earlier answer said each phase gets its own `/t-p` plan first; a later one said the phases are now small enough to build from. - `/t-f` runs this plan directly, one pull request per phase, researching and logging decisions as it goes. The earlier answer is kept above, marked as replaced. Answered in `/t-g`, 21 November 2026.
+- [x] **What does the possible-offence check do in a clinical space (Phase 30)?** Neither an on-device nor an in-house model exists in the first version. - It does not run there. The check runs only in non-clinical spaces, through the hosted model, and a clinical space's settings say plainly that it is off, until an on-device or in-house model exists. Nothing from a clinical space ever reaches an outside service. Answered in `/t-g`, 21 November 2026.
 
 ## Before running /f
 
 - [x] Set up branch protection and required checks on the repository - Not now. Mark: "we are building fast, and I am the only dev (with you)". Every phase still lands through a pull request; protection is added when a second developer joins. Decided 21 November 2026.
 - [x] Switch on HTTPS certificates for the dev box - Moved to the skeleton plan, where Phase 7 needs it. 21 November 2026.
+- [ ] In Quill's development AWS email account, make an AWS user that may send from an address on Quill's verified domain in SES in London (eu-west-2) and nothing else. Put its key in the dev box's environment file as `SES_ACCESS_KEY_ID` and `SES_SECRET_ACCESS_KEY`, with `EMAIL_FROM` set to the sending address and `EMAIL_ALLOWED_RECIPIENTS` set to the four developers' addresses. Never in the repository. Needed from Phase 12.
+- [ ] Make a read-only GitHub token for `bailey-medics/juttu-messaging` that can read Actions runs, and put it in the dev box's environment file. Never in the repository. Needed from Phase 22.
+- [ ] Once Phase 19 has landed, run its recipe on the dev box to generate the Web Push signing keys into the box's environment file. Phase 19's own tests use throwaway keys, so this does not block the run.
+- [ ] Check the dev box's disk, or the volume Postgres keeps its data on, is encrypted by the operating system, and turn encryption on if it is not. Needed from Phase 14, when messages are stored.
 - [ ] Create an API key for the hosted model and put it in the dev box's environment file, never in the repository. Needed from Phase 26.
 
 ## Phases 1 to 7: Skeleton
 
-- [ ] Built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md): repository basics, backend, database, frontend, the PWA shell, the dev stack and pipeline, and the copy on the dev box. Split out on 21 November 2026 so building could start; the phases below keep their numbers so the references to them stay right.
+- [x] Built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md): repository basics, backend, database, frontend, the PWA shell, the dev stack and pipeline, and the copy on the dev box. Split out on 21 November 2026 so building could start; the phases below keep their numbers so the references to them stay right.
 
 ## Phase 8: Accounts and sign-in, backend
 
-- [ ] Port the user model, password hashing, cookie sessions and the CSRF check from Quill Medical, with sign-in, sign-out and "who am I" endpoints. Every endpoint makes an explicit authorisation decision, and a test fails if a new endpoint is added without one. Port the rate limit on sign-in.
+- [x] Port the user model, password hashing, cookie sessions and the CSRF check from Quill Medical, with sign-in, sign-out and "who am I" endpoints. Every endpoint makes an explicit authorisation decision, and a test fails if a new endpoint is added without one. Port the rate limit on sign-in. Add a management command, run by a `just` recipe, that asks for a username and password and makes the first account; it becomes an organisation admin once Phase 11 adds organisations. Nothing is seeded and there is no default password.
+
+- [x] Found while building: Quill Medical's backend is FastAPI, so its design came across in the Django form Turva already gives it. Django supplies Argon2 hashing, sessions in Postgres and the CSRF check; `app/accounts` holds a username-only `User`, `GET /api/auth/me`, `POST /api/auth/sign-in` and `POST /api/auth/sign-out`, and `app/endpoints_test.py` fails when a route's view does not state its own `permission_classes`. The cookies are named `juttu_session` and `juttu_csrftoken`, because cookies on localhost ignore the port and Quill's and Turva's stacks run on the same machine. Passwords need fifteen characters, as NIST SP 800-63B-4 asks where a password is the only factor. The rate limit keeps its count in Postgres, not in memory, so both Gunicorn workers share it, and the sign-in view runs outside the per-request transaction so a failed attempt's count is not rolled back. It reads the client's address from the last `X-Forwarded-For` entry, the one Caddy writes. Behind the private network's HTTPS proxy on the dev box every phone arrives from the proxy's address, so the team shares one limit of five a minute there; trusting that proxy in the box's Caddy would make it per person. `just first-account` and `just box-first-account` refuse once any account exists. The mypy hook now installs `psycopg`, which Django loads once a model exists.
 
 ## Phase 9: Sign-in, frontend
 
@@ -84,7 +97,7 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 12: Members and admins
 
-- [ ] An organisation admin can invite a person, remove one and make another member an admin. All four developers are admins in the first version. Backend, a small admin screen, and tests that a non-admin is refused.
+- [ ] An organisation admin can invite a person, remove one and make another member an admin. An invite is a single-use link that expires, emailed through Amazon SES, with Quill Medical's sending code, its `EMAIL_FROM` setting and its allow-list of recipients for development ported. Tests never reach SES. All four developers are admins in the first version. Backend, a small admin screen, and tests that a non-admin is refused.
 
 ## Phase 13: Spaces
 
@@ -94,7 +107,7 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 - [ ] Channels and direct messages are both conversations in a space. Messages are append-only, as in Quill Medical: nothing is edited in place, and a correction is a new message that amends the old one.
 
-- [ ] Messages are encrypted in transit and on disk, and readable by the server. The stored message carries a format version and a field naming how its body is protected, so a space can move to end-to-end encryption later without a new table.
+- [ ] Messages are encrypted in transit and on disk, and readable by the server. On disk, the box's operating system encrypts the disk or the Postgres volume; Juttu's code handles no keys. The stored message carries a format version and a field naming how its body is protected, at first "none at application level", so a space can move to end-to-end encryption later without a new table.
 
 - [ ] Access is checked on the server for every read and every post, with tests that one member cannot reach another's conversation by guessing its identifier. Conversations are listed with a query that filters in the database, not after loading them all, which is the fault in Quill Medical's version.
 
@@ -112,7 +125,7 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 18: Live delivery
 
-- [ ] A new message reaches every open app at once, without a refresh, by the transport chosen in the open questions. The app reconnects by itself and fetches what it missed. Tests for delivery, for reconnection, and that a non-member receives nothing.
+- [ ] A new message reaches every open app at once, without a refresh, by server-sent events, with Gunicorn moved to its threaded workers in the prod image and the box copy, so an open connection holds a thread rather than a whole worker. The app reconnects by itself and fetches what it missed. Tests for delivery, for reconnection, and that a non-member receives nothing.
 
 ## Phase 19: Push notifications
 
@@ -128,9 +141,9 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 22: Event inlet and the first kind of card
 
-- [ ] An inlet that accepts events from outside tools, each sender with its own secret and every event checked against it. An event never becomes a message: it finds or creates its card and updates it.
+- [ ] An inlet that accepts events from outside tools, each sender with its own secret and every event checked against it. CI events come from a small sender on the box that asks GitHub's API for recent runs every minute or so, with a read-only token, and posts each change to the inlet; nothing on the box is exposed to the internet. An event never becomes a message: it finds or creates its card and updates it.
 
-- [ ] The first real kind of card, named in the open questions. A card notifies only when it needs somebody; a passing build is silent.
+- [ ] The first real kind of card: a CI run, one card per pipeline run on a branch or pull request, showing running, passed or failed. A card notifies only when it needs somebody: a failed run notifies, a passing one is silent.
 
 ## Phase 23: Agent identity and permissions
 
@@ -164,7 +177,7 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 30: Pre-send check, possible offence
 
-- [ ] A model judges tone towards a person, not vocabulary: clinical talk is full of blunt words that a general filter would flag all day. It starts with high-confidence cases only and is honed on the developer team before any clinician sees it.
+- [ ] A model judges tone towards a person, not vocabulary. It runs only in non-clinical spaces; in a clinical space it is off, and the space's settings say so, until an on-device or in-house model exists: clinical talk is full of blunt words that a general filter would flag all day. It starts with high-confidence cases only and is honed on the developer team before any clinician sees it.
 
 - [ ] A draft is never sent to an outside AI service once patient data is in play: asking an outside service whether text contains patient details would itself leak them. The check then runs on the device or on the organisation's own model.
 

@@ -154,3 +154,10 @@ calls() {
 
 	[ "$status" -eq 2 ]
 }
+
+@test "first-account makes the first account in the running copy" {
+	box first-account
+
+	[ "$status" -eq 0 ]
+	[[ "$(calls)" == *"-p juttu-box "*" exec backend python manage.py create_first_account" ]]
+}

@@ -80,3 +80,11 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"./s/box deploy"* ]]
 }
+
+@test "just first-account and box-first-account reach their scripts" {
+	run just --dry-run first-account
+	[[ "$output" == *"./s/first-account"* ]]
+
+	run just --dry-run box-first-account
+	[[ "$output" == *"./s/box first-account"* ]]
+}

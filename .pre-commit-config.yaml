@@ -116,6 +116,9 @@ repos:
           - django-stubs-ext==6.1.2
           - djangorestframework==3.18.3
           - djangorestframework-stubs==3.18.2
+          # Django loads its Postgres backend once a model is defined.
+          - psycopg==3.3.9
+          - psycopg-binary==3.3.9
           - pydantic==2.14.3
           - pydantic-settings==2.16.3
           - pytest==9.2.0

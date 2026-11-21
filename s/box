@@ -6,6 +6,8 @@
 #   s/box status          what is running, and which commit it is
 #   s/box logs [service]  follow the logs
 #   s/box down            stop it, keeping its database
+#   s/box first-account   make the first account, asking for its username
+#                         and password; refused once any account exists
 #
 # It builds from an export of the commit into local/box-build/, never from
 # this working tree, so what runs is exactly what was merged. Its settings
@@ -19,7 +21,7 @@ env_file="${local_dir}/box.env"
 build_dir="${local_dir}/box-build"
 
 usage() {
-	echo "Usage: s/box deploy [ref] | status | logs [service] | down" >&2
+	echo "Usage: s/box deploy [ref] | status | logs [service] | down | first-account" >&2
 	exit 2
 }
 
@@ -166,6 +168,11 @@ main() {
 			[ "$#" -eq 1 ] || usage
 			ensure_env_file
 			box_compose down
+			;;
+		first-account)
+			[ "$#" -eq 1 ] || usage
+			ensure_env_file
+			box_compose exec backend python manage.py create_first_account
 			;;
 		*)
 			usage

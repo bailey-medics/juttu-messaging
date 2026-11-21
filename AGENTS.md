@@ -133,6 +133,7 @@ just box-deploy   # deploy the latest main to the copy on the dev box
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
 just migrate "<message>"   # write a migration for a model change
+just first-account   # make the first account on the dev stack, once
 ./s/frontend  # the frontend gate: types, lint, format, tests, both builds
 just storybook   # Storybook, on port 6106
 ```

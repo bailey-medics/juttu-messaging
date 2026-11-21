@@ -16,12 +16,15 @@ SECRET_KEY = env.secret_key
 DEBUG = env.dev_mode
 ALLOWED_HOSTS = env.allowed_hosts
 
-# No django.contrib.admin, auth or sessions yet: Juttu has no accounts, and
-# the admin would put a sign-in page at /admin/ that nobody can use. The
-# vision plan's Phase 8, accounts and sign-in, adds them.
+# No django.contrib.admin: Juttu signs people in through its own API, and
+# the admin would put a second sign-in page at /admin/.
 INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "rest_framework",
     "app",
+    "app.accounts",
 ]
 
 MIDDLEWARE = [
@@ -29,8 +32,10 @@ MIDDLEWARE = [
     # the other middleware's included.
     "app.middleware.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -50,10 +55,72 @@ TIME_ZONE = "Europe/London"
 USE_I18N = True
 USE_TZ = True
 
+# Accounts are Juttu's own, keyed on a username. See app/accounts/models.py.
+AUTH_USER_MODEL = "accounts.User"
+
+# Argon2id, as Quill Medical and Turva store passwords. The others stay
+# listed only so Django can still read a hash made by one of them; a
+# sign-in with such a hash stores the password again as Argon2.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
+# Fifteen characters at least: NIST SP 800-63B-4 asks for fifteen where a
+# password is the only factor, as it is here.
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation."
+        "UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation."
+        "MinimumLengthValidator",
+        "OPTIONS": {"min_length": 15},
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation."
+        "CommonPasswordValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation."
+        "NumericPasswordValidator"
+    },
+]
+
+# Sessions live in Postgres, in Django's own table, and are read by Django's
+# middleware. The cookie is named for Juttu: cookies on localhost ignore the
+# port, so Quill Medical's and Turva's stacks on the same machine would
+# otherwise share it.
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_NAME = "juttu_session"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = not env.dev_mode
+# Two weeks, counted again from each request, so a phone in daily use stays
+# signed in and one left in a drawer does not.
+SESSION_COOKIE_AGE = 14 * 24 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+
+# The app reads the CSRF token from this cookie and sends it back in the
+# X-CSRFToken header, Django's documented pattern for a single-page app. The
+# defence is that another site cannot read the cookie to write the header,
+# so the page itself may read it.
+CSRF_COOKIE_NAME = "juttu_csrftoken"
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = not env.dev_mode
+# A CSRF refusal answers in JSON, as the rest of the API does.
+CSRF_FAILURE_VIEW = "app.csrf.csrf_failure"
+
 REST_FRAMEWORK = {
-    # No way to sign in yet, so no request is ever authenticated.
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "UNAUTHENTICATED_USER": None,
+    # Django's session, which also enforces the CSRF check on every unsafe
+    # request from a signed-in person. Never swap it for a class that skips
+    # that check.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     # Signed in by default. A view that should be public says so itself, so
     # a view nobody thought about is closed, not open.
     "DEFAULT_PERMISSION_CLASSES": [
@@ -66,6 +133,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
     ],
+    # Caddy is the one proxy in front of the backend, in development and on
+    # the dev box, and it writes X-Forwarded-For itself. So the client's
+    # address is that header's last entry, never its first, which the
+    # client can write. The sign-in rate limit is keyed on it.
+    "NUM_PROXIES": 1,
 }
 
 LOGGING = logging_settings(dev_mode=env.dev_mode, level=env.LOG_LEVEL)

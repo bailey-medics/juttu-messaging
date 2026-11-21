@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for s/up, s/down and s/rebuild. A stand-in docker records what each
+# Tests for s/up, s/down, s/rebuild and s/first-account. A stand-in docker records what each
 # asked for, so no container is started.
 bats_require_minimum_version 1.5.0
 
@@ -7,7 +7,7 @@ setup() {
 	repo="${BATS_TEST_TMPDIR}/repo"
 	bin="${BATS_TEST_TMPDIR}/bin"
 	mkdir -p "${repo}/s/utils" "${bin}"
-	for script in up down rebuild utils/dev-stack.sh; do
+	for script in up down rebuild first-account utils/dev-stack.sh; do
 		cp "${BATS_TEST_DIRNAME}/../${script}" "${repo}/s/${script}"
 	done
 
@@ -83,4 +83,11 @@ run_script() {
 	[[ "$(calls | sed -n 1p)" == *"build --pull backend" ]]
 	run grep -c 'volume rm' "${BATS_TEST_TMPDIR}/calls"
 	[ "$output" = "0" ]
+}
+
+@test "s/first-account asks the dev stack's backend to make the first account" {
+	run_script first-account
+
+	[ "$status" -eq 0 ]
+	[[ "$(calls)" == *"docker compose -f compose.dev.yml exec backend python manage.py create_first_account" ]]
 }

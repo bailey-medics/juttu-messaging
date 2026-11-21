@@ -11,6 +11,7 @@
     "conftest",
     "CONN",
     "crpd",
+    "csrftoken",
     "djangorestframework",
     "Gunicorn",
     "httpx",

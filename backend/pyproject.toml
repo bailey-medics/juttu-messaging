@@ -21,6 +21,9 @@ dependencies = [
     "python-json-logger>=4.0.0,<5.0.0",
     # psycopg 3, the maintained line, which Django's Postgres backend uses.
     "psycopg[binary]>=3.2,<4.0",
+    # Argon2id, for Django's Argon2PasswordHasher: the hash Quill Medical
+    # and Turva store passwords with.
+    "argon2-cffi>=25.1.0,<26.0.0",
 ]
 
 [tool.poetry]
