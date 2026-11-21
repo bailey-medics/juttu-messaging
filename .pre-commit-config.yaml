@@ -119,6 +119,10 @@ repos:
           # Django loads its Postgres backend once a model is defined.
           - psycopg==3.3.9
           - psycopg-binary==3.3.9
+          # Push notifications: the signing keys, and the sender.
+          - cryptography==50.0.2
+          - py-vapid==1.9.6
+          - pywebpush==2.5.0
           - pydantic==2.14.3
           - pydantic-settings==2.16.3
           - pytest==9.2.0

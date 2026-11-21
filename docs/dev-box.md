@@ -58,6 +58,20 @@ These steps are done once, on the dev box, by a person.
    admin of the Turva organisation. It refuses once any account exists:
    an organisation admin adds every later account.
 
+6. Make the Web Push signing keys, once, so phones can be sent
+   notifications. Give it the address push services may write to about
+   Juttu's pushes, which Apple's requires:
+
+   ```sh
+   just box-push-keys mailto:<the team's address>
+   ```
+
+   It adds `JUTTU_BOX_VAPID_PUBLIC_KEY`, `JUTTU_BOX_VAPID_PRIVATE_KEY` and
+   `JUTTU_BOX_VAPID_CONTACT` to `local/box.env`, then asks you to deploy
+   again. It keeps keys that
+   are already there, because a new pair would end every phone's
+   subscription. Until the keys are set, push notifications are off.
+
 ## Deploy the latest main
 
 ```sh

@@ -8,6 +8,11 @@
 #   s/box down            stop it, keeping its database
 #   s/box first-account   make the first account, asking for its username
 #                         and password; refused once any account exists
+#   s/box push-keys <contact>
+#                         make the Web Push signing keys, once, and add them
+#                         to local/box.env with the contact push services
+#                         may write to (mailto:<address>, or an https://
+#                         origin); keys already there are kept
 #
 # It builds from an export of the commit into local/box-build/, never from
 # this working tree, so what runs is exactly what was merged. Its settings
@@ -21,7 +26,7 @@ env_file="${local_dir}/box.env"
 build_dir="${local_dir}/box-build"
 
 usage() {
-	echo "Usage: s/box deploy [ref] | status | logs [service] | down | first-account" >&2
+	echo "Usage: s/box deploy [ref] | status | logs [service] | down | first-account | push-keys <contact>" >&2
 	exit 2
 }
 
@@ -114,6 +119,46 @@ box_compose() {
 		docker compose -p juttu-box --env-file "${env_file}" -f "${compose_file}" "$@"
 }
 
+# Make the Web Push signing keys in the built backend, and add them to
+# local/box.env. Run once: keys already there are kept, because a new pair
+# would end every phone's subscription.
+push_keys() {
+	local contact="$1"
+	local keys
+
+	# What the backend accepts: a mailto: address, or an https:// origin
+	# with no path, as py_vapid checks.
+	if ! [[ "${contact}" =~ ^(mailto:[^@[:space:]]+@[A-Za-z0-9_.-]+\.[A-Za-z0-9_-]+|https://[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+)$ ]]; then
+		echo "The contact is a mailto: address or an https:// origin with no path." >&2
+		return 2
+	fi
+
+	if [ -n "$(setting JUTTU_BOX_VAPID_PRIVATE_KEY)" ]; then
+		echo "${env_file} already has push keys; they are kept."
+		return 0
+	fi
+
+	keys="$(box_compose run --rm --no-deps -T backend \
+		python manage.py generate_push_keys --prefix JUTTU_BOX_VAPID_)"
+
+	if ! printf '%s\n' "${keys}" | grep -qE '^JUTTU_BOX_VAPID_PUBLIC_KEY=[A-Za-z0-9_-]+$' ||
+		! printf '%s\n' "${keys}" | grep -qE '^JUTTU_BOX_VAPID_PRIVATE_KEY=[A-Za-z0-9_-]+$'; then
+		echo "The backend did not print a pair of push keys; nothing was added." >&2
+		return 1
+	fi
+
+	umask 077
+	{
+		echo
+		echo "# The Web Push signing keys, made by s/box push-keys. A new pair"
+		echo "# would end every phone's subscription, so keep these."
+		printf '%s\n' "${keys}" | grep -E '^JUTTU_BOX_VAPID_(PUBLIC|PRIVATE)_KEY='
+		echo "JUTTU_BOX_VAPID_CONTACT=${contact}"
+	} >>"${env_file}"
+
+	echo "Added push keys to ${env_file}. Deploy again so the backend reads them."
+}
+
 deploy() {
 	local ref="${1:-origin/main}"
 	local commit tag port address
@@ -187,6 +232,11 @@ main() {
 			[ "$#" -eq 1 ] || usage
 			ensure_env_file
 			box_compose exec backend python manage.py create_first_account
+			;;
+		push-keys)
+			[ "$#" -eq 2 ] || usage
+			ensure_env_file
+			push_keys "$2"
 			;;
 		*)
 			usage

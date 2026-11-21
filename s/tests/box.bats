@@ -177,3 +177,58 @@ calls() {
 
 	[ "$(cat "${BATS_TEST_TMPDIR}/origins")" = "" ]
 }
+
+@test "push-keys adds a pair of keys from the backend to local/box.env, readable by its owner only" {
+	cat >"${bin}/docker" <<'STUB'
+#!/usr/bin/env bash
+echo "docker $*" >>"${BATS_TEST_TMPDIR}/calls"
+echo "JUTTU_BOX_VAPID_PUBLIC_KEY=BPublic-key_1"
+echo "JUTTU_BOX_VAPID_PRIVATE_KEY=private_Key-2"
+STUB
+
+	box push-keys mailto:team@juttu.example
+
+	[ "$status" -eq 0 ]
+	[[ "$(calls)" == *"-p juttu-box "*" run --rm --no-deps -T backend python manage.py generate_push_keys --prefix JUTTU_BOX_VAPID_" ]]
+	grep -qx 'JUTTU_BOX_VAPID_CONTACT=mailto:team@juttu.example' "${repo}/local/box.env"
+	grep -qx 'JUTTU_BOX_VAPID_PUBLIC_KEY=BPublic-key_1' "${repo}/local/box.env"
+	grep -qx 'JUTTU_BOX_VAPID_PRIVATE_KEY=private_Key-2' "${repo}/local/box.env"
+	[ "$(stat -c %a "${repo}/local/box.env")" = "600" ]
+}
+
+@test "push-keys keeps keys already there, and asks the backend for nothing" {
+	mkdir -p "${repo}/local"
+	printf 'JUTTU_BOX_POSTGRES_PASSWORD=x\nJUTTU_BOX_SECRET_KEY=y\nJUTTU_BOX_VAPID_PUBLIC_KEY=mine\nJUTTU_BOX_VAPID_PRIVATE_KEY=mine-too\n' >"${repo}/local/box.env"
+
+	box push-keys https://juttu.example
+
+	[ "$status" -eq 0 ]
+	[ ! -f "${BATS_TEST_TMPDIR}/calls" ]
+	[ "$(grep -c '^JUTTU_BOX_VAPID_PRIVATE_KEY=' "${repo}/local/box.env")" -eq 1 ]
+	grep -qx 'JUTTU_BOX_VAPID_PRIVATE_KEY=mine-too' "${repo}/local/box.env"
+}
+
+@test "push-keys adds nothing when the backend does not print a pair" {
+	cat >"${bin}/docker" <<'STUB'
+#!/usr/bin/env bash
+echo "something went wrong"
+STUB
+
+	box push-keys https://juttu.example
+
+	[ "$status" -eq 1 ]
+	run grep -c 'VAPID' "${repo}/local/box.env"
+	[ "$output" = "0" ]
+}
+
+@test "push-keys needs a contact the push services accept" {
+	box push-keys
+	[ "$status" -eq 2 ]
+
+	for contact in team@juttu.example https://juttu.example/team http://juttu.example; do
+		box push-keys "${contact}"
+		[ "$status" -eq 2 ]
+	done
+
+	[ ! -f "${BATS_TEST_TMPDIR}/calls" ]
+}

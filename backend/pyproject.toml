@@ -24,6 +24,9 @@ dependencies = [
     # Argon2id, for Django's Argon2PasswordHasher: the hash Quill Medical
     # and Turva store passwords with.
     "argon2-cffi>=25.1.0,<26.0.0",
+    # Web Push: signs and encrypts each notification to a phone, as Quill
+    # Medical sends them.
+    "pywebpush>=2.5.0,<3.0.0",
 ]
 
 [tool.poetry]

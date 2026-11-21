@@ -53,6 +53,11 @@ services:
       # The HTTPS address phones open, so Django's CSRF check accepts a
       # sign-in from it. Empty until JUTTU_BOX_ADDRESS is set.
       JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through s/box}
+      # The Web Push signing keys, made by s/box push-keys. Push
+      # notifications stay off until they are set.
+      JUTTU_VAPID_PUBLIC_KEY: ${JUTTU_BOX_VAPID_PUBLIC_KEY:-}
+      JUTTU_VAPID_PRIVATE_KEY: ${JUTTU_BOX_VAPID_PRIVATE_KEY:-}
+      JUTTU_VAPID_CONTACT: ${JUTTU_BOX_VAPID_CONTACT:-}
     # Bring the database up to the latest migration, then serve with
     # Gunicorn's threaded workers, as the prod image does.
     command:

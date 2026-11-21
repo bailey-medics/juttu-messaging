@@ -17,4 +17,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include("app.organisations.urls")),
     path("api/", include("app.spaces.urls")),
     path("api/", include("app.conversations.urls")),
+    path("api/push/", include("app.push.urls")),
 ]

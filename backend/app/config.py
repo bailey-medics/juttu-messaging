@@ -5,6 +5,8 @@ shell needs. ``config.settings`` turns it into Django's settings. Each
 later phase adds its own values here.
 """
 
+import re
+from dataclasses import dataclass, field
 from typing import Any, Literal, Self
 
 from pydantic import SecretStr, field_validator, model_validator
@@ -18,6 +20,25 @@ Environment = Literal["development", "testing", "production"]
 #: start without its own, so Bandit's hard-coded password warning does not
 #: apply to this one value.
 DEVELOPMENT_SECRET_KEY = "development-only-not-a-secret-juttu-key"  # nosec B105
+
+#: A key written in URL-safe base64, as Web Push keys are, without padding.
+_URL_SAFE_BASE64 = re.compile(r"[A-Za-z0-9_-]+")
+
+#: A contact the push services accept: what ``py_vapid`` checks, a mailto:
+#: address or an https:// origin with no path.
+_PUSH_CONTACT = re.compile(
+    r"mailto:[^@\s]+@[\w.-]+\.[\w-]+|https://[\w-]+(\.[\w-]+)+"
+)
+
+
+@dataclass(frozen=True)
+class PushKeys:
+    """What signs each push: the key pair, and who to contact about it."""
+
+    public: str
+    private: str = field(repr=False)
+    contact: str
+
 
 #: The hosts Django answers outside production.
 DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
@@ -41,6 +62,14 @@ class Settings(BaseSettings):
         DB_NAME: The database Juttu keeps its tables in.
         DB_USER: The database user Juttu signs in as.
         DB_PASSWORD: That user's password. Required in production.
+        JUTTU_VAPID_PUBLIC_KEY: The public half of the Web Push signing
+            key pair, in URL-safe base64, which phones subscribe with.
+        JUTTU_VAPID_PRIVATE_KEY: Its private half. With neither set, push
+            notifications are off; one without the other is refused.
+        JUTTU_VAPID_CONTACT: Who the push services may contact about
+            Juttu's pushes: a ``mailto:`` address or an ``https://``
+            origin with no path, as the VAPID standard and Apple ask.
+            Required with the keys.
     """
 
     # No env_file: Docker Compose hands the environment in.
@@ -64,6 +93,10 @@ class Settings(BaseSettings):
     DB_USER: str = "juttu"
     DB_PASSWORD: SecretStr = SecretStr("")
 
+    JUTTU_VAPID_PUBLIC_KEY: str = ""
+    JUTTU_VAPID_PRIVATE_KEY: SecretStr = SecretStr("")
+    JUTTU_VAPID_CONTACT: str = ""
+
     @field_validator("JUTTU_CSRF_TRUSTED_ORIGINS")
     @classmethod
     def _origins_name_their_scheme(cls, value: str) -> str:
@@ -76,6 +109,30 @@ class Settings(BaseSettings):
                 )
 
         return value
+
+    @model_validator(mode="after")
+    def _push_keys_come_as_a_pair(self) -> Self:
+        """Refuse half a signing key pair, and a key that is not base64."""
+        public = self.JUTTU_VAPID_PUBLIC_KEY
+        private = self.JUTTU_VAPID_PRIVATE_KEY.get_secret_value()
+
+        if bool(public) != bool(private):
+            raise ValueError(
+                "Set JUTTU_VAPID_PUBLIC_KEY and JUTTU_VAPID_PRIVATE_KEY "
+                "together, or neither"
+            )
+
+        for key in (public, private):
+            if key and not _URL_SAFE_BASE64.fullmatch(key):
+                raise ValueError("A JUTTU_VAPID_* key is URL-safe base64")
+
+        if private and not _PUSH_CONTACT.fullmatch(self.JUTTU_VAPID_CONTACT):
+            raise ValueError(
+                "JUTTU_VAPID_CONTACT is required with the push keys: a "
+                "mailto: address, or an https:// origin with no path"
+            )
+
+        return self
 
     @model_validator(mode="after")
     def _production_has_its_own_values(self) -> Self:
@@ -101,6 +158,19 @@ class Settings(BaseSettings):
     def dev_mode(self) -> bool:
         """Whether the backend is running for a developer."""
         return self.BACKEND_ENV == "development"
+
+    @property
+    def push_keys(self) -> PushKeys | None:
+        """The Web Push signing keys and contact, or None if push is off."""
+        private = self.JUTTU_VAPID_PRIVATE_KEY.get_secret_value()
+        if not private:
+            return None
+
+        return PushKeys(
+            public=self.JUTTU_VAPID_PUBLIC_KEY,
+            private=private,
+            contact=self.JUTTU_VAPID_CONTACT,
+        )
 
     @property
     def secret_key(self) -> str:

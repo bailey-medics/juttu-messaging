@@ -21,6 +21,7 @@ from app.conversations.models import (
     Participant,
     ReadPoint,
 )
+from app.push.services import notify_about
 from app.spaces.models import Space
 from app.spaces.services import is_in
 
@@ -240,5 +241,6 @@ def post(
         detail={"conversation": conversation.pk, "message": message.pk},
     )
     announce(conversation.pk)
+    notify_about(message)
 
     return message

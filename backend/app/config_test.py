@@ -3,7 +3,12 @@
 import pytest
 from pydantic import ValidationError
 
-from app.config import DEFAULT_ALLOWED_HOSTS, DEVELOPMENT_SECRET_KEY, Settings
+from app.config import (
+    DEFAULT_ALLOWED_HOSTS,
+    DEVELOPMENT_SECRET_KEY,
+    PushKeys,
+    Settings,
+)
 
 PRODUCTION = {
     "BACKEND_ENV": "production",
@@ -204,3 +209,82 @@ def test_a_trusted_origin_needs_its_scheme(
 
     with pytest.raises(ValidationError, match="starts with https://"):
         Settings()
+
+
+def test_push_is_off_without_its_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("PUBLIC_KEY", "PRIVATE_KEY", "CONTACT"):
+        monkeypatch.delenv(f"JUTTU_VAPID_{name}", raising=False)
+
+    assert Settings().push_keys is None
+
+
+@pytest.mark.parametrize(
+    "contact", ["mailto:team@juttu.example", "https://juttu.example"]
+)
+def test_push_keys_are_read_with_their_contact(
+    monkeypatch: pytest.MonkeyPatch, contact: str
+) -> None:
+    _set(
+        monkeypatch,
+        {
+            "JUTTU_VAPID_PUBLIC_KEY": "BPub-lic_1",
+            "JUTTU_VAPID_PRIVATE_KEY": "priv_2",
+            "JUTTU_VAPID_CONTACT": contact,
+        },
+    )
+
+    assert Settings().push_keys == PushKeys(
+        public="BPub-lic_1", private="priv_2", contact=contact
+    )
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"JUTTU_VAPID_PUBLIC_KEY": "only-the-public-half"},
+        {"JUTTU_VAPID_PRIVATE_KEY": "only-the-private-half"},
+        {
+            "JUTTU_VAPID_PUBLIC_KEY": "a",
+            "JUTTU_VAPID_PRIVATE_KEY": "not base64!",
+            "JUTTU_VAPID_CONTACT": "https://juttu.example",
+        },
+        {"JUTTU_VAPID_PUBLIC_KEY": "a", "JUTTU_VAPID_PRIVATE_KEY": "b"},
+        {
+            "JUTTU_VAPID_PUBLIC_KEY": "a",
+            "JUTTU_VAPID_PRIVATE_KEY": "b",
+            # py_vapid refuses an https:// contact with a path.
+            "JUTTU_VAPID_CONTACT": "https://juttu.example/team",
+        },
+        {
+            "JUTTU_VAPID_PUBLIC_KEY": "a",
+            "JUTTU_VAPID_PRIVATE_KEY": "b",
+            "JUTTU_VAPID_CONTACT": "team@juttu.example",
+        },
+    ],
+)
+def test_half_a_key_pair_a_bad_key_or_no_contact_is_refused(
+    monkeypatch: pytest.MonkeyPatch, values: dict[str, str]
+) -> None:
+    for name in ("PUBLIC_KEY", "PRIVATE_KEY", "CONTACT"):
+        monkeypatch.delenv(f"JUTTU_VAPID_{name}", raising=False)
+    _set(monkeypatch, values)
+
+    with pytest.raises(ValidationError, match="JUTTU_VAPID"):
+        Settings()
+
+
+def test_the_private_push_key_is_hidden_when_printed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set(
+        monkeypatch,
+        {
+            "JUTTU_VAPID_PUBLIC_KEY": "public",
+            "JUTTU_VAPID_PRIVATE_KEY": "private-value",
+            "JUTTU_VAPID_CONTACT": "https://juttu.example",
+        },
+    )
+    found = Settings()
+
+    assert "private-value" not in repr(found)
+    assert "private-value" not in repr(found.push_keys)

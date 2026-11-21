@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "app.organisations",
     "app.spaces",
     "app.conversations",
+    "app.push",
 ]
 
 MIDDLEWARE = [
@@ -118,6 +119,10 @@ CSRF_COOKIE_SECURE = not env.dev_mode
 # Pages a request may come from beyond its own host: the dev box's address,
 # which s/box passes in. See Settings.csrf_trusted_origins.
 CSRF_TRUSTED_ORIGINS = env.csrf_trusted_origins
+
+# The Web Push signing keys and contact, or None while push notifications
+# are off. Read by app.push.
+PUSH_KEYS = env.push_keys
 # A CSRF refusal answers in JSON, as the rest of the API does.
 CSRF_FAILURE_VIEW = "app.csrf.csrf_failure"
 

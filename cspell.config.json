@@ -5,6 +5,7 @@
   "files": ["**/*.md"],
   "ignorePaths": [".git", ".venv", "node_modules", "dist", "build", "local"],
   "words": [
+    "aiohttp",
     "ASGI",
     "autosizing",
     "clearable",
@@ -24,6 +25,7 @@
     "Pydantic",
     "pyproject",
     "pytest",
+    "pywebpush",
     "runserver",
     "Starlette",
     "tabler",

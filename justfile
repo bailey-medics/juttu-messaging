@@ -94,3 +94,8 @@ box-status:
 # Make the first account on the copy on the dev box
 box-first-account:
     @./s/box first-account
+
+# Make the Web Push signing keys for the copy on the dev box, once, with
+# the contact push services may write to: mailto:<address> or an https:// origin
+box-push-keys contact:
+    @./s/box push-keys "{{ contact }}"
