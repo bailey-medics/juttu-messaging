@@ -121,7 +121,9 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 13: Spaces
 
-- [ ] A space holds conversations and has its own rules: who is in it, and whether it is clinical. A new space is non-clinical by default, so a forgotten flag still warns about patient details. Model, migration, endpoints to create a space and manage its members, and tests that a non-member cannot see it.
+- [x] A space holds conversations and has its own rules: who is in it, and whether it is clinical. A new space is non-clinical by default, so a forgotten flag still warns about patient details. Model, migration, endpoints to create a space and manage its members, and tests that a non-member cannot see it.
+
+- [x] Found while building: `backend/app/spaces` holds `Space` and dated `SpaceMember` rows, with `GET` and `POST /api/spaces`, `GET /api/spaces/{id}`, `GET` and `POST /api/spaces/{id}/members` and `POST /api/spaces/{id}/members/{user_id}/remove`. Making a space, and changing who is in one, needs `manage_spaces`; the maker becomes its first member. A space somebody is not in answers 404 exactly as one that does not exist, so a guessed number reveals nothing. Even an admin must be in a space to see or change it, so being an admin never means reading everyone's conversations. Only a member of the organisation can be put in a space. There is no screen for spaces yet: Phase 15 adds the list of spaces and conversations.
 
 ## Phase 14: Conversations and messages, backend
 
