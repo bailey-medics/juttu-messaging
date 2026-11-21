@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "app.conversations",
     "app.push",
     "app.cards",
+    "app.inlet",
 ]
 
 MIDDLEWARE = [
