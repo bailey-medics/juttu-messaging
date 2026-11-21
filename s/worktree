@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Make a sibling worktree on a branch, ready to work in. Ported from Quill
+# Medical's `just worktree-create`.
+#
+#   s/worktree feature/<name>
+#
+# The worktree goes beside this checkout, as <folder>-2, <folder>-3 and so
+# on. It gets:
+#
+#   - the branch: resumed if it exists here or on origin, otherwise cut from
+#     origin/main, never from wherever this checkout happens to be;
+#   - this checkout's .env, which git ignores, so its stack starts;
+#   - its own backend/.venv, so a package added on one branch never reaches
+#     another;
+#   - the frontend's packages, from the lock.
+#
+# The git hook needs nothing: core.hooksPath is the relative `.githooks`,
+# which each worktree resolves to its own.
+set -euo pipefail
+
+usage() {
+	echo "Usage: s/worktree feature/<name>" >&2
+	exit 2
+}
+
+[ "$#" -eq 1 ] || usage
+branch="$1"
+
+case "${branch}" in
+	feature/?*) ;;
+	*)
+		echo "The branch must start with feature/, as every unit of work's does." >&2
+		exit 2
+		;;
+esac
+
+root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+name="$(basename "${root}")"
+parent="$(dirname "${root}")"
+
+# Walk up from 2 until a free name appears. Counting the worktrees would
+# collide with a folder somebody removed by hand and left on disk.
+number=2
+while [ -e "${parent}/${name}-${number}" ]; do
+	number=$((number + 1))
+done
+dest="${parent}/${name}-${number}"
+
+git -C "${root}" fetch origin --quiet
+
+if git -C "${root}" show-ref --verify --quiet "refs/heads/${branch}"; then
+	echo "Branch ${branch} already exists here: checking it out."
+	git -C "${root}" worktree add "${dest}" "${branch}"
+elif git -C "${root}" show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
+	# Branching from main here would leave every commit on it behind.
+	echo "Branch ${branch} exists on origin: resuming it."
+	git -C "${root}" worktree add -b "${branch}" "${dest}" "origin/${branch}"
+	git -C "${dest}" branch --set-upstream-to="origin/${branch}" "${branch}"
+else
+	git -C "${root}" worktree add -b "${branch}" "${dest}" origin/main
+	# A branch cut this way tracks main, so a bare `git push` would aim at
+	# main. Leave it with no upstream instead.
+	git -C "${dest}" branch --unset-upstream "${branch}" 2>/dev/null || true
+fi
+
+# Copied, not linked: a branch may need a different value, and a link would
+# change this checkout's file from inside the worktree.
+if [ -f "${root}/.env" ]; then
+	cp "${root}/.env" "${dest}/.env"
+	echo "Copied .env"
+fi
+
+echo "Making the backend's virtual environment..."
+# `env -u VIRTUAL_ENV`: Poetry installs into an active environment over its
+# own settings, so a shell with one active would share it with the new
+# worktree. backend/poetry.toml puts the new one in backend/.venv.
+(cd "${dest}/backend" && env -u VIRTUAL_ENV poetry install --no-interaction)
+
+echo "Installing the frontend's packages..."
+(cd "${dest}/frontend" && npm ci --no-fund --no-audit)
+
+echo
+echo "Worktree ready at ${dest}, on ${branch}"
+echo "  cd ${dest}"

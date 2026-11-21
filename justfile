@@ -15,6 +15,30 @@ setup:
     @./s/install-hooks
 
 
+alias u := up
+# Start the development stack: Juttu is then at http://localhost:8180
+up *args:
+    @./s/up {{args}}
+
+
+alias d := down
+# Stop the development stack, keeping the database
+down *args:
+    @./s/down {{args}}
+
+
+alias rb := rebuild
+# Rebuild the stack's images from the latest base images, then start it
+rebuild *args:
+    @./s/rebuild {{args}}
+
+
+alias wt := worktree
+# Make a sibling worktree on a feature/ branch, ready to work in
+worktree branch:
+    @./s/worktree {{branch}}
+
+
 alias l := lint
 # Run every check pre-commit enforces, over the whole repository
 lint *args:

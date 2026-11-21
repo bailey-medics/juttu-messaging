@@ -55,3 +55,21 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"./s/frontend storybook"* ]]
 }
+
+@test "just up, down and rebuild reach their scripts" {
+	run just --dry-run up --build
+	[[ "$output" == *"./s/up --build"* ]]
+
+	run just --dry-run down
+	[[ "$output" == *"./s/down"* ]]
+
+	run just --dry-run rebuild backend
+	[[ "$output" == *"./s/rebuild backend"* ]]
+}
+
+@test "just worktree makes a worktree through s/worktree" {
+	run just --dry-run worktree feature/new-thing
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/worktree feature/new-thing"* ]]
+}

@@ -45,7 +45,7 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 6: Dev stack and pipeline
 
-- [ ] Port the development Compose file with the Caddy reverse proxy in front, and the `just` recipes that start, stop and rebuild the stack. Juttu's stack has ports of its own, so it runs beside Quill Medical's and Turva's: the backend on 8100 (`JUTTU_WEB_PORT`), Caddy on 8180 for HTTP and 8543 for HTTPS (`JUTTU_HTTP_PORT`, `JUTTU_HTTPS_PORT`), with Postgres, Vite and Storybook on the ports set in Phases 3 and 4. Each port can be changed through its variable in the gitignored root `.env`, as Turva's can, and the Compose project is named `juttu`, so its containers and volumes never share a name with another stack's. Port the worktree recipe, so a new worktree gets its environment files and virtual environment.
+- [x] Port the development Compose file with the Caddy reverse proxy in front, and the `just` recipes that start, stop and rebuild the stack. Juttu's stack has ports of its own, so it runs beside Quill Medical's and Turva's: the backend on 8100 (`JUTTU_WEB_PORT`), Caddy on 8180 for HTTP and 8543 for HTTPS (`JUTTU_HTTP_PORT`, `JUTTU_HTTPS_PORT`), with Postgres, Vite and Storybook on the ports set in Phases 3 and 4. Each port can be changed through its variable in the gitignored root `.env`, as Turva's can, and the Compose project is named `juttu`, so its containers and volumes never share a name with another stack's. Port the worktree recipe, so a new worktree gets its environment files and virtual environment.
 
 - [ ] Add the pipeline: one workflow that runs the hooks, the backend and frontend tests and the builds on every pull request.
 

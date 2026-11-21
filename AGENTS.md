@@ -22,6 +22,7 @@ anything. `CLAUDE.md` only points here.
 | ------------- | -------------------------------------------------------------------------- |
 | `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py` |
 | `frontend/`   | The React, Mantine and Vite app, with Storybook                            |
+| `caddy/dev/`  | Caddy in front of the dev stack: one origin for app and API                |
 | `docs/plans/` | Plan documents: what is being built, and the decisions made                |
 | `s/`          | Scripts, one for each repeated job. The `justfile` wraps them              |
 | `s/tests/`    | bats tests for the scripts and the git hook                                |
@@ -53,7 +54,10 @@ anything. `CLAUDE.md` only points here.
 - **Ports of its own.** Juttu runs beside Quill Medical's and Turva's
   stacks on the same machine, so each port is about a hundred above the
   usual one and can be changed through a `JUTTU_*` variable in the
-  gitignored root `.env`.
+  gitignored root `.env`; `.env.example` lists them. The Compose project
+  is `juttu`, so no container or volume shares another stack's name.
+- **The dev stack listens on this machine only**, unless `JUTTU_BIND`
+  says otherwise.
 - **British English**, in prose, comments, docs and identifiers. cspell
   checks the documents with `en-GB`. A new word goes in
   `cspell.config.json`, in alphabetical order, never in an inline comment.
@@ -84,6 +88,10 @@ anything. `CLAUDE.md` only points here.
 
 ```sh
 just setup    # switch on the tracked git hook, once per clone
+./s/up        # start the dev stack: Juttu is at http://localhost:8180
+./s/down      # stop it, keeping the database
+./s/rebuild   # rebuild its images after a dependency change
+just worktree feature/<name>   # a sibling worktree, ready to work in
 ./s/lint      # every check pre-commit enforces, over the whole repository
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
