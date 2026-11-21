@@ -58,7 +58,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 8: Tables, search and sort
 
-- [ ] Port `DataTable`, `DataTableWithResults`, `DataTableControlled`, `DataCard`, `CellContent`, `CellLines`, `SortHeader` and `TablePagination` from `components/tables/`, `SearchFields` from `components/search/`, and `SortChevron` from `components/sort/`, with their stories and tests. Strip any column or cell that names a patient.
+- [x] Port `DataTable`, `DataTableWithResults`, `DataTableControlled`, `DataCard`, `CellContent`, `CellLines`, `SortHeader` and `TablePagination` from `components/tables/`, `SearchFields` from `components/search/`, and `SortChevron` from `components/sort/`, with their stories and tests. Strip any column or cell that names a patient.
 
 ## Decisions
 
@@ -123,3 +123,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **The test setup stubs `document.fonts`**, as Quill's does - Phase 7. Mantine's autosizing text area, which `NewMessageModal` uses, listens on it, and jsdom has none.
 
 - **The `Messaging` stories use Quill's demo conversation** in `src/demo-data/messaging/`, made up and clinical, as the plan's "as they are" asks. The chat tests keep Quill's clinical sample text too; only `NewMessageModal`'s non-clinical default uses team examples.
+
+- **Phase 8 brought `FormattedDate` and `lib/search`**, which the tables need: `cellText.ts` names `FormattedDate` as bare cell text, and `DataTableControlled` holds its search in Quill's search context. `FormattedDate` came alone from `components/data/`; its siblings `Gender` and `NationalNumber` are clinical and stayed behind.
+
+- **The patient columns became members and agents** - Phase 8. The `DataTable` and `DataCard` stories' patients, with birth date, gender and patient ID, are now a space's members, with joined date, role and member ID; the admissions example, with NHS number, ward and consultant, is now a list of agents. The `DataTable` test's patients are members. Other made-up examples, such as delegates at NHS trusts and sites with a clinical lead, name no patient and stay as Quill has them.

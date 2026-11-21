@@ -76,6 +76,7 @@ export default tseslint.config(
       "src/components/form/FilterSelect.tsx",
       "src/components/ellipsis-menu/EllipsisMenu.tsx",
       "src/components/inbox/InboxButton.tsx",
+      "src/components/search/SearchFields.tsx",
     ],
     rules: { "no-restricted-imports": "off" },
   },
