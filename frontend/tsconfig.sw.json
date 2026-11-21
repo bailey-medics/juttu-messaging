@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "erasableSyntaxOnly": true,
+    "paths": { "@/*": ["./src/*"] },
+    /* `self.__WB_MANIFEST` is declared by vite-plugin-pwa's types. */
+    "types": ["vite-plugin-pwa/client"]
+  },
+  /* The service worker runs in a worker, not a page: no DOM. */
+  "include": ["src/sw.ts", "src/pwa/cachingRules.ts"]
+}

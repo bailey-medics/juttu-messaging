@@ -1,5 +1,6 @@
 /**
- * The app's entry point: the theme, then the router.
+ * The app's entry point: the install prompt and the service worker, then the
+ * theme and the router.
  */
 
 import "@fontsource-variable/atkinson-hyperlegible-next";
@@ -10,8 +11,16 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
+import { installPromptCapture } from "@/pwa/installPrompt";
+import { registerServiceWorker } from "@/pwa/registerServiceWorker";
 import { routes } from "@/routes";
 import { theme } from "@/theme";
+
+// The browser offers an install once, often before React has mounted, and the
+// offer is lost unless something is already listening.
+installPromptCapture.wire(window);
+
+registerServiceWorker(window, import.meta.env.PROD);
 
 const root = document.getElementById("root");
 

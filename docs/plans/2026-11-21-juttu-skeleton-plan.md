@@ -41,7 +41,7 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 5: PWA shell
 
-- [ ] Port the web app manifest, the service worker and the install prompt, so the app installs on a phone and shows its own page when offline. Tests for the service worker's caching rules.
+- [x] Port the web app manifest, the service worker and the install prompt, so the app installs on a phone and shows its own page when offline. Tests for the service worker's caching rules.
 
 ## Phase 6: Dev stack and pipeline
 
@@ -76,5 +76,9 @@ any external server, are recorded in the vision plan and not repeated here.
 ## Found while building
 
 - **Clear Python bytecode caches before landing a unit** - found 21 November 2026, landing Phase 2. `gh stack rebase` checks out each branch in turn, from the bottom of the stack. The bottom branch's `.gitignore` predates the Python rules, so `__pycache__/` folders left by a local test run showed as untracked there, and the rebase stopped part-way. Deleting them (`find backend -name __pycache__ -prune -exec rm -rf {} +`) before `/t-crpd` avoids it. Once the stack merges, every branch carries the rules and the trap goes.
+
+- **Park `frontend/node_modules` in `local/` while landing** - found 21 November 2026, landing Phase 4, for the same reason as the bytecode caches. `frontend/.gitignore` exists only from Phase 4, so on lower branches `node_modules` shows as untracked during the rebase. `local/` is ignored on every branch, so moving it there for the rebase and back afterwards avoids it. The build output (`dist/`, `storybook-static/`) is deleted instead.
+
+- **The offline page was checked in a real browser** - 21 November 2026, Phase 5. With the build served by `vite preview`, Chromium came under the worker's control, showed `offline.html` on a reload with the network cut, failed `/api/health` instead of answering it from a cache, and served an icon from the precache. The check used Playwright from outside the repository; the browser tests that would make it part of CI are not built yet.
 
 - **The development database is published on this machine only** - Phase 3 binds Postgres to `127.0.0.1:5533`, not to every interface. Only psql and an editor on the dev box need it; the backend reaches it on the stack's own network. The long-running copy in Phase 7 publishes nothing but its web port.

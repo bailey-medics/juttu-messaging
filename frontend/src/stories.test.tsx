@@ -9,18 +9,29 @@ import { screen } from "@testing-library/react";
 
 import * as previewAnnotations from "../.storybook/preview";
 import * as healthStatusStories from "@/components/health-status/HealthStatus.stories";
+import * as installButtonStories from "@/components/install-button/InstallButton.stories";
 import * as homePageStories from "@/pages/HomePage.stories";
 
 setProjectAnnotations(previewAnnotations);
 
-const storyFiles = { healthStatusStories, homePageStories };
+/** Every story, named by its file and its export. */
+const everyStory: Array<[string, { run: () => Promise<void> }]> = [
+  ...named("HealthStatus", composeStories(healthStatusStories)),
+  ...named("HomePage", composeStories(homePageStories)),
+  ...named("InstallButton", composeStories(installButtonStories)),
+];
 
-describe.each(Object.entries(storyFiles))("%s", (_file, stories) => {
-  it.each(Object.entries(composeStories(stories)))("%s renders", async (_name, Story) => {
-    await Story.run();
+function named(
+  file: string,
+  stories: Record<string, { run: () => Promise<void> }>,
+): Array<[string, { run: () => Promise<void> }]> {
+  return Object.entries(stories).map(([name, story]) => [`${file} ${name}`, story]);
+}
 
-    expect(document.body).not.toBeEmptyDOMElement();
-  });
+it.each(everyStory)("%s renders", async (_name, Story) => {
+  await Story.run();
+
+  expect(document.body).not.toBeEmptyDOMElement();
 });
 
 describe("HomePage stories", () => {
@@ -30,5 +41,15 @@ describe("HomePage stories", () => {
     await BackendUp.run();
 
     expect(await screen.findByText("Backend up")).toBeInTheDocument();
+  });
+});
+
+describe("InstallButton stories", () => {
+  it("Offered shows the install button", async () => {
+    const { Offered } = composeStories(installButtonStories);
+
+    await Offered.run();
+
+    expect(screen.getByRole("button", { name: "Install Juttu" })).toBeInTheDocument();
   });
 });

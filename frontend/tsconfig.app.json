@@ -27,5 +27,7 @@
     "paths": { "@/*": ["./src/*"] },
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", ".storybook/*.ts", ".storybook/*.tsx"]
+  "include": ["src", ".storybook/*.ts", ".storybook/*.tsx"],
+  /* The service worker has a config of its own, tsconfig.sw.json. */
+  "exclude": ["src/sw.ts"]
 }

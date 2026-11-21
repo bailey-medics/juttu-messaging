@@ -72,6 +72,9 @@ anything. `CLAUDE.md` only points here.
   as `isHealthResponse`.
 - **Every component has a story**, and `src/stories.test.tsx` renders
   every story, so a broken one fails the unit tests.
+- **The service worker never caches an API answer.** `/api/` requests go
+  to the network or fail; an old copy shown as current is worse than an
+  error. The rules are in `frontend/src/pwa/cachingRules.ts`, with tests.
 - **npm runs no package's install script unless `allowScripts` in
   `frontend/package.json` allows it.**
 - **`LICENSE` is kept byte for byte.** It is the Free Software
