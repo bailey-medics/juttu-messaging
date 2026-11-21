@@ -1,0 +1,199 @@
+# Juttu vision and first version plan
+
+Juttu is a messaging service anyone can use, designed first for healthcare.
+It has three uses, built in this order: a software team talking with its
+build pipeline and its AI agents, clinicians talking to clinicians, and
+clinicians talking to patients. The first version is for the four people
+building Turva. No existing service let a large language model (LLM) and a
+continuous integration and delivery (CI/CD) pipeline take part without
+burying the people in noise, so the team is building its own. Starting with
+developers also means the first version holds no patient data, and its
+makers are its first users.
+
+The outcome of this plan is a working first version for the Turva team: a
+progressive web app (PWA), as Quill Medical is, running in Docker, where
+people, pipeline and agents share one quiet place. It is built and proved
+on the dev box first, reached over the team's private network, before any
+external server is rented. The
+core it is built on, accounts, conversations, live delivery, audit and
+identity that can carry roles, is the same core the two healthcare uses
+need later. Each phase below is one pull request's worth of work. Phases 1
+to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
+
+## Open questions
+
+- [x] **Are messages end-to-end encrypted?** - Not in the first version. Messages are encrypted in transit and on disk, and the server can read them, which keeps search, agents and the pre-send check simple. The message format leaves room for end-to-end encryption in chosen spaces later. Answered in `/t-g`, 21 November 2026.
+
+- [x] **What is ported from Quill Medical, and what is written new?** - Four things are ported: the tooling and checks (`just` recipes, pre-commit hooks, spelling and lint configuration, test set-up, the worktree recipe and the pipeline that runs them); the sign-in and session code; the frontend shell and components (the PWA shell, service worker, push notification code and the Mantine component set with its stories); and the organisation tree and competency model, as the base for roles. Quill's messaging code stays behind: its design carries over but its code is tied to patients and the health record server. Both projects are AGPL-3.0, so the code can move. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Which licence?** - AGPL-3.0: anyone who runs a changed Juttu as a service must publish their changes, which keeps an open healthcare service from being taken closed. Answered in `/t-g`, 21 November 2026.
+
+- [x] **How do people sign in?** - Juttu has its own accounts, with the sign-in and session code ported from Quill Medical. It works for healthcare later with no rewrite, and other methods can be added beside it. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Which model does the developer version use?** - Hosted Claude, through the API, behind an interface that lets an in-house model replace it without touching the features. Answered in `/t-g`, 21 November 2026.
+
+- [x] **What may an agent do?** - Nothing, until it is given a permission. Each agent starts with none and is granted each one by name: a space it may read, a space it may post in, whether it may ask questions. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Who may grant an agent a permission?** - Only an organisation admin. It is the tightest choice and a bottleneck, accepted for a team of four. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Who is an organisation admin in the first version?** - All four developers. There is no bottleneck, and the admin-only rule limits nothing until the team grows; it is there for the organisations that come later. Answered in `/t-g`, 21 November 2026.
+
+- [x] **How is each phase planned in detail?** - With `/t-p`. This plan is the map; each phase gets its own plan, written with `/t-p` before it is built and broken into steps that each fit one pull request. `/t-f` runs those plans, not this one. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Which things get a living card in the first version (Phases 21 and 22, numbered 5 when asked)?** - Not fixed up front. Cards are modular: each kind of card is its own module, added when the team needs it, and what a kind shows and when it notifies is decided then. Mark: "we need to be modular as the project grows". Answered in `/t-g`, 21 November 2026.
+
+- [x] **What counts as a non-clinical setting?** - Each space carries a flag, and a new space is non-clinical by default. The first answer was clinical by default, as "most safe if you forget to change". It was reversed in the same session: a clinical space allows patient details, so a developer or social space left clinical by mistake would never warn when they were typed in. Non-clinical by default means a forgotten flag still warns. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Which rented server, and which domain?** - Not chosen yet. Both stay as Mark's jobs under "Before running /f". Phases 1 to 3 can be built and tested locally without them. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Is a pre-send warning recorded, and who can see it?** - It is private to the sender. Juttu keeps anonymous counts to hone the check, how often it fires and how often it is marked wrong, with no names and no message text. Answered in `/t-g`, 21 November 2026.
+
+- [x] **Are the phases small enough to build from?** - They were not: eight phases, each weeks of work. Mark: "break down any phase that is too long". They are now thirty, each one reviewable pull request, so `/t-f` can run this plan directly. A phase that still proves too big when reached is split here, or given its own `/t-p` plan. This replaces the earlier answer that every phase gets a separate plan. Answered 21 November 2026.
+
+- [x] **Where does the first version run?** - On the dev box, in Docker, reached over the team's private network, which the team already has. Mark: build and test locally "before I do all of the leg work of hosting on an external server". Renting a server and choosing a domain move to the external hosting work at the end. This replaces the earlier answer that left them as jobs before the build. Answered 21 November 2026.
+
+- [ ] **How do live messages reach the app (Phase 18)?** Server-sent events are simpler and pass through proxies easily; a WebSocket carries traffic both ways and suits typing indicators later. Blocks Phase 18 only.
+
+- [ ] **Which kind of card is built first (Phase 22)?** Cards are modular and each kind is decided as needed, so the first is named when the team reaches it. Blocks Phase 22 only.
+
+## Before running /f
+
+- [x] Set up branch protection and required checks on the repository - Not now. Mark: "we are building fast, and I am the only dev (with you)". Every phase still lands through a pull request; protection is added when a second developer joins. Decided 21 November 2026.
+- [x] Switch on HTTPS certificates for the dev box - Moved to the skeleton plan, where Phase 7 needs it. 21 November 2026.
+- [ ] Create an API key for the hosted model and put it in the dev box's environment file, never in the repository. Needed from Phase 26.
+
+## Phases 1 to 7: Skeleton
+
+- [ ] Built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md): repository basics, backend, database, frontend, the PWA shell, the dev stack and pipeline, and the copy on the dev box. Split out on 21 November 2026 so building could start; the phases below keep their numbers so the references to them stay right.
+
+## Phase 8: Accounts and sign-in, backend
+
+- [ ] Port the user model, password hashing, cookie sessions and the CSRF check from Quill Medical, with sign-in, sign-out and "who am I" endpoints. Every endpoint makes an explicit authorisation decision, and a test fails if a new endpoint is added without one. Port the rate limit on sign-in.
+
+## Phase 9: Sign-in, frontend
+
+- [ ] Port the sign-in page, the signed-in guard on routes and the sign-out control. Tests for the guard and the page.
+
+## Phase 10: Audit trail
+
+- [ ] Add an append-only audit table and one function that writes to it, and record every sign-in, sign-out and failed sign-in. From here on, every phase that changes data writes an audit entry, and its tests check for it.
+
+## Phase 11: Organisations and roles
+
+- [ ] Port Quill Medical's organisation tree and competency model, leaving out everything about patients and clinical records. One organisation exists for the Turva team. Identity can carry a role, so "the on-call registrar" fits later without a rewrite.
+
+## Phase 12: Members and admins
+
+- [ ] An organisation admin can invite a person, remove one and make another member an admin. All four developers are admins in the first version. Backend, a small admin screen, and tests that a non-admin is refused.
+
+## Phase 13: Spaces
+
+- [ ] A space holds conversations and has its own rules: who is in it, and whether it is clinical. A new space is non-clinical by default, so a forgotten flag still warns about patient details. Model, migration, endpoints to create a space and manage its members, and tests that a non-member cannot see it.
+
+## Phase 14: Conversations and messages, backend
+
+- [ ] Channels and direct messages are both conversations in a space. Messages are append-only, as in Quill Medical: nothing is edited in place, and a correction is a new message that amends the old one.
+
+- [ ] Messages are encrypted in transit and on disk, and readable by the server. The stored message carries a format version and a field naming how its body is protected, so a space can move to end-to-end encryption later without a new table.
+
+- [ ] Access is checked on the server for every read and every post, with tests that one member cannot reach another's conversation by guessing its identifier. Conversations are listed with a query that filters in the database, not after loading them all, which is the fault in Quill Medical's version.
+
+## Phase 15: Conversations and messages, frontend
+
+- [ ] The list of spaces and conversations, the conversation view and the box to write a message, with stories and tests. Messages load when the page opens; live delivery comes in Phase 18.
+
+## Phase 16: Threads
+
+- [ ] A reply can hang off a message as a thread, shown beside the conversation. Backend, frontend and tests.
+
+## Phase 17: Unread state
+
+- [ ] Each person's last-read point in each conversation, unread counts in the list, and marking read on opening. Backend, frontend and tests.
+
+## Phase 18: Live delivery
+
+- [ ] A new message reaches every open app at once, without a refresh, by the transport chosen in the open questions. The app reconnects by itself and fetches what it missed. Tests for delivery, for reconnection, and that a non-member receives nothing.
+
+## Phase 19: Push notifications
+
+- [ ] Port Quill Medical's Web Push code: a phone subscribes from the installed PWA, and the server sends a push when a message arrives for somebody who is not looking at the conversation. The signing keys are generated on the box and kept out of the repository.
+
+## Phase 20: Quiet notification settings
+
+- [ ] Mentions of a person by name. Each person sets what notifies them, and the default is quiet: a direct message, a mention or a question for you notifies; everything else waits to be read.
+
+## Phase 21: Card core
+
+- [ ] Build cards as modules. The core knows only what a card is: one message that updates in place, with a thread of its events beneath it and a rule for when it notifies. Each kind of card is a separate module that plugs into that, so a new kind is added without touching the core or the other kinds. This phase builds the core, its interface for modules and a test-only kind to prove it.
+
+## Phase 22: Event inlet and the first kind of card
+
+- [ ] An inlet that accepts events from outside tools, each sender with its own secret and every event checked against it. An event never becomes a message: it finds or creates its card and updates it.
+
+- [ ] The first real kind of card, named in the open questions. A card notifies only when it needs somebody; a passing build is silent.
+
+## Phase 23: Agent identity and permissions
+
+- [ ] An AI agent, such as a Claude Code session, is a named member with its own identity and its own access token. It starts with no permissions at all and is granted each one by name: a space it may read, a space it may post in, whether it may ask questions. Only an organisation admin can grant one, and every grant is in the audit trail. Tests that an agent with no grants can do nothing.
+
+## Phase 24: Agents read and post
+
+- [ ] The interface an agent uses to read and post, checked against its grants on every call, with a short guide to connecting a Claude Code session. An agent can be mentioned.
+
+## Phase 25: Questions from agents
+
+- [ ] A question from an agent is its own kind of message: it arrives with answer buttons, goes to the right person, waits, and is recorded with who answered and when. The agent is told the answer.
+
+## Phase 26: Model interface
+
+- [ ] One interface for asking a model something, with hosted Claude behind it, so an in-house model can replace it later without touching the features. Tests run against a stand-in, never the real service.
+
+## Phase 27: Digest
+
+- [ ] "Since you were last here": a short summary of what changed and what, if anything, needs you, written through the model interface.
+
+## Phase 28: Pre-send check, the framework
+
+- [ ] Before a message is sent, it is checked against the rules of the space it is going into. Each check is a module, as each kind of card is. If one trips, the sender sees what and why, and chooses to edit or send anyway. It asks; it does not block, unless an organisation sets a hard stop.
+
+- [ ] The warning is private to the sender. Every warning has a "this warning was wrong" button, and Juttu keeps only anonymous counts of how often a check fires and how often it is marked wrong, with no names and no message text.
+
+## Phase 29: Pre-send check, patient details
+
+- [ ] Plain pattern rules, no model: an NHS number has a check digit and can be recognised with very few false alarms; dates of birth and postcodes follow patterns. They warn in every non-clinical space. Tests with made-up numbers only.
+
+## Phase 30: Pre-send check, possible offence
+
+- [ ] A model judges tone towards a person, not vocabulary: clinical talk is full of blunt words that a general filter would flag all day. It starts with high-confidence cases only and is honed on the developer team before any clinician sees it.
+
+- [ ] A draft is never sent to an outside AI service once patient data is in play: asking an outside service whether text contains patient details would itself leak them. The check then runs on the device or on the organisation's own model.
+
+## Later, each with its own plan
+
+- [ ] External hosting: rent a virtual private server (VPS) that can run Docker, choose a domain, and move the proved service from the dev box to it. These are Mark's jobs and wait until the local version has earned them.
+
+- [ ] Clinician to clinician: messaging a role, urgent messages with acknowledgement and escalation, conversations tied to a patient, verified staff identity, retention rules, and a clinical safety case under DCB0129.
+
+- [ ] Clinician to patient: patient identity, consent and a stricter safety case.
+
+- [ ] Quill Medical as a customer of Juttu: Quill keeps the patient link and the health record, and hands the messaging itself to Juttu, so there is one messaging engine and not two.
+
+## Decisions
+
+- **Developers first, then clinicians, then patients** - the first use has no patient data and needs no clinical safety case, and the team feels every rough edge itself before anybody in a hospital does.
+
+- **Build our own, on the stack Quill Medical uses** - the team knows it and has the tooling. Building on Matrix, an open messaging standard, was considered: it brings live delivery, apps and encryption ready-made, but its model would force Quill's design to be reshaped and adds a stack to learn and run.
+
+- **A PWA, not native apps** - one codebase for phone, desktop and web, as Quill Medical already does, and far less work for a team of four.
+
+- **Docker on a plain server, not Google Cloud** - simpler and cheaper to run, and anyone can self-host the same way, which an open-source service needs.
+
+- **The dev box first, an external server later** - the team already shares a private network, so a copy on the dev box reaches all four phones with no public address, no domain and no bill. Hosting is real work, and it waits until the service is worth it.
+
+- **Quill Medical's messaging design is kept, its code is not** - append-only messages, amendments, conversation status and access through team membership suit healthcare. The code assumes a patient on every conversation and leans on the rest of Quill.
+
+- **The service judges what deserves attention** - living cards, quiet defaults and the digest are one idea: noise is designed out, not muted afterwards. The pre-send check is the same judgement pointed at outgoing messages.
+
+- **Modular as it grows** - the core stays small, and features such as card kinds, sign-in methods, models and pre-send checks plug into it. What each module does is decided when it is needed, not guessed at now.
+
+- **Healthcare needs are in the core from the start** - audit, role-ready identity and the encryption decision are settled while only developers use it, because each is very hard to add to a service already in use.

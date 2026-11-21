@@ -62,7 +62,7 @@ The outcome is one checkout at `~/github/juttu-messaging`, pushing to
 
 ## Phase 4: Switch over
 
-- [ ] Reload tmux with `tmux source-file ~/.tmux.conf`.
+- [x] Reload tmux with `tmux source-file ~/.tmux.conf`. Done 21 November 2026, after the `juttu` tabs were found showing only the session name.
 - [ ] Close the old `bode` session, and open `juttu` with `t c` from
       `~/github/juttu-messaging`.
 - [ ] Commit the changes in `mark-house-style` and to the box's restart
