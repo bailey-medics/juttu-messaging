@@ -26,6 +26,13 @@ the components it brings, such as cards, icons, buttons and the spinner.
   new icon there first, in the re-export and in `iconCatalogue`.
 - **An icon-only button is `IconButton`**, which needs an accessible name
   (`aria-label`) to compile.
+- **Every card is a `<BaseCard>`**, from `components/base-card/BaseCard.tsx`,
+  never Mantine's `<Card>` directly. `BaseCard` fixes the shadow, padding,
+  radius and border, and they cannot be overridden.
+- **A badge is never cut short.** The theme keeps every badge exactly as
+  wide as its text, on one line; when a row runs out of room, the layout
+  around it gives way. Badge colours come from
+  `components/badge/badgeColours.ts`.
 - **Every new component has a `.stories.tsx` and a `.test.tsx` beside
   it.** `src/stories.test.tsx` finds and renders every story by itself.
 

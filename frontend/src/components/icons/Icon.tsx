@@ -13,6 +13,9 @@ import type { MantineColor } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import type { IconProps as TablerIconProps } from "@tabler/icons-react";
 
+/** One icon from `appIcons.ts`, as an element: every icon is a Tabler icon. */
+export type AppIconElement = ReactElement<TablerIconProps>;
+
 /**
  * Icon size variants mapped to pixel values
  * Desktop (≥640px):

@@ -2,6 +2,7 @@ import { Stack } from "@mantine/core";
 import { useEffect, useState } from "react";
 
 import { checkHealth } from "@/api/health";
+import BaseCard from "@/components/base-card/BaseCard";
 import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
 import { BodyText, PageHeader } from "@/components/typography";
 
@@ -25,7 +26,9 @@ export default function HomePage() {
     <Stack gap="lg">
       <PageHeader title="Home" />
       <BodyText>A quiet place for a team, its pipeline and its agents to talk.</BodyText>
-      <HealthStatus state={state} />
+      <BaseCard>
+        <HealthStatus state={state} />
+      </BaseCard>
     </Stack>
   );
 }

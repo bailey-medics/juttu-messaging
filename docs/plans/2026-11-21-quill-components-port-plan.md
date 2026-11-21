@@ -32,9 +32,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 3: Cards, badges and status
 
-- [ ] Port `BaseCard` and `CardActionRow` from `components/base-card/`, `ActionCard` from `components/action-card/`, and the generic badges from `components/badge/`: `BadgeSkeleton`, `UnreadBadge`, `ActiveStatusBadge` and `FeatureBadge`. Leave out the badges for notes, letters, appointments, competencies, assessments, sign-off, platform roles, feedback and "on Quill", which belong to Quill's clinical and teaching features. Port `StatusStrip` and `LiveStatus`.
+- [x] Port `BaseCard` and `CardActionRow` from `components/base-card/`, `ActionCard` from `components/action-card/`, and the generic badges from `components/badge/`: `BadgeSkeleton`, `UnreadBadge`, `ActiveStatusBadge` and `FeatureBadge`. Leave out the badges for notes, letters, appointments, competencies, assessments, sign-off, platform roles, feedback and "on Quill", which belong to Quill's clinical and teaching features. Port `StatusStrip` and `LiveStatus`.
 
-- [ ] Rebuild `HealthStatus` on the ported badge and `LiveStatus` pieces, if they fit, and give `HomePage` its card. Add the card and badge rules to `.claude/rules/components.md`: every card is a `BaseCard`, and a badge is never cut short.
+- [x] Rebuild `HealthStatus` on the ported badge and `LiveStatus` pieces, if they fit, and give `HomePage` its card. Add the card and badge rules to `.claude/rules/components.md`: every card is a `BaseCard`, and a badge is never cut short.
 
 ## Phase 4: Feedback and states
 
@@ -95,3 +95,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **The home page's title is "Home"** - `PageHeader` sets the browser tab's title too, so a home page titled "Juttu" would read "Juttu - Juttu". The ribbon already shows the name.
 
 - **Phase 2 brought two of Phase 3's helpers early** - Quill's `PassIcon` and `FailIcon` read `components/badge/badgeColours.ts`, and Quill's colour tables live in `styles/semanticColours.ts`, so both came across in Phase 2, unchanged. The icon catalogue story draws its tiles with Mantine's `Paper` until Phase 3 brings `BaseCard`.
+
+- **`AppIconElement` names a Tabler icon element** - Phase 3. Typing `Icon`'s `icon` prop as a Tabler icon, to avoid a cast, meant every component that hands it an icon needs the same type. `components/icons` exports it as `AppIconElement`, which `ActionCard` and `StatusStrip` use.
+
+- **`HealthStatus` announces through `LiveStatus`** - Phase 3. It built its own live region before; it now uses Quill's `LiveStatus`, a hidden status region, and Quill's `success` and `alert` badge colours.

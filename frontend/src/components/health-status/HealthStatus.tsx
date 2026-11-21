@@ -1,5 +1,7 @@
 import { Badge, Group } from "@mantine/core";
 
+import { BADGE_VARIANT, badgeColours } from "@/components/badge/badgeColours";
+import LiveStatus from "@/components/live-status";
 import { BodyText } from "@/components/typography";
 
 /** Where the health check has got to. */
@@ -9,45 +11,50 @@ export interface HealthStatusProps {
   state: HealthState;
 }
 
+/** The pale "not yet" wash and its near-black text, for a check under way. */
+const CHECKING_COLOURS = { bg: "var(--update-color)", text: "var(--status-text-dark)" };
+
 /**
- * Each state's badge, in the theme's status colours: `--success-color` and
- * `--alert-color` take white text at WCAG AA, and `--update-color`, the pale
- * "not yet" wash, takes the near-black `--status-text-dark`.
+ * Each state's badge: Quill Medical's `success` and `alert` badge colours,
+ * which take white text at WCAG AA, and the "not yet" wash while checking.
  */
-const LABELS: Record<
+const STATES: Record<
   HealthState,
-  { colour: string; textColour: string; label: string; detail: string }
+  { colours: { bg: string; text: string }; label: string; detail: string }
 > = {
   checking: {
-    colour: "var(--update-color)",
-    textColour: "var(--status-text-dark)",
+    colours: CHECKING_COLOURS,
     label: "Checking",
     detail: "Asking the backend whether it is up.",
   },
   up: {
-    colour: "var(--success-color)",
-    textColour: "white",
+    colours: badgeColours.success,
     label: "Backend up",
     detail: "The backend answered its health check.",
   },
   down: {
-    colour: "var(--alert-color)",
-    textColour: "white",
+    colours: badgeColours.alert,
     label: "Backend down",
     detail: "The backend did not answer its health check.",
   },
 };
 
-/** Shows whether the backend answered its health check. */
+/**
+ * Shows whether the backend answered its health check, and tells a screen
+ * reader when that changes, through `LiveStatus`.
+ */
 export default function HealthStatus({ state }: HealthStatusProps) {
-  const { colour, textColour, label, detail } = LABELS[state];
+  const { colours, label, detail } = STATES[state];
 
   return (
-    <Group gap="sm" role="status" aria-live="polite">
-      <Badge color={colour} c={textColour} size="lg">
-        {label}
-      </Badge>
-      <BodyText>{detail}</BodyText>
-    </Group>
+    <>
+      <Group gap="sm">
+        <Badge variant={BADGE_VARIANT} color={colours.bg} c={colours.text} size="lg">
+          {label}
+        </Badge>
+        <BodyText>{detail}</BodyText>
+      </Group>
+      <LiveStatus message={`${label}. ${detail}`} />
+    </>
   );
 }
