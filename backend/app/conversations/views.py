@@ -24,6 +24,7 @@ from app.conversations.services import (
     conversations_for,
     messages_in,
     post,
+    replies_to,
     start_channel,
     start_direct,
 )
@@ -50,6 +51,7 @@ class NewMessageSerializer(serializers.Serializer[dict[str, Any]]):
         max_length=MAX_MESSAGE_LENGTH, trim_whitespace=False
     )
     amends = serializers.IntegerField(required=False, allow_null=True)
+    thread = serializers.IntegerField(required=False, allow_null=True)
 
 
 def caller(request: Request) -> User:
@@ -107,7 +109,18 @@ def message_body(message: Message) -> dict[str, object]:
         "body": message.body,
         "created_at": message.created_at.isoformat(),
         "amends": message.amends_id,
+        "thread": message.thread_id,
+        # Counted by ``messages_in``; a reply, or a message just posted,
+        # has none yet.
+        "reply_count": getattr(message, "reply_count", 0),
     }
+
+
+def optional_int(serializer: NewMessageSerializer, name: str) -> int | None:
+    """One optional whole number the serializer read, or None."""
+    value = serializer.validated_data.get(name)
+
+    return value if isinstance(value, int) else None
 
 
 def refused(error: ConversationRefused) -> Response:
@@ -185,6 +198,17 @@ class MessagesView(APIView):
             if amends_id is not None
             else None
         )
+        thread_id = optional_int(serializer, "thread")
+        thread = (
+            Message.objects.filter(pk=thread_id).first()
+            if thread_id is not None
+            else None
+        )
+        if thread_id is not None and thread is None:
+            return Response(
+                {"detail": "That thread is in another conversation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if amends_id is not None and amends is None:
             return Response(
                 {"detail": "You can only correct your own messages here."},
@@ -197,8 +221,29 @@ class MessagesView(APIView):
                 serializer.validated_data["body"],
                 by=user,
                 amends=amends,
+                thread=thread,
             )
         except ConversationRefused as error:
             return refused(error)
 
         return Response(message_body(message), status=status.HTTP_201_CREATED)
+
+
+class RepliesView(APIView):
+    """``GET`` the replies in one message's thread."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, message_id: int) -> Response:
+        user = caller(request)
+        message = (
+            Message.objects.select_related("conversation__space")
+            .filter(pk=message_id)
+            .first()
+        )
+        if message is None or not can_read(user, message.conversation):
+            raise Http404
+
+        replies = replies_to(message)
+
+        return Response({"replies": [message_body(m) for m in replies]})

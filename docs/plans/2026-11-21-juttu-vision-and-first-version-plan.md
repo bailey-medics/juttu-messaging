@@ -147,6 +147,10 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 - [ ] A reply can hang off a message as a thread, shown beside the conversation. Backend, frontend and tests.
 
+- [x] Split when reached, backend first. A reply is a `Message` whose `thread` names the top-level message it hangs off; a reply to a reply joins the same thread, so a thread is one level deep, and a correction stays in its thread. Adding the column is an `ALTER TABLE`, which the append-only trigger allows, since it changes no row. `GET /api/conversations/{id}/messages` now lists top-level messages only, each with its `reply_count` counted in the same query, and `GET /api/messages/{id}/replies` reads a thread, checking the conversation as every read does. `POST` takes `thread`.
+
+- [ ] The thread on screen: each message shows how many replies it has, and opening them shows the thread beside the conversation, with a box to reply, composed from `Messaging`.
+
 ## Phase 17: Unread state
 
 - [ ] Each person's last-read point in each conversation, unread counts in the list, and marking read on opening. Backend, frontend and tests.

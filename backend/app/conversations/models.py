@@ -96,6 +96,15 @@ class Message(models.Model):
         on_delete=models.PROTECT,
         related_name="amendments",
     )
+    # The message this one replies to, for a reply in a thread. Always a
+    # top-level message: a reply to a reply joins the same thread.
+    thread = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="replies",
+    )
     format_version = models.PositiveSmallIntegerField(
         default=MESSAGE_FORMAT_VERSION
     )

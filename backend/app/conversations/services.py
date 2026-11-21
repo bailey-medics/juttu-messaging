@@ -7,7 +7,7 @@ Quill Medical's messaging.
 """
 
 from django.db import transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 
 from app.accounts.models import User
 from app.audit.models import AuditAction
@@ -110,12 +110,26 @@ def start_direct(
 
 
 def messages_in(conversation: Conversation, limit: int = 200) -> list[Message]:
-    """The latest *limit* messages, oldest first."""
-    latest = conversation.messages.select_related("author").order_by(
-        "-created_at", "-pk"
-    )[:limit]
+    """The latest *limit* top-level messages, oldest first.
+
+    Replies in a thread are left out; each message carries ``reply_count``,
+    counted in the same query.
+    """
+    latest = (
+        conversation.messages.filter(thread__isnull=True)
+        .select_related("author")
+        .annotate(reply_count=Count("replies"))
+        .order_by("-created_at", "-pk")[:limit]
+    )
 
     return list(reversed(latest))
+
+
+def replies_to(message: Message) -> list[Message]:
+    """The replies in *message*'s thread, oldest first."""
+    return list(
+        message.replies.select_related("author").order_by("created_at", "pk")
+    )
 
 
 @transaction.atomic
@@ -125,8 +139,13 @@ def post(
     *,
     by: User,
     amends: Message | None = None,
+    thread: Message | None = None,
 ) -> Message:
-    """Add a message, or a correction of one.
+    """Add a message, a reply in a thread, or a correction of either.
+
+    A reply to a reply joins the first message's thread, so a thread is
+    one level deep. A correction stays in the thread of the message it
+    corrects.
 
     Raises:
         ConversationRefused: If *by* may not post here, the body is empty or
@@ -150,8 +169,20 @@ def post(
             "You can only correct your own messages here."
         )
 
+    if thread is not None and thread.conversation_id != conversation.pk:
+        raise ConversationRefused("That thread is in another conversation.")
+
+    if amends is not None:
+        thread = amends.thread
+    elif thread is not None and thread.thread is not None:
+        thread = thread.thread
+
     message = Message.objects.create(
-        conversation=conversation, author=by, body=text, amends=amends
+        conversation=conversation,
+        author=by,
+        body=text,
+        amends=amends,
+        thread=thread,
     )
 
     # The entry says a message was posted, and where; never what it said.

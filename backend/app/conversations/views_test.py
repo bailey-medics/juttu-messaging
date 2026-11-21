@@ -272,3 +272,84 @@ def test_somebody_not_signed_in_is_refused(general: Conversation) -> None:
         Client().get(f"/api/conversations/{general.pk}/messages").status_code
         == 403
     )
+
+
+def test_a_reply_goes_in_its_message_s_thread(
+    alex: User, priya: User, general: Conversation
+) -> None:
+    question = post(general, "Who is on call?", by=alex)
+
+    response = send(signed_in(priya), general, "I am.", thread=question.pk)
+
+    assert response.status_code == 201
+    assert response.json()["thread"] == question.pk
+    replies = (
+        signed_in(alex)
+        .get(f"/api/messages/{question.pk}/replies")
+        .json()["replies"]
+    )
+    assert [r["body"] for r in replies] == ["I am."]
+
+
+def test_the_conversation_lists_top_level_messages_with_their_reply_counts(
+    alex: User, priya: User, general: Conversation
+) -> None:
+    question = post(general, "Who is on call?", by=alex)
+    post(general, "I am.", by=priya, thread=question)
+    post(general, "Me too.", by=alex, thread=question)
+
+    messages = (
+        signed_in(alex)
+        .get(f"/api/conversations/{general.pk}/messages")
+        .json()["messages"]
+    )
+
+    assert [(m["body"], m["reply_count"]) for m in messages] == [
+        ("Who is on call?", 2)
+    ]
+
+
+def test_a_reply_to_a_reply_joins_the_same_thread(
+    alex: User, priya: User, general: Conversation
+) -> None:
+    question = post(general, "Who is on call?", by=alex)
+    answer = post(general, "I am.", by=priya, thread=question)
+
+    follow_up = post(general, "Thanks.", by=alex, thread=answer)
+
+    assert follow_up.thread_id == question.pk
+
+
+def test_a_correction_stays_in_its_thread(
+    alex: User, priya: User, general: Conversation
+) -> None:
+    question = post(general, "Who is on call?", by=alex)
+    answer = post(general, "I am", by=priya, thread=question)
+
+    fixed = post(general, "I am.", by=priya, amends=answer)
+
+    assert fixed.thread_id == question.pk
+
+
+def test_a_thread_must_be_in_the_same_conversation(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    other = start_channel(release, "random", by=sam)
+    question = post(other, "Elsewhere", by=alex)
+
+    response = send(
+        signed_in(alex), general, "Wrong place", thread=question.pk
+    )
+
+    assert response.status_code == 400
+
+
+def test_somebody_who_cannot_read_the_conversation_cannot_read_its_threads(
+    sam: User, alex: User, priya: User, release: Space
+) -> None:
+    direct = start_direct(release, [sam], by=alex)
+    secret = post(direct, "Between us", by=alex)
+
+    response = signed_in(priya).get(f"/api/messages/{secret.pk}/replies")
+
+    assert response.status_code == 404
