@@ -85,7 +85,9 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 9: Sign-in, frontend
 
-- [ ] Port the sign-in page, the signed-in guard on routes and the sign-out control. Tests for the guard and the page.
+- [x] Port the sign-in page, the signed-in guard on routes and the sign-out control. Tests for the guard and the page.
+
+- [x] Found while building: Quill Medical's `AuthContext`, `RequireAuth`, `GuestOnly`, `CannotReach`, `LoginForm` and `LogoutNavLink` came across without its two-factor code, register link, forgotten password link and roles, as `frontend/src/auth/`, `SignInForm` and `SignOutNavLink`. The page is `/sign-in`, in the words the backend uses. Quill reloads the whole page after signing in; Juttu's `GuestOnly` sends the person on with the router instead, to the page `RequireAuth` sent them from, and only to a path inside the app. `GET /api/auth/me` answers 200 for somebody not signed in, so a failed request means the backend is unreachable, never that the session ended, and the guard says "No connection" instead of asking to sign in again. Every page test that rendered the whole app now signs in first, through `renderSignedInAt` in `frontend/src/test/render.tsx`.
 
 ## Phase 10: Audit trail
 

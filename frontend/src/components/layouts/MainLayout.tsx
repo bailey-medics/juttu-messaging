@@ -42,6 +42,8 @@ type Props = {
   isLoading?: boolean;
   /** Removes the page's maximum width, for a full-width page. */
   fluid?: boolean;
+  /** Ends the session, from the "Sign out" entry in the side navigation. */
+  onSignOut?: () => Promise<void>;
 };
 
 export default function MainLayout({
@@ -49,6 +51,7 @@ export default function MainLayout({
   rightSection,
   isLoading = false,
   fluid = false,
+  onSignOut,
 }: Props) {
   const location = useLocation();
   // Shut, unless the link that led here asked for it open.
@@ -95,7 +98,7 @@ export default function MainLayout({
           width={`${LAYOUT_SIDEBAR_WIDTH}px`}
         >
           <div style={{ width: LAYOUT_SIDEBAR_WIDTH }}>
-            <SideNav showIcons onNavigate={close} />
+            <SideNav showIcons onNavigate={close} onSignOut={onSignOut} />
           </div>
         </NavigationDrawer>
         <Flex style={{ flex: 1, height: "100%", minWidth: 0 }}>
@@ -111,7 +114,7 @@ export default function MainLayout({
                 flexShrink: 0,
               }}
             >
-              <SideNav showIcons />
+              <SideNav showIcons onSignOut={onSignOut} />
             </Box>
           )}
           {/* `minWidth: 0`, so one long unbroken word cannot push the page

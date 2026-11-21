@@ -1,12 +1,14 @@
 import { screen } from "@testing-library/react";
 
-import { renderAt, stubFetchJson } from "@/test/render";
+import HomePage from "@/pages/HomePage";
+import { stubFetchJson } from "@/test/render";
+import { renderWithRouter } from "@/test/test-utils";
 
 describe("HomePage", () => {
   it("says the backend is up when the health check answers", async () => {
     stubFetchJson({ status: "ok" });
 
-    renderAt("/");
+    renderWithRouter(<HomePage />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     expect(await screen.findByText("Backend up")).toBeInTheDocument();
@@ -15,7 +17,7 @@ describe("HomePage", () => {
   it("says the backend is down when the health check fails", async () => {
     stubFetchJson({ detail: "unavailable" }, 502);
 
-    renderAt("/");
+    renderWithRouter(<HomePage />);
 
     expect(await screen.findByText("Backend down")).toBeInTheDocument();
   });
@@ -26,7 +28,7 @@ describe("HomePage", () => {
       vi.fn(() => new Promise<Response>(() => {})),
     );
 
-    renderAt("/");
+    renderWithRouter(<HomePage />);
 
     expect(screen.getByText("Checking")).toBeInTheDocument();
   });

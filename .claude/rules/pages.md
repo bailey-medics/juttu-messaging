@@ -23,3 +23,9 @@ paths:
   open, and is marked as the page you are on, so somebody can see where
   they are without the menu gaining a permanent entry. Leave it out only
   where a child would mislead, and say why in a comment.
+- **Every page needs somebody signed in, except the sign-in page.** A new
+  page goes among the children of the `RequireAuth` route in
+  `frontend/src/routes.tsx`, inside `RootLayout`. A page for somebody not
+  signed in is wrapped in `GuestOnly` instead, as `/sign-in` is. A page
+  test renders the page itself with `renderWithRouter`; a test of the
+  whole app uses `renderSignedInAt` from `frontend/src/test/render.tsx`.
