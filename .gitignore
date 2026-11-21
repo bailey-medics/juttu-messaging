@@ -1,0 +1,4 @@
+# Material for this machine only, never committed
+CLAUDE.local.md
+.claude/settings.local.json
+local/

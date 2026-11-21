@@ -1,0 +1,92 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git worktree *)",
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(shellcheck *)",
+      "Bash(bats *)",
+      "Read(//home/markbailey/github/**)",
+      "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(just --list)"
+    ],
+    "deny": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh stack merge:*)",
+      "mcp__github__merge_pull_request",
+      "mcp__github__enable_pr_auto_merge"
+    ],
+    "defaultMode": "auto"
+  },
+  "model": "opus",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/markbailey/github/mark-house-style/claude/hooks/tab-topic.sh reset",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/markbailey/github/mark-house-style/scripts/notification/notification.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/markbailey/github/mark-house-style/scripts/notification/notification.sh needs-input",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/markbailey/github/mark-house-style/scripts/notification/notification.sh needs-input",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/markbailey/github/mark-house-style/claude/hooks/tab-topic.sh prompt",
+            "timeout": 90,
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "claude-security@claude-plugins-official": true
+  }
+}
