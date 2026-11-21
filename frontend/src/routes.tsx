@@ -12,6 +12,8 @@ import HomePage from "@/pages/HomePage";
 import MembersPage from "@/pages/MembersPage";
 import NewSpacePage from "@/pages/NewSpacePage";
 import NotFoundPage from "@/pages/NotFoundPage";
+import RegisterSenderPage from "@/pages/RegisterSenderPage";
+import SendersPage from "@/pages/SendersPage";
 import SignInPage from "@/pages/SignInPage";
 import SpacePage from "@/pages/SpacePage";
 import SpacesPage from "@/pages/SpacesPage";
@@ -70,6 +72,22 @@ export const routes: RouteObject[] = [
             element: (
               <RequireAdmin feature="Members">
                 <AddMemberPage />
+              </RequireAdmin>
+            ),
+          },
+          {
+            path: "senders",
+            element: (
+              <RequireAdmin feature="Senders">
+                <SendersPage />
+              </RequireAdmin>
+            ),
+          },
+          {
+            path: "senders/new",
+            element: (
+              <RequireAdmin feature="Senders">
+                <RegisterSenderPage />
               </RequireAdmin>
             ),
           },
