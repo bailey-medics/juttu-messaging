@@ -1,19 +1,13 @@
-import { AppShell, Container } from "@mantine/core";
 import { Outlet } from "react-router";
 
 import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
 import InstallButton from "@/components/install-button/InstallButton";
-import { PageMessageProvider } from "@/components/page-message";
-import PageMessageDisplay from "@/components/page-message/PageMessageDisplay";
-import TopRibbon from "@/components/ribbon";
-import { HEADER_HEIGHT } from "@/layout";
+import MainLayout from "@/components/layouts/MainLayout";
 import { useInstallPrompt } from "@/pwa/useInstallPrompt";
 
 /**
- * The frame every page sits in: Quill Medical's top ribbon, with Juttu's
- * name and, when the browser offers one, an install button, and the page
- * beneath it. Ported from Quill Medical's root layout, without its patient
- * context and navigation, which Juttu does not have yet.
+ * The frame every page sits in: Quill Medical's `MainLayout`, with Juttu's
+ * ribbon, its side navigation and the page, as Quill's root layout uses it.
  */
 export default function RootLayout() {
   // Only when the browser offers an install: on a phone the ribbon gives a
@@ -22,24 +16,12 @@ export default function RootLayout() {
   const { canInstall } = useInstallPrompt();
 
   return (
-    <AppShell header={{ height: HEADER_HEIGHT }} padding="md">
-      <AppShell.Header withBorder={false}>
-        <TopRibbon rightSection={canInstall ? <InstallButton /> : undefined} />
-      </AppShell.Header>
-      <AppShell.Main>
-        <Container size="md">
-          {/* A page that throws shows the fallback inside the frame, so the
-              ribbon stays and somebody can still go home. */}
-          <ErrorBoundary>
-            {/* As Quill Medical's MainLayout does: a page's status messages
-                show under its PageHeader, or at the top when it has none. */}
-            <PageMessageProvider>
-              <PageMessageDisplay fallback />
-              <Outlet />
-            </PageMessageProvider>
-          </ErrorBoundary>
-        </Container>
-      </AppShell.Main>
-    </AppShell>
+    <MainLayout rightSection={canInstall ? <InstallButton /> : undefined}>
+      {/* A page that throws shows the fallback inside the frame, so the
+          ribbon and the navigation stay and somebody can still go home. */}
+      <ErrorBoundary>
+        <Outlet />
+      </ErrorBoundary>
+    </MainLayout>
   );
 }

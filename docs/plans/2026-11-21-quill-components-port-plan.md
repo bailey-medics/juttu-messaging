@@ -46,9 +46,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 6: Layout and navigation
 
-- [ ] Port Quill's layouts and navigation without their patient and teaching parts: `MainLayout`, `NoAccessLayout` and `NotFoundLayout` from `components/layouts/`, and `SideNav`, `SideNavContent`, `NestedNavLink` and `SkipLink` from `components/navigation/`, with `NavigationDrawer` from `components/drawers/` and `EllipsisMenu` from `components/ellipsis-menu/`. `SideNavContent` holds Juttu's own entries, which today are only the home page. Leave out `TeachingLayout`, `TeachingMainNav`, `TeachingLearningNav`, `PublicLayout`, `PublicNotFound` and `LogoutNavLink`, which comes with sign-in.
+- [x] Port Quill's layouts and navigation without their patient and teaching parts: `MainLayout`, `NoAccessLayout` and `NotFoundLayout` from `components/layouts/`, and `SideNav`, `SideNavContent`, `NestedNavLink` and `SkipLink` from `components/navigation/`, with `NavigationDrawer` from `components/drawers/` and `EllipsisMenu` from `components/ellipsis-menu/`. `SideNavContent` holds Juttu's own entries, which today are only the home page. Leave out `TeachingLayout`, `TeachingMainNav`, `TeachingLearningNav`, `PublicLayout`, `PublicNotFound` and `LogoutNavLink`, which comes with sign-in.
 
-- [ ] Move `RootLayout` onto `MainLayout`, and give `TopRibbon` Quill's burger button and narrow layout back, so the side navigation folds behind the burger on a phone, as in Quill. Add Quill's page rules that now apply to `.claude/rules/pages.md`: right-aligned buttons, and a child navigation link for each new page.
+- [x] Move `RootLayout` onto `MainLayout`, and give `TopRibbon` Quill's burger button and narrow layout back, so the side navigation folds behind the burger on a phone, as in Quill. Add Quill's page rules that now apply to `.claude/rules/pages.md`: right-aligned buttons, and a child navigation link for each new page.
 
 ## Phase 7: Chat and inbox
 
@@ -108,4 +108,10 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 - **The form system keeps two casts, each with its reason** - Phase 5. Juttu's lint refuses every `as`, but React context cannot carry a generic, so `Form` and `useFormContext` restore the caller's field values with one cast each, under a lint-disable comment that says why. Every other cast in the form code became a type guard: the stories' `watch()` values, the tests' error messages, and the flash message `PageMessageContext` reads from router state, which now keeps only a text description.
 
-- **The page-message provider sits in `RootLayout` until Phase 6** - Quill mounts `PageMessageProvider` in `MainLayout`. Juttu mounts it in the same place, around the page inside `RootLayout`, and Phase 6 moves it into `MainLayout`.
+- **The page-message provider sits in `RootLayout` until Phase 6** - Quill mounts `PageMessageProvider` in `MainLayout`. Juttu mounts it in the same place, around the page inside `RootLayout`, and Phase 6 moves it into `MainLayout`. Done in Phase 6.
+
+- **Juttu's side navigation entries live in `navigation/navItems.ts`** - Phase 6. Quill's `SideNavContent` builds its entries inside the component, behind competencies and features. Juttu's has no such gates yet, so the list is a plain array in its own file, which keeps the component file to components alone, as fast refresh needs. Each new page adds its entry there.
+
+- **`renderWithRouter` hands back its router** - Phase 6. Quill's helper uses a browser router, so its `NestedNavLink` tests read `window.location`. Juttu's helper uses a memory router, which leaves `window.location` alone, so the helper now returns the router and those tests read `router.state.location` instead. The tests check the same things.
+
+- **`MainLayout` leaves out what Juttu does not have** - Phase 6: the patient in the ribbon, search, the connectivity and forced-reload strips, exam mode and the footer. It takes a `rightSection` for the ribbon, which `RootLayout` fills with the install button.

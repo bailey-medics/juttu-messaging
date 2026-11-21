@@ -33,3 +33,9 @@ export const NarrowWithRightSection: Story = {
   },
   decorators: [(Story) => <div style={{ width: 360 }}>{Story()}</div>],
 };
+
+/** On a phone, the burger opens the side navigation in place of the name. */
+export const NarrowWithBurger: Story = {
+  args: { isNarrow: true, onBurgerClick: () => undefined },
+  decorators: [(Story) => <div style={{ width: 360 }}>{Story()}</div>],
+};

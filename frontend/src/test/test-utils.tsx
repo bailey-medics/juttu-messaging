@@ -34,7 +34,7 @@ export function renderWithMantine(
 export function renderWithRouter(
   ui: ReactElement,
   options?: Omit<RenderOptions, "wrapper"> & { initialRoute?: string },
-): RenderResult {
+): RenderResult & { router: ReturnType<typeof createMemoryRouter> } {
   const { initialRoute = "/", ...rest } = options ?? {};
   // As Quill Medical's helper does: the page-message provider around the
   // page, so a page's status messages show as they do in the app.
@@ -48,7 +48,14 @@ export function renderWithRouter(
     initialEntries: [initialRoute],
   });
 
-  return render(<RouterProvider router={router} />, { wrapper: MantineWrapper, ...rest });
+  // The router comes back too, so a test can read where a link went:
+  // a memory router leaves `window.location` alone.
+  const result = render(<RouterProvider router={router} />, {
+    wrapper: MantineWrapper,
+    ...rest,
+  });
+
+  return { ...result, router };
 }
 
 /**

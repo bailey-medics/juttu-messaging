@@ -25,6 +25,13 @@
   border-bottom: 4px solid var(--brand-secondary);
 }
 
+/* The burger, nudged down a pixel to sit level in the ribbon, as in Quill. */
+.left {
+  display: block;
+  margin-top: 1px;
+  margin-bottom: -1px;
+}
+
 /* The name, linking home. */
 .brand {
   display: flex;

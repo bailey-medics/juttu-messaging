@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
@@ -58,5 +59,28 @@ describe("TopRibbon", () => {
 
   it("sits on the ribbon colour, which follows the colour scheme", () => {
     expect(ribbonStyles).toContain("background: var(--ribbon-bg);");
+  });
+
+  it("shows the name and no burger on a wide screen", () => {
+    renderRibbon(<TopRibbon onBurgerClick={() => undefined} />);
+
+    expect(screen.getByRole("link", { name: "Juttu" })).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("puts the burger in place of the name on a narrow screen", async () => {
+    const onBurgerClick = vi.fn();
+    renderRibbon(<TopRibbon isNarrow onBurgerClick={onBurgerClick} />);
+
+    expect(screen.queryByRole("link", { name: "Juttu" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button"));
+
+    expect(onBurgerClick).toHaveBeenCalledOnce();
+  });
+
+  it("tells assistive technology whether the navigation is open", () => {
+    renderRibbon(<TopRibbon isNarrow navOpen onBurgerClick={() => undefined} />);
+
+    expect(screen.getByRole("button")).toHaveAttribute("aria-expanded", "true");
   });
 });
