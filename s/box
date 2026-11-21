@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# The long-running copy of Juttu on the dev box. See docs/dev-box.md.
+#
+#   s/box deploy [ref]    build and start <ref>, by default the latest
+#                         origin/main, from a clean copy of it
+#   s/box status          what is running, and which commit it is
+#   s/box logs [service]  follow the logs
+#   s/box down            stop it, keeping its database
+#
+# It builds from an export of the commit into local/box-build/, never from
+# this working tree, so what runs is exactly what was merged. Its settings
+# live in local/box.env, which git ignores; the first deploy makes that file
+# with a random database password and a random Django secret key.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+local_dir="${root}/local"
+env_file="${local_dir}/box.env"
+build_dir="${local_dir}/box-build"
+
+usage() {
+	echo "Usage: s/box deploy [ref] | status | logs [service] | down" >&2
+	exit 2
+}
+
+# A random value, as hexadecimal, from the given number of bytes.
+random_hex() {
+	od -An -tx1 -N"$1" /dev/urandom | tr -d ' \n'
+}
+
+# Make local/box.env the first time, readable by its owner only, and add a
+# Django secret key to one made before the backend needed it.
+ensure_env_file() {
+	umask 077
+
+	if [ ! -f "${env_file}" ]; then
+		mkdir -p "${local_dir}"
+		{
+			echo "# Settings for the long-running copy on this dev box, read by s/box."
+			echo "# Never committed: local/ is ignored. See docs/dev-box.md."
+			echo
+			echo "# The box database's password, made at random by the first deploy."
+			echo "JUTTU_BOX_POSTGRES_PASSWORD=$(random_hex 24)"
+			echo
+			echo "# The port the copy listens on, on this machine only."
+			echo "JUTTU_BOX_PORT=8290"
+			echo
+			echo "# The address phones open, on the private network. The backend"
+			echo "# answers this host, and deploys print it."
+			echo "# JUTTU_BOX_ADDRESS=<the box's private network name>:8290"
+		} >"${env_file}"
+
+		echo "Made ${env_file}, with a random database password."
+	fi
+
+	if [ -z "$(setting JUTTU_BOX_SECRET_KEY)" ]; then
+		{
+			echo
+			echo "# Django's secret key for the box copy, made at random."
+			echo "JUTTU_BOX_SECRET_KEY=$(random_hex 32)"
+		} >>"${env_file}"
+
+		echo "Added a random Django secret key to ${env_file}."
+	fi
+}
+
+# The hosts the box backend answers: this machine, for the health check,
+# and the address phones open, with its port taken off. Worked out on each
+# call from local/box.env, so no address is written in the repository.
+allowed_hosts() {
+	local address host
+
+	address="$(setting JUTTU_BOX_ADDRESS)"
+	host="${address%:*}"
+
+	if [ -n "${host}" ]; then
+		echo "localhost,127.0.0.1,${host}"
+	else
+		echo "localhost,127.0.0.1"
+	fi
+}
+
+# Read one setting from local/box.env, without running the file.
+setting() {
+	local name="$1"
+
+	sed -n "s/^${name}=//p" "${env_file}" | tail -1
+}
+
+box_compose() {
+	local compose_file="${build_dir}/compose.box.yml"
+
+	if [ ! -f "${compose_file}" ]; then
+		compose_file="${root}/compose.box.yml"
+	fi
+
+	JUTTU_BOX_ALLOWED_HOSTS="$(allowed_hosts)" \
+		docker compose -p juttu-box --env-file "${env_file}" -f "${compose_file}" "$@"
+}
+
+deploy() {
+	local ref="${1:-origin/main}"
+	local commit tag port address
+
+	ensure_env_file
+
+	git -C "${root}" fetch --quiet origin main
+	commit="$(git -C "${root}" rev-parse --verify --quiet "${ref}^{commit}")" || {
+		echo "No commit called ${ref}." >&2
+		exit 1
+	}
+	tag="$(git -C "${root}" rev-parse --short=12 "${commit}")"
+
+	echo "==> exporting ${ref} (${tag}) into local/box-build"
+	rm -rf "${build_dir}"
+	mkdir -p "${build_dir}"
+	git -C "${root}" archive "${commit}" | tar -x -C "${build_dir}"
+
+	if [ ! -f "${build_dir}/compose.box.yml" ]; then
+		echo "${ref} has no compose.box.yml, so there is nothing to deploy." >&2
+		exit 1
+	fi
+
+	echo "==> building and starting"
+	JUTTU_BOX_TAG="${tag}" box_compose up --detach --build --wait --remove-orphans
+	echo "${tag}" >"${local_dir}/box-deployed"
+
+	port="$(setting JUTTU_BOX_PORT)"
+	address="$(setting JUTTU_BOX_ADDRESS)"
+
+	echo
+	echo "Deployed ${tag} on http://127.0.0.1:${port:-8290}"
+	if [ -n "${address}" ]; then
+		echo "Phones open https://${address}"
+	fi
+}
+
+status() {
+	ensure_env_file
+
+	if [ -f "${local_dir}/box-deployed" ]; then
+		echo "Deployed commit: $(cat "${local_dir}/box-deployed")"
+	fi
+
+	box_compose ps
+}
+
+main() {
+	case "${1:-}" in
+		deploy)
+			[ "$#" -le 2 ] || usage
+			shift
+			deploy "$@"
+			;;
+		status)
+			[ "$#" -eq 1 ] || usage
+			status
+			;;
+		logs)
+			[ "$#" -le 2 ] || usage
+			ensure_env_file
+			shift
+			box_compose logs --follow "$@"
+			;;
+		down)
+			[ "$#" -eq 1 ] || usage
+			ensure_env_file
+			box_compose down
+			;;
+		*)
+			usage
+			;;
+	esac
+}
+
+main "$@"

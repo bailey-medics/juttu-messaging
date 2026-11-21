@@ -73,3 +73,10 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"./s/worktree feature/new-thing"* ]]
 }
+
+@test "just box-deploy deploys main through s/box" {
+	run just --dry-run box-deploy
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/box deploy"* ]]
+}

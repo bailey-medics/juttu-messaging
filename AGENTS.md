@@ -15,6 +15,8 @@ anything. `CLAUDE.md` only points here.
   what Juttu is for, the phases and the decisions behind them.
 - [The skeleton plan](docs/plans/2026-11-21-juttu-skeleton-plan.md): the
   empty shell every later phase stands on.
+- [The copy on the dev box](docs/dev-box.md): deploying it, and installing
+  Juttu on a phone.
 
 ## Layout
 
@@ -58,6 +60,10 @@ anything. `CLAUDE.md` only points here.
   is `juttu`, so no container or volume shares another stack's name.
 - **The dev stack listens on this machine only**, unless `JUTTU_BIND`
   says otherwise.
+- **The copy on the dev box runs only what is on `main`.** `s/box deploy`
+  builds from a clean export of `origin/main`, never a working tree. It is
+  reached only through the private network's HTTPS proxy, and its
+  settings, the address among them, live in `local/box.env`.
 - **British English**, in prose, comments, docs and identifiers. cspell
   checks the documents with `en-GB`. A new word goes in
   `cspell.config.json`, in alphabetical order, never in an inline comment.
@@ -96,6 +102,7 @@ just setup    # switch on the tracked git hook, once per clone
 ./s/down      # stop it, keeping the database
 ./s/rebuild   # rebuild its images after a dependency change
 just worktree feature/<name>   # a sibling worktree, ready to work in
+just box-deploy   # deploy the latest main to the copy on the dev box
 ./s/lint      # every check pre-commit enforces, over the whole repository
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments

@@ -73,3 +73,14 @@ alias sb := storybook
 # Start Storybook, the catalogue of components, on port 6106
 storybook:
     @./s/frontend storybook
+
+
+alias bd := box-deploy
+# Deploy the latest main to the long-running copy on the dev box
+box-deploy:
+    @./s/box deploy
+
+
+# What the long-running copy on the dev box is running
+box-status:
+    @./s/box status

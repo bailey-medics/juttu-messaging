@@ -51,9 +51,9 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 7: Run on the dev box
 
-- [ ] Add a second Compose file for a long-running copy on the dev box, apart from the development stack, with its own Compose project name (`juttu-box`), its own database volume and its own port, 8290 (`JUTTU_BOX_PORT`), and a `just` recipe to deploy the current `main` to it. It is served over HTTPS on the team's private network and is not reachable from the public internet. No address or machine name goes into the repository: they live in a gitignored environment file.
+- [x] Add a second Compose file for a long-running copy on the dev box, apart from the development stack, with its own Compose project name (`juttu-box`), its own database volume and its own port, 8290 (`JUTTU_BOX_PORT`), and a `just` recipe to deploy the current `main` to it. It is served over HTTPS on the team's private network and is not reachable from the public internet. No address or machine name goes into the repository: they live in a gitignored environment file.
 
-- [ ] Document how a team member installs the PWA on a phone from that address.
+- [x] Document how a team member installs the PWA on a phone from that address.
 
 ## Decisions
 
@@ -82,3 +82,7 @@ any external server, are recorded in the vision plan and not repeated here.
 - **The offline page was checked in a real browser** - 21 November 2026, Phase 5. With the build served by `vite preview`, Chromium came under the worker's control, showed `offline.html` on a reload with the network cut, failed `/api/health` instead of answering it from a cache, and served an icon from the precache. The check used Playwright from outside the repository; the browser tests that would make it part of CI are not built yet.
 
 - **The development database is published on this machine only** - Phase 3 binds Postgres to `127.0.0.1:5533`, not to every interface. Only psql and an editor on the dev box need it; the backend reaches it on the stack's own network. The long-running copy in Phase 7 publishes nothing but its web port.
+
+- **Juttu's copy on the dev box has its own HTTPS port, 8290** - found 21 November 2026, building Phase 7. The private network already serves another app on port 443 of the dev box, so Juttu's copy is put behind the private network's HTTPS proxy on port 8290, the same number as its local port. Phones open `https://<the box's private network name>:8290`. Running that proxy command once is a person's job, written up in `docs/dev-box.md`.
+
+- **CI's pre-commit cache must live outside the checkout** - found 21 November 2026, in the first CI run on the pipeline's pull request. With `PRE_COMMIT_HOME` inside the workspace, `s/lint`'s pass over untracked files met the cache's folders and stopped with "Unable to hash". The cache now sits in pre-commit's default home, `~/.cache/pre-commit`. The fix was folded into the pipeline's own commit.
