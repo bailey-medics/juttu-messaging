@@ -139,6 +139,10 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 - [ ] The list of spaces and conversations, the conversation view and the box to write a message, with stories and tests. Messages load when the page opens; live delivery comes in Phase 18.
 
+- [x] Split when reached: nothing yet let anybody make a space or put people in one, so this phase lands as two. The first adds `/spaces`, the spaces a person is in; `/spaces/new`, where an admin makes one; and `/spaces/{id}`, with its conversations and people, where an admin opens a channel and puts members of the organisation in the space. A space the person is not in shows "Page not found", as the backend answers. "Spaces" joins the side navigation. A conversation's row leads to `/conversations/{id}`, which the second half adds.
+
+- [ ] The conversation view, at `/conversations/{id}`, with `Messaging` showing the messages and the box to write one, and a way to start a direct conversation with somebody in the space.
+
 ## Phase 16: Threads
 
 - [ ] A reply can hang off a message as a thread, shown beside the conversation. Backend, frontend and tests.

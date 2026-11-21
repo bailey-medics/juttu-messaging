@@ -1,0 +1,69 @@
+import { ApiError } from "@/api/client";
+import {
+  isConversationSummary,
+  isChatMessage,
+  listConversations,
+  sendMessage,
+} from "@/api/conversations";
+import { createSpace, isSpace, listSpaces } from "@/api/spaces";
+import { stubFetchJson } from "@/test/render";
+
+describe("the spaces and conversations clients", () => {
+  it("lists spaces and refuses an answer it does not understand", async () => {
+    stubFetchJson({ spaces: [{ id: 1, name: "Release", is_clinical: false }] });
+    await expect(listSpaces()).resolves.toHaveLength(1);
+
+    stubFetchJson({ spaces: [{ id: 1 }] });
+    await expect(listSpaces()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("makes a space with only its name", async () => {
+    stubFetchJson({ id: 1, name: "Release", is_clinical: false }, 201);
+
+    await createSpace("Release");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/spaces",
+      expect.objectContaining({ body: JSON.stringify({ name: "Release" }) }),
+    );
+  });
+
+  it("checks conversations and messages", async () => {
+    expect(isSpace({ id: 1, name: "R", is_clinical: "no" })).toBe(false);
+    expect(isConversationSummary({ id: 1, kind: "group", title: "x" })).toBe(false);
+    expect(
+      isChatMessage({
+        id: 1,
+        author: { id: 2, name: "Alex" },
+        body: "Hi",
+        created_at: "2026-11-21T10:00:00Z",
+        amends: null,
+      }),
+    ).toBe(true);
+
+    stubFetchJson({ conversations: [{ id: 3, kind: "direct", title: "Sam Patel" }] });
+    await expect(listConversations(1)).resolves.toEqual([
+      { id: 3, kind: "direct", title: "Sam Patel" },
+    ]);
+  });
+
+  it("sends a message's text", async () => {
+    stubFetchJson(
+      {
+        id: 9,
+        author: { id: 2, name: "Alex" },
+        body: "Hi",
+        created_at: "2026-11-21T10:00:00Z",
+        amends: null,
+      },
+      201,
+    );
+
+    await sendMessage(3, "Hi");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/conversations/3/messages",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ body: "Hi" }) }),
+    );
+  });
+});

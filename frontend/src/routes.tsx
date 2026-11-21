@@ -9,8 +9,11 @@ import PageSpinner from "@/components/loading-spinner/PageSpinner";
 import AddMemberPage from "@/pages/AddMemberPage";
 import HomePage from "@/pages/HomePage";
 import MembersPage from "@/pages/MembersPage";
+import NewSpacePage from "@/pages/NewSpacePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import SignInPage from "@/pages/SignInPage";
+import SpacePage from "@/pages/SpacePage";
+import SpacesPage from "@/pages/SpacesPage";
 import RootLayout from "@/RootLayout";
 
 /**
@@ -42,6 +45,16 @@ export const routes: RouteObject[] = [
         ),
         children: [
           { index: true, element: <HomePage /> },
+          { path: "spaces", element: <SpacesPage /> },
+          {
+            path: "spaces/new",
+            element: (
+              <RequireAdmin feature="Spaces">
+                <NewSpacePage />
+              </RequireAdmin>
+            ),
+          },
+          { path: "spaces/:spaceId", element: <SpacePage /> },
           {
             path: "members",
             element: (

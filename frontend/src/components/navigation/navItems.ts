@@ -8,6 +8,14 @@ import type { NavItem } from "./NestedNavLink";
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: "Home", href: "/", icon: "home", exact: true },
+  // One space's page has no child link: there is one per space, and the
+  // page's own title says which space it is.
+  {
+    label: "Spaces",
+    href: "/spaces",
+    icon: "message",
+    children: [{ label: "New space", href: "/spaces/new" }],
+  },
 ];
 
 /**
