@@ -41,3 +41,17 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *'./s/migrate new "add users"'* ]]
 }
+
+@test "just frontend passes its arguments to s/frontend" {
+	run just --dry-run frontend dev
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/frontend dev"* ]]
+}
+
+@test "just storybook starts Storybook through s/frontend" {
+	run just --dry-run storybook
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/frontend storybook"* ]]
+}

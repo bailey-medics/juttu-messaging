@@ -21,6 +21,7 @@ anything. `CLAUDE.md` only points here.
 | Path          | What it is                                                                 |
 | ------------- | -------------------------------------------------------------------------- |
 | `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py` |
+| `frontend/`   | The React, Mantine and Vite app, with Storybook                            |
 | `docs/plans/` | Plan documents: what is being built, and the decisions made                |
 | `s/`          | Scripts, one for each repeated job. The `justfile` wraps them              |
 | `s/tests/`    | bats tests for the scripts and the git hook                                |
@@ -66,6 +67,13 @@ anything. `CLAUDE.md` only points here.
 - **A merged migration is never edited.** A change is a new migration.
 - **The backend container runs as an unprivileged user**, uid 10001.
   Never run it as root.
+- **Type guards, not `as`, in the frontend.** ESLint refuses a type
+  assertion, so anything read from the network is checked by a guard such
+  as `isHealthResponse`.
+- **Every component has a story**, and `src/stories.test.tsx` renders
+  every story, so a broken one fails the unit tests.
+- **npm runs no package's install script unless `allowScripts` in
+  `frontend/package.json` allows it.**
 - **`LICENSE` is kept byte for byte.** It is the Free Software
   Foundation's AGPL-3.0 text, so the whitespace hooks leave it alone.
 
@@ -77,6 +85,8 @@ just setup    # switch on the tracked git hook, once per clone
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
 just migrate "<message>"   # write a migration for a model change
+./s/frontend  # the frontend gate: types, lint, format, tests, both builds
+just storybook   # Storybook, on port 6106
 ```
 
 Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of
@@ -87,6 +97,7 @@ the skeleton plan adds its own commands here.
 ```sh
 ./s/lint
 ./s/test
+./s/frontend  # when the change touches frontend/
 ```
 
 Do not commit red.

@@ -6,6 +6,7 @@
 #   s/test s/tests            the bats tests only
 #   s/test backend [args]     the backend tests only, with pytest's args
 #   s/test migrations         the migration check only
+#   s/test frontend           the frontend's Vitest suite only
 #
 # The suites:
 #
@@ -16,6 +17,7 @@
 #              dev image with this worktree mounted, beside a throwaway
 #              Postgres, so it runs from any worktree without the dev
 #              stack. See compose.unit-tests.yml.
+#   frontend/  Vitest, on the host, through s/frontend.
 #   migrations s/migrate check: the migrations apply, undo and match the
 #              models, on a throwaway Postgres. See compose.migrate.yml.
 #
@@ -68,11 +70,17 @@ run_migrations() {
 	s/migrate check
 }
 
+run_frontend() {
+	echo "==> vitest frontend"
+	s/frontend test:ci
+}
+
 case "${1:-}" in
 	"")
 		run_bats
 		run_backend
 		run_migrations
+		run_frontend
 		;;
 	s/tests)
 		run_bats
@@ -84,8 +92,11 @@ case "${1:-}" in
 	migrations)
 		run_migrations
 		;;
+	frontend)
+		run_frontend
+		;;
 	*)
-		echo "Usage: s/test [s/tests | backend [pytest args] | migrations]" >&2
+		echo "Usage: s/test [s/tests | backend [pytest args] | migrations | frontend]" >&2
 		exit 2
 		;;
 esac

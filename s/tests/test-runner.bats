@@ -10,12 +10,14 @@ setup() {
 	cp "${BATS_TEST_DIRNAME}/../test" "${repo}/s/test"
 	cp "${BATS_TEST_DIRNAME}/../utils/project-name.sh" "${repo}/s/utils/project-name.sh"
 
-	# A stand-in s/migrate, recorded like the tools below.
-	cat >"${repo}/s/migrate" <<STUB
+	# Stand-ins for s/migrate and s/frontend, recorded like the tools below.
+	for script in migrate frontend; do
+		cat >"${repo}/s/${script}" <<STUB
 #!/usr/bin/env bash
-echo "s/migrate \$*" >>"${BATS_TEST_TMPDIR}/calls"
+echo "s/${script} \$*" >>"${BATS_TEST_TMPDIR}/calls"
 STUB
-	chmod +x "${repo}/s/migrate"
+		chmod +x "${repo}/s/${script}"
+	done
 
 	for tool in docker bats; do
 		cat >"${bin}/${tool}" <<STUB
@@ -30,7 +32,7 @@ calls() {
 	cat "${BATS_TEST_TMPDIR}/calls"
 }
 
-@test "no argument runs the bats, backend and migration suites in turn" {
+@test "no argument runs the bats, backend, migration and frontend suites in turn" {
 	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/test"
 
 	[ "$status" -eq 0 ]
@@ -38,6 +40,14 @@ calls() {
 	[[ "$(calls | sed -n 2p)" == "docker compose "*" run --rm --build backend pytest" ]]
 	[[ "$(calls | sed -n 3p)" == "docker compose "*" down --volumes --remove-orphans" ]]
 	[ "$(calls | sed -n 4p)" = "s/migrate check" ]
+	[ "$(calls | sed -n 5p)" = "s/frontend test:ci" ]
+}
+
+@test "frontend runs only the frontend's Vitest suite" {
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/test" frontend
+
+	[ "$status" -eq 0 ]
+	[ "$(calls)" = "s/frontend test:ci" ]
 }
 
 @test "migrations runs only the migration check" {
@@ -69,7 +79,7 @@ calls() {
 }
 
 @test "an unknown suite is refused" {
-	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/test" frontend
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/test" e2e
 
 	[ "$status" -eq 2 ]
 	[ ! -e "${BATS_TEST_TMPDIR}/calls" ]

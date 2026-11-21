@@ -13,6 +13,10 @@ repos:
         exclude: ^LICENSE$
       - id: check-yaml
       - id: check-json
+        # TypeScript's configs are JSONC: comments are part of the format,
+        # and ours explain why a compiler option is set. This hook reads
+        # strict JSON. Prettier still formats them.
+        exclude: ^frontend/tsconfig.*\.json$
       - id: check-toml
       - id: check-added-large-files
       - id: check-merge-conflict
@@ -48,7 +52,8 @@ repos:
         types: [markdown]
 
   # rbubley/mirrors-prettier is the maintained mirror, and tracks stable
-  # Prettier releases.
+  # Prettier releases. Files under frontend/ take frontend/.prettierrc.json,
+  # the same settings the frontend's own format check uses.
   - repo: https://github.com/rbubley/mirrors-prettier
     rev: v3.9.10
     hooks:

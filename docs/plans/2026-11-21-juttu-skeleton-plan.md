@@ -37,7 +37,7 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 4: Frontend skeleton
 
-- [ ] Port a minimal React, Mantine and Vite app: the theme, the root layout, the router and one page that calls the health endpoint. Port the Vitest and Storybook set-up, with a test and a story for the page. The Vite dev server listens on 5273 (`JUTTU_FRONTEND_PORT`) and Storybook on 6106 (`JUTTU_STORYBOOK_PORT`).
+- [x] Port a minimal React, Mantine and Vite app: the theme, the root layout, the router and one page that calls the health endpoint. Port the Vitest and Storybook set-up, with a test and a story for the page. The Vite dev server listens on 5273 (`JUTTU_FRONTEND_PORT`) and Storybook on 6106 (`JUTTU_STORYBOOK_PORT`).
 
 ## Phase 5: PWA shell
 

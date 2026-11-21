@@ -37,3 +37,15 @@ alias m := migrate
 # Write a migration for this worktree's model changes (throwaway database)
 migrate message:
     @./s/migrate new "{{message}}"
+
+
+alias f := frontend
+# Run the frontend gate, or one npm script (e.g. 'just f dev')
+frontend *args:
+    @./s/frontend {{args}}
+
+
+alias sb := storybook
+# Start Storybook, the catalogue of components, on port 6106
+storybook:
+    @./s/frontend storybook

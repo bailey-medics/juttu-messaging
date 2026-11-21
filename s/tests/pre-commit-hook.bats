@@ -60,3 +60,49 @@ STUB
 	[[ "$output" == *"pre-commit not found"* ]]
 	[ ! -e "${BATS_TEST_TMPDIR}/called" ]
 }
+
+# A stand-in lint-staged in the frontend's node_modules.
+stub_lint_staged() {
+	mkdir -p "${repo}/frontend/node_modules/.bin"
+	cat >"${repo}/frontend/node_modules/.bin/lint-staged" <<STUB
+#!/usr/bin/env bash
+pwd >"${BATS_TEST_TMPDIR}/lint-staged-ran-in"
+STUB
+	chmod +x "${repo}/frontend/node_modules/.bin/lint-staged"
+}
+
+@test "a staged frontend file runs lint-staged in frontend/" {
+	stub_pre_commit "${bin}" 0
+	stub_lint_staged
+	echo "export {};" >"${repo}/frontend/main.ts"
+	git -C "${repo}" add frontend/main.ts
+
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/.githooks/pre-commit"
+
+	[ "$status" -eq 0 ]
+	[ "$(cat "${BATS_TEST_TMPDIR}/lint-staged-ran-in")" = "$(cd "${repo}/frontend" && pwd)" ]
+}
+
+@test "a commit with no frontend file does not run lint-staged" {
+	stub_pre_commit "${bin}" 0
+	stub_lint_staged
+	echo "notes" >"${repo}/notes.md"
+	git -C "${repo}" add notes.md
+
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/.githooks/pre-commit"
+
+	[ "$status" -eq 0 ]
+	[ ! -e "${BATS_TEST_TMPDIR}/lint-staged-ran-in" ]
+}
+
+@test "a staged frontend file with no packages installed stops the commit" {
+	stub_pre_commit "${bin}" 0
+	mkdir -p "${repo}/frontend"
+	echo "export {};" >"${repo}/frontend/main.ts"
+	git -C "${repo}" add frontend/main.ts
+
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/.githooks/pre-commit"
+
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"./s/frontend install"* ]]
+}
