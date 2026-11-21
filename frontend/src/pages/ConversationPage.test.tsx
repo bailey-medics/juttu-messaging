@@ -9,6 +9,8 @@ const hello = {
   body: "Release notes are ready.",
   created_at: "2026-11-21T10:00:00Z",
   amends: null,
+  thread: null,
+  reply_count: 0,
 };
 
 const release = { id: 7, name: "Release", is_clinical: false };
@@ -136,5 +138,47 @@ describe("the conversation page", () => {
     expect(
       screen.queryByRole("button", { name: "Actions for Sam Patel" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens a message's thread beside it and replies there", async () => {
+    const reply = {
+      ...hello,
+      id: 30,
+      author: { id: 1, name: "Sam Patel" },
+      body: "On it.",
+      thread: 21,
+    };
+    stubFetchRoutes({
+      "/api/auth/me": { body: SIGNED_IN },
+      "/api/conversations/11/messages": { body: { messages: [{ ...hello, reply_count: 1 }] } },
+      "/api/messages/21/replies": { body: { replies: [{ ...reply, id: 29, body: "Seen." }] } },
+      "POST /api/conversations/11/messages": { body: reply, status: 201 },
+    });
+    renderAt("/conversations/11");
+
+    await userEvent.click(await screen.findByRole("button", { name: "1 reply" }));
+
+    expect(await screen.findByRole("heading", { name: "Thread" })).toBeInTheDocument();
+    expect(await screen.findByText("Seen.")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByPlaceholderText("Reply in the thread"), "On it.{Enter}");
+
+    expect(await screen.findByText("On it.")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "2 replies" })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/conversations/11/messages",
+      expect.objectContaining({ body: JSON.stringify({ body: "On it.", thread: 21 }) }),
+    );
+  });
+
+  it("offers 'Reply' on a message with no replies yet", async () => {
+    stubFetchRoutes({
+      "/api/auth/me": { body: SIGNED_IN },
+      "/api/conversations/11/messages": { body: { messages: [hello] } },
+    });
+
+    renderAt("/conversations/11");
+
+    expect(await screen.findByRole("button", { name: "Reply" })).toBeInTheDocument();
   });
 });

@@ -20,6 +20,10 @@ export interface ChatMessage {
   created_at: string;
   /** The message this one corrects, if it is a correction. */
   amends: number | null;
+  /** The top-level message whose thread this reply is in, if it is a reply. */
+  thread: number | null;
+  /** How many replies hang off this message. */
+  reply_count: number;
 }
 
 export function isConversationSummary(value: unknown): value is ConversationSummary {
@@ -42,7 +46,9 @@ export function isChatMessage(value: unknown): value is ChatMessage {
     typeof value.author.name === "string" &&
     typeof value.body === "string" &&
     typeof value.created_at === "string" &&
-    (value.amends === null || typeof value.amends === "number")
+    (value.amends === null || typeof value.amends === "number") &&
+    (value.thread === null || typeof value.thread === "number") &&
+    typeof value.reply_count === "number"
   );
 }
 
@@ -98,15 +104,27 @@ export async function listMessages(conversationId: number): Promise<ChatMessage[
   return listOf(body, "messages", isChatMessage);
 }
 
-/** Send a message. */
-export async function sendMessage(conversationId: number, text: string): Promise<ChatMessage> {
-  const body = await apiRequest("POST", `/conversations/${conversationId}/messages`, {
-    body: text,
-  });
+/** Send a message, or a reply in the thread of message *thread*. */
+export async function sendMessage(
+  conversationId: number,
+  text: string,
+  thread?: number,
+): Promise<ChatMessage> {
+  const payload = thread === undefined ? { body: text } : { body: text, thread };
+  const body = await apiRequest("POST", `/conversations/${conversationId}/messages`, payload);
 
   if (!isChatMessage(body)) {
     throw notUnderstood();
   }
 
   return body;
+}
+
+/** The replies in a message's thread, oldest first. */
+export async function listReplies(messageId: number): Promise<ChatMessage[]> {
+  return listOf(
+    await apiRequest("GET", `/messages/${messageId}/replies`),
+    "replies",
+    isChatMessage,
+  );
 }

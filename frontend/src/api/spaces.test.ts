@@ -38,6 +38,8 @@ describe("the spaces and conversations clients", () => {
         body: "Hi",
         created_at: "2026-11-21T10:00:00Z",
         amends: null,
+        thread: null,
+        reply_count: 0,
       }),
     ).toBe(true);
 
@@ -55,6 +57,8 @@ describe("the spaces and conversations clients", () => {
         body: "Hi",
         created_at: "2026-11-21T10:00:00Z",
         amends: null,
+        thread: null,
+        reply_count: 0,
       },
       201,
     );
