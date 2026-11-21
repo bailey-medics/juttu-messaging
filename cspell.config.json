@@ -5,13 +5,28 @@
   "files": ["**/*.md"],
   "ignorePaths": [".git", ".venv", "node_modules", "dist", "build", "local"],
   "words": [
+    "ASGI",
+    "conftest",
+    "CONN",
     "crpd",
+    "djangorestframework",
+    "Gunicorn",
+    "httpx",
     "Juttu",
+    "makemigrations",
     "mypy",
+    "psycopg",
     "pycache",
+    "Pydantic",
+    "pyproject",
     "pytest",
+    "runserver",
+    "Starlette",
+    "tmpfs",
     "Turva",
+    "Uvicorn",
     "worktrees",
+    "WSGI",
     "zizmor"
   ]
 }
