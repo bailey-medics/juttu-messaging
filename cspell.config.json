@@ -22,9 +22,11 @@
     "pytest",
     "runserver",
     "Starlette",
+    "tabler",
     "tmpfs",
     "Turva",
     "Uvicorn",
+    "WCAG",
     "worktrees",
     "WSGI",
     "zizmor"

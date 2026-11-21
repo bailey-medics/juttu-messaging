@@ -5,6 +5,10 @@
 
 import "@fontsource-variable/atkinson-hyperlegible-next";
 import "@mantine/core/styles.css";
+import "@/styles/typography.css";
+import "@/styles/dark-overrides.css";
+import "@/styles/touch-targets.css";
+import "@/styles/disabled-controls.css";
 
 import { MantineProvider } from "@mantine/core";
 import { StrictMode } from "react";
@@ -14,7 +18,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import { installPromptCapture } from "@/pwa/installPrompt";
 import { registerServiceWorker } from "@/pwa/registerServiceWorker";
 import { routes } from "@/routes";
-import { theme } from "@/theme";
+import { cssVariablesResolver, theme } from "@/theme";
 
 // The browser offers an install once, often before React has mounted, and the
 // offer is lost unless something is already listening.
@@ -30,7 +34,11 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={cssVariablesResolver}
+      defaultColorScheme="light"
+    >
       <RouterProvider router={createBrowserRouter(routes)} />
     </MantineProvider>
   </StrictMode>,

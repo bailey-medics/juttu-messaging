@@ -7,19 +7,30 @@ export interface HealthStatusProps {
   state: HealthState;
 }
 
-const LABELS: Record<HealthState, { colour: string; label: string; detail: string }> = {
+/**
+ * Each state's badge, in the theme's status colours: `--success-color` and
+ * `--alert-color` take white text at WCAG AA, and `--update-color`, the pale
+ * "not yet" wash, takes the near-black `--status-text-dark`.
+ */
+const LABELS: Record<
+  HealthState,
+  { colour: string; textColour: string; label: string; detail: string }
+> = {
   checking: {
-    colour: "gray",
+    colour: "var(--update-color)",
+    textColour: "var(--status-text-dark)",
     label: "Checking",
     detail: "Asking the backend whether it is up.",
   },
   up: {
-    colour: "primary",
+    colour: "var(--success-color)",
+    textColour: "white",
     label: "Backend up",
     detail: "The backend answered its health check.",
   },
   down: {
-    colour: "red",
+    colour: "var(--alert-color)",
+    textColour: "white",
     label: "Backend down",
     detail: "The backend did not answer its health check.",
   },
@@ -27,11 +38,11 @@ const LABELS: Record<HealthState, { colour: string; label: string; detail: strin
 
 /** Shows whether the backend answered its health check. */
 export default function HealthStatus({ state }: HealthStatusProps) {
-  const { colour, label, detail } = LABELS[state];
+  const { colour, textColour, label, detail } = LABELS[state];
 
   return (
     <Group gap="sm" role="status" aria-live="polite">
-      <Badge color={colour} size="lg">
+      <Badge color={colour} c={textColour} size="lg">
         {label}
       </Badge>
       <Text>{detail}</Text>

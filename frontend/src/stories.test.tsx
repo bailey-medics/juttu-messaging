@@ -10,7 +10,10 @@ import { screen } from "@testing-library/react";
 import * as previewAnnotations from "../.storybook/preview";
 import * as healthStatusStories from "@/components/health-status/HealthStatus.stories";
 import * as installButtonStories from "@/components/install-button/InstallButton.stories";
+import * as topRibbonStories from "@/components/ribbon/TopRibbon.stories";
 import * as homePageStories from "@/pages/HomePage.stories";
+import * as colourStories from "@/stories/Colours.stories";
+import * as typographyStories from "@/stories/Typography.stories";
 
 setProjectAnnotations(previewAnnotations);
 
@@ -19,6 +22,9 @@ const everyStory: Array<[string, { run: () => Promise<void> }]> = [
   ...named("HealthStatus", composeStories(healthStatusStories)),
   ...named("HomePage", composeStories(homePageStories)),
   ...named("InstallButton", composeStories(installButtonStories)),
+  ...named("TopRibbon", composeStories(topRibbonStories)),
+  ...named("Colours", composeStories(colourStories)),
+  ...named("Typography", composeStories(typographyStories)),
 ];
 
 function named(

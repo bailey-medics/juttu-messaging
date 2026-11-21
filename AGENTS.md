@@ -77,6 +77,11 @@ anything. `CLAUDE.md` only points here.
 - **A merged migration is never edited.** A change is a new migration.
 - **The backend container runs as an unprivileged user**, uid 10001.
   Never run it as root.
+- **Juttu wears Quill Medical's colours**: navy and amber, from
+  `frontend/src/brand.json`, through the theme in `frontend/src/theme.ts`.
+  `theme.test.ts` holds every text colour to WCAG AA contrast in both
+  colour schemes, so a colour change that would fail an accessibility check
+  fails there first.
 - **Type guards, not `as`, in the frontend.** ESLint refuses a type
   assertion, so anything read from the network is checked by a guard such
   as `isHealthResponse`.
@@ -93,6 +98,27 @@ anything. `CLAUDE.md` only points here.
   workflow on each commit.
 - **`LICENSE` is kept byte for byte.** It is the Free Software
   Foundation's AGPL-3.0 text, so the whitespace hooks leave it alone.
+
+## Building views
+
+Juttu builds every view from its own Storybook components, as Quill
+Medical does. When building UI, follow this order:
+
+1. **Reuse an existing Storybook component.** Check `frontend/src/components/`
+   and Storybook first.
+2. **Compose a new component from existing ones.**
+3. **Build from scratch only when nothing fits.** Plan the new component,
+   with its `.stories.tsx` and `.test.tsx`, and show the plan to a person
+   before building it.
+
+All reusable UI lives in `frontend/src/components/`, with stories. Pages
+use components; a page holds no reusable UI of its own. Where a page needs
+a component that does not exist, build the component first, then use it
+in the page.
+
+`HomePage` and `NotFoundPage` still use Mantine's `Title`, `Text` and
+`Stack` directly, because Juttu has no typography components yet. They move
+onto Juttu's own components when those are ported from Quill Medical.
 
 ## Commands
 

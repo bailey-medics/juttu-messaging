@@ -1,14 +1,313 @@
-import breakpoints from "@/breakpoints.json";
-import { primaryScale, theme } from "@/theme";
+/**
+ * Theme tests, ported from Quill Medical's.
+ *
+ * Guard the CSS variables resolver, which layers Juttu's own variables on
+ * Mantine's Mantine 8 colour derivation, and hold every text colour to WCAG
+ * AA contrast, so a colour change that would fail an accessibility check
+ * fails here first.
+ */
 
-describe("theme", () => {
-  it("sets body text at 19px on every screen", () => {
-    expect(theme.fontSizes?.md).toBe("1.1875rem");
+import { DEFAULT_THEME, mergeMantineTheme } from "@mantine/core";
+
+import brand from "@/brand.json";
+import breakpoints from "@/breakpoints.json";
+import { AA_TEXT, contrastRatio } from "@/lib/colour-contrast/contrast";
+import {
+  appIdentity,
+  brandColours,
+  cssVariablesResolver,
+  greyScale,
+  primaryScale,
+  secondaryScale,
+  statusColourValues,
+  statusTextColourValues,
+  theme,
+  toColoursTuple,
+} from "@/theme";
+
+const resolved = mergeMantineTheme(DEFAULT_THEME, theme);
+const resolvedVariables = cssVariablesResolver(resolved);
+
+/** One scheme's variables, read so that a missing one fails the test. */
+function scheme(variables: Record<string, string>): (name: string) => string {
+  return (name) => {
+    const value = variables[name];
+
+    if (value === undefined) {
+      throw new Error(`No CSS variable ${name}`);
+    }
+
+    return value;
+  };
+}
+
+const vars = {
+  variables: scheme(resolvedVariables.variables),
+  light: scheme(resolvedVariables.light),
+  dark: scheme(resolvedVariables.dark),
+};
+
+/** A grey shade, read so that a missing one fails the test. */
+function grey(shade: number): string {
+  const value = greyScale[shade];
+
+  if (value === undefined) {
+    throw new Error(`No grey shade ${shade}`);
+  }
+
+  return value;
+}
+
+/** Hex → "r, g, b" so we can match Mantine's rgba() output loosely. */
+function rgbTriplet(hex: string): string {
+  const value = hex.replace("#", "");
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
+describe("cssVariablesResolver", () => {
+  it("uses primary shade 5 as the primaryShade", () => {
+    expect(resolved.primaryColor).toBe("primary");
+    expect(resolved.primaryShade).toBe(5);
   });
 
-  it("gives the primary colour the ten shades Mantine needs", () => {
-    expect(primaryScale).toHaveLength(10);
-    expect(theme.colors?.primary).toBe(primaryScale);
+  it("derives light-mode primary light variants the Mantine 8 way", () => {
+    const shade5 = rgbTriplet(primaryScale[5]);
+
+    expect(vars.light("--mantine-color-primary-light")).toBe(`rgba(${shade5}, 0.1)`);
+    expect(vars.light("--mantine-color-primary-light-hover")).toBe(`rgba(${shade5}, 0.12)`);
+    expect(vars.light("--mantine-color-primary-light-color")).toBe(
+      "var(--mantine-color-primary-5)",
+    );
+  });
+
+  it("derives dark-mode primary light variants the Mantine 8 way", () => {
+    // Mantine 8 used shade (primaryShade - 2) for the dark wash.
+    const shade3 = rgbTriplet(primaryScale[3]);
+
+    expect(vars.dark("--mantine-color-primary-light")).toBe(`rgba(${shade3}, 0.15)`);
+    expect(vars.dark("--mantine-color-primary-light-hover")).toBe(`rgba(${shade3}, 0.2)`);
+    expect(vars.dark("--mantine-color-primary-light-color")).toBe(
+      "var(--mantine-color-primary-0)",
+    );
+  });
+
+  it("does not use the Mantine 9 solid-shade derivation", () => {
+    // Mantine 9 defaults: shade 1 background, shade 2 hover, shade 9 text.
+    expect(vars.light("--mantine-color-primary-light")).not.toBe(
+      "var(--mantine-color-primary-1)",
+    );
+    expect(vars.light("--mantine-color-primary-light-hover")).not.toBe(
+      "var(--mantine-color-primary-2)",
+    );
+    expect(vars.light("--mantine-color-primary-light-color")).not.toBe(
+      "var(--mantine-color-primary-9)",
+    );
+  });
+
+  it("points the primary aliases at the primary colour variants", () => {
+    expect(vars.variables("--mantine-primary-color-light")).toBe(
+      "var(--mantine-color-primary-light)",
+    );
+    expect(vars.variables("--mantine-primary-color-light-hover")).toBe(
+      "var(--mantine-color-primary-light-hover)",
+    );
+    expect(vars.variables("--mantine-primary-color-light-color")).toBe(
+      "var(--mantine-color-primary-light-color)",
+    );
+  });
+
+  it("keeps the app's own variables", () => {
+    expect(vars.variables("--brand-primary")).toBeDefined();
+    expect(vars.variables("--brand-mark")).toBe(brand.brand.mark);
+    expect(vars.variables("--success-color")).toBeDefined();
+    expect(vars.light("--mantine-color-text")).toBe("#143f6b");
+    expect(vars.dark("--mantine-color-body")).toBe("#001a36");
+  });
+
+  it("colours the current nav link amber, darker in light mode", () => {
+    // secondary.5 is 2.7:1 on white, under WCAG AA; secondary.7 is 5.5:1
+    expect(vars.light("--nav-active-colour")).toBe("var(--mantine-color-secondary-7)");
+    expect(contrastRatio(secondaryScale[7], "#ffffff")).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(vars.dark("--nav-active-colour")).toBe("var(--mantine-color-secondary-5)");
+  });
+
+  it("fills the current nav link with a mild grey the amber still reads on", () => {
+    expect(vars.light("--nav-active-bg")).toBe("var(--mantine-color-gray-1)");
+    expect(contrastRatio(secondaryScale[7], grey(1))).toBeGreaterThanOrEqual(AA_TEXT);
+    expect(vars.dark("--nav-active-bg")).toBe("var(--mantine-color-dark-6)");
+    expect(
+      contrastRatio(secondaryScale[5], DEFAULT_THEME.colors.dark[6]),
+    ).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  it("softens the error colour for a placeholder in an errored field", () => {
+    // Derived from --error-color rather than a second red, so it follows
+    // the error colour in both schemes and thins towards the field.
+    expect(vars.variables("--error-placeholder-color")).toBe(
+      "color-mix(in srgb, var(--error-color) 55%, transparent)",
+    );
+  });
+
+  it("lets app overrides win over Mantine's values", () => {
+    // Mantine's resolver sets --mantine-color-error to a red shade; the
+    // app overrides it with its accessible error token.
+    expect(vars.light("--mantine-color-error")).toBe("var(--error-color)");
+    expect(vars.dark("--mantine-color-error")).toBe("var(--error-color)");
+  });
+});
+
+describe("dimmed text contrast", () => {
+  // The surfaces dimmed text sits on in each scheme: body, striped rows
+  // and card backgrounds in light; body, card and input navy in dark.
+  const lightSurfaces = ["#ffffff", grey(0), grey(1), grey(2)];
+  const darkSurfaces = ["#001a36", "#042340", "#0a2f56"];
+
+  it.each(lightSurfaces)("passes WCAG AA on %s in light mode", (surface) => {
+    const dimmed = vars.light("--mantine-color-dimmed");
+    expect(contrastRatio(dimmed, surface)).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  it.each(darkSurfaces)("passes WCAG AA on %s in dark mode", (surface) => {
+    const dimmed = vars.dark("--mantine-color-dimmed");
+    expect(contrastRatio(dimmed, surface)).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+});
+
+describe("status colour contrast", () => {
+  // Fills that take white text, and the two pale fills that take the
+  // near-black `--status-text-dark`.
+  const whiteText = ["success", "warning", "outstanding", "info", "accent", "alert"] as const;
+  const darkText = ["neutral", "update"] as const;
+
+  it.each(whiteText)("white text passes WCAG AA on the %s fill", (name) => {
+    expect(contrastRatio("#ffffff", statusColourValues[name])).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  it.each(darkText)("dark text passes WCAG AA on the %s fill", (name) => {
+    expect(
+      contrastRatio(vars.variables("--status-text-dark"), statusColourValues[name]),
+    ).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+
+  const lightSurfaces = ["#ffffff", grey(0), grey(1), grey(2)];
+  const darkSurfaces = ["#000d1f", "#001a36", "#042340", "#0a2f56"];
+  const names = ["success", "warning", "outstanding", "info", "accent", "alert"] as const;
+
+  it.each(names)("%s text passes WCAG AA on every light surface", (name) => {
+    for (const surface of lightSurfaces) {
+      expect(contrastRatio(statusTextColourValues.light[name], surface)).toBeGreaterThanOrEqual(
+        AA_TEXT,
+      );
+    }
+  });
+
+  it.each(names)("%s text passes WCAG AA on every dark surface", (name) => {
+    for (const surface of darkSurfaces) {
+      expect(contrastRatio(statusTextColourValues.dark[name], surface)).toBeGreaterThanOrEqual(
+        AA_TEXT,
+      );
+    }
+  });
+
+  it("registers the text colours as scheme variables", () => {
+    expect(vars.light("--alert-text-color")).toBe(statusTextColourValues.light.alert);
+    expect(vars.dark("--alert-text-color")).toBe(statusTextColourValues.dark.alert);
+  });
+});
+
+describe("error and link contrast", () => {
+  const lightSurfaces = ["#ffffff", grey(0), grey(1), grey(2)];
+  const darkSurfaces = ["#001a36", "#042340", "#0a2f56"];
+  const tokens = ["--error-color", "--link-color", "--link-hover-color"] as const;
+
+  it.each(tokens)("%s passes WCAG AA on every light surface", (name) => {
+    for (const surface of lightSurfaces) {
+      expect(contrastRatio(vars.light(name), surface)).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
+  it.each(tokens)("%s passes WCAG AA on every dark surface", (name) => {
+    for (const surface of darkSurfaces) {
+      expect(contrastRatio(vars.dark(name), surface)).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
+  it("keeps body text readable on my chat bubble in dark mode", () => {
+    expect(
+      contrastRatio(vars.dark("--mantine-color-text"), vars.dark("--bubble-mine-bg")),
+    ).toBeGreaterThanOrEqual(AA_TEXT);
+  });
+});
+
+describe("motion and focus", () => {
+  it("respects a system request for reduced motion", () => {
+    // Mantine defaults this to false, which ignores the OS setting.
+    expect(resolved.respectReducedMotion).toBe(true);
+  });
+
+  it("shows the focus ring for keyboard focus", () => {
+    expect(resolved.focusRing).toBe("auto");
+  });
+});
+
+describe("anchor colour", () => {
+  it("points Mantine's anchor colour at the link token in both schemes", () => {
+    // Otherwise stylesheet order decides between Mantine's primary.4 and
+    // the link token, and the production build picked primary.4.
+    expect(vars.light("--mantine-color-anchor")).toBe("var(--link-color)");
+    expect(vars.dark("--mantine-color-anchor")).toBe("var(--link-color)");
+  });
+});
+
+describe("PublicButton's amber fill", () => {
+  const text = vars.variables("--button-text-dark");
+  const pressed = vars.variables("--button-active-bg");
+
+  it("keeps the navy text at WCAG AA at rest, on hover and when pressed", () => {
+    expect(text).toBe(primaryScale[8]);
+    // Resting is secondary.5, hover secondary.6, as PublicButton.module.css
+    for (const fill of [secondaryScale[5], secondaryScale[6], pressed]) {
+      expect(contrastRatio(text, fill)).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
+  it("is never darker when pressed than on hover", () => {
+    expect(contrastRatio(text, pressed)).toBeGreaterThanOrEqual(
+      contrastRatio(text, secondaryScale[6]),
+    );
+  });
+});
+
+describe("the theme reads its colours from brand.json", () => {
+  it("takes the brand colours and ramps from the brand file", () => {
+    expect(brandColours).toEqual(brand.brand);
+    expect([...primaryScale]).toEqual(brand.palette.primary);
+    expect([...secondaryScale]).toEqual(brand.palette.secondary);
+    expect([...greyScale]).toEqual(brand.palette.grey);
+  });
+
+  it("keeps the brand primary at shade 8 and the brand amber at shade 5", () => {
+    expect(primaryScale[8]).toBe(brandColours.primary);
+    expect(secondaryScale[5]).toBe(brandColours.secondary.toLowerCase());
+  });
+
+  it("refuses a ramp that is not ten shades long", () => {
+    expect(() => toColoursTuple("short", ["#000000"])).toThrow(
+      "the short palette needs exactly 10 shades, not 1",
+    );
+  });
+
+  it("calls the app Juttu", () => {
+    expect(appIdentity.name).toBe("Juttu");
+  });
+});
+
+describe("type and layout", () => {
+  it("sets body text at 19px on every screen", () => {
+    expect(theme.fontSizes?.md).toBe("1.1875rem");
   });
 
   it("reads its breakpoints from the file PostCSS reads", () => {

@@ -4,12 +4,16 @@ import type { ReactElement } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { routes } from "@/routes";
-import { theme } from "@/theme";
+import { cssVariablesResolver, theme } from "@/theme";
 
 /** Render one element inside Juttu's theme, as the app would. */
 export function renderWithTheme(element: ReactElement): RenderResult {
   return render(
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      cssVariablesResolver={cssVariablesResolver}
+      defaultColorScheme="light"
+    >
       {element}
     </MantineProvider>,
   );

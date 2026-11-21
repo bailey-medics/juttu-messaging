@@ -1,4 +1,4 @@
-"""Draw Juttu's app icons: a white speech bubble on Juttu's teal.
+"""Draw Juttu's app icons: a light grey speech bubble on the brand navy.
 
 Writes the PNGs the web app manifest names into frontend/public/. Uses only
 the standard library, so no machine needs an image tool to make them again:
@@ -13,8 +13,11 @@ import struct
 import zlib
 from pathlib import Path
 
-TEAL = (0x14, 0x7F, 0x72)
-WHITE = (0xFF, 0xFF, 0xFF)
+# The brand primary and the brand mark, from src/brand.json: the same navy
+# and light grey as Quill Medical's icon. The grey sits back from the navy
+# instead of glaring, as white would.
+NAVY = (0x00, 0x1A, 0x36)
+MARK = (0xC9, 0xC8, 0xCA)
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 SIZES = {
     "android-chrome-192x192.png": 192,
@@ -76,7 +79,7 @@ def draw(size: int) -> bytes:
             )
             share = hits / 4
             rows.extend(
-                round(t + (w - t) * share) for t, w in zip(TEAL, WHITE, strict=True)
+                round(t + (w - t) * share) for t, w in zip(NAVY, MARK, strict=True)
             )
 
     return _png(size, bytes(rows))
