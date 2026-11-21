@@ -4,8 +4,8 @@ Run through ``just first-account`` on the dev stack, or
 ``just box-first-account`` on the dev box. Nothing is seeded in code and
 there is no default password: the person running it types both. Invites,
 in Phase 12, make every account after this one, so the command refuses
-once any account exists rather than becoming a way round them. Phase 11
-makes this person an organisation admin.
+once any account exists rather than becoming a way round them. The
+account is made a member and an admin of the organisation.
 """
 
 import getpass
@@ -17,6 +17,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from app.accounts.models import User
+from app.audit.models import AuditAction
+from app.audit.record import record
+from app.organisations.services import make_first_admin
 
 #: How the command asks. Module names, so a test can answer for a person.
 ask = input
@@ -53,9 +56,17 @@ class Command(BaseCommand):
             raise CommandError(_messages(error)) from error
 
         with transaction.atomic():
-            User.objects.create_user(username, password)
+            user = User.objects.create_user(username, password)
+            record(
+                AuditAction.ACCOUNT_CREATED,
+                actor=user,
+                detail={"by": "create_first_account"},
+            )
+            make_first_admin(user)
 
-        self.stdout.write(f"Made the account {username}.")
+        self.stdout.write(
+            f"Made the account {username}, an admin of the organisation."
+        )
 
 
 def _messages(error: ValidationError) -> str:

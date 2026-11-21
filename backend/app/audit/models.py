@@ -17,6 +17,11 @@ class AuditAction(StrEnum):
     SIGN_IN = "sign_in"
     SIGN_OUT = "sign_out"
     SIGN_IN_FAILED = "sign_in_failed"
+    ACCOUNT_CREATED = "account_created"
+    ORG_UNIT_CREATED = "org_unit_created"
+    MEMBER_ADDED = "member_added"
+    COMPETENCY_GRANTED = "competency_granted"
+    POSITION_FILLED = "position_filled"
 
 
 class AuditEvent(models.Model):

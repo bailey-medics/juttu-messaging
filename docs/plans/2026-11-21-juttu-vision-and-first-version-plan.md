@@ -97,7 +97,9 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 11: Organisations and roles
 
-- [ ] Port Quill Medical's organisation tree and competency model, leaving out everything about patients and clinical records. One organisation exists for the Turva team. Identity can carry a role, so "the on-call registrar" fits later without a rewrite.
+- [x] Port Quill Medical's organisation tree and competency model, leaving out everything about patients and clinical records. One organisation exists for the Turva team. Identity can carry a role, so "the on-call registrar" fits later without a rewrite.
+
+- [x] Found while building: `backend/app/organisations` keeps Quill Medical's shape at a fraction of its size. `OrgUnit` is one tree, with organisations as its roots, and a database constraint that only an organisation has no parent; its types are organisation and team, with Quill's hospitals, wards and rooms left out. `OrgUnitMember`, `CompetencyGrant` and `PositionHolding` are dated rows that are closed rather than deleted. A competency held at an org unit holds beneath it too, and a closed account holds nothing. The catalogue is the `Competency` enum, because three competencies need no shared YAML, and `Role.ORGANISATION_ADMIN` grants all three, one row each. `Position` and `PositionHolding` are Quill's posts that may be vacant, which is how "the on-call registrar" will fit. The app's first migration makes the Turva organisation and makes any account that already exists its admin, auditing those grants but not the organisation itself, which `django_migrations` already records. `create_first_account` now makes its account a member and an admin, with an `account_created` entry.
 
 ## Phase 12: Members and admins
 

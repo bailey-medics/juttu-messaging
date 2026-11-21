@@ -82,3 +82,23 @@ def test_it_refuses_a_blank_username(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_nothing_is_seeded() -> None:
     """No account exists until somebody makes one."""
     assert not User.objects.exists()
+
+
+def test_the_first_account_is_an_admin_of_the_organisation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.audit.models import AuditEvent
+    from app.organisations.services import (
+        is_organisation_admin,
+        the_organisation,
+    )
+
+    answer(monkeypatch, "sam", PASSWORD, PASSWORD)
+
+    call_command("create_first_account")
+
+    user = User.objects.get()
+    assert is_organisation_admin(user, the_organisation())
+    assert AuditEvent.objects.filter(
+        action="account_created", actor=user
+    ).exists()
