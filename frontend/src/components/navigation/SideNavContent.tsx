@@ -10,7 +10,7 @@
 import { Stack } from "@mantine/core";
 
 import NestedNavLink from "./NestedNavLink";
-import { NAV_ITEMS } from "./navItems";
+import { ADMIN_NAV_ITEMS, NAV_ITEMS } from "./navItems";
 import SignOutNavLink from "./SignOutNavLink";
 
 type Props = {
@@ -20,12 +20,21 @@ type Props = {
   showIcons?: boolean;
   /** Ends the session. Without it there is no "Sign out" entry. */
   onSignOut?: () => Promise<void>;
+  /** Whether to show the entries only an organisation admin uses. */
+  showAdmin?: boolean;
 };
 
-export default function SideNavContent({ onNavigate, showIcons, onSignOut }: Props) {
+export default function SideNavContent({
+  onNavigate,
+  showIcons,
+  onSignOut,
+  showAdmin = false,
+}: Props) {
+  const items = showAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
+
   return (
     <Stack gap={2}>
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NestedNavLink
           key={item.label}
           item={item}

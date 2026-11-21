@@ -17,13 +17,20 @@ type Props = {
   showIcons?: boolean;
   /** Ends the session. Without it there is no "Sign out" entry. */
   onSignOut?: () => Promise<void>;
+  /** Whether to show the entries only an organisation admin uses. */
+  showAdmin?: boolean;
 };
 
-export default function SideNav({ onNavigate, showIcons, onSignOut }: Props) {
+export default function SideNav({ onNavigate, showIcons, onSignOut, showAdmin }: Props) {
   return (
     <nav aria-label="Primary" style={{ minWidth: "6.25rem", height: "100%" }}>
       <Stack p="sm" gap="xs">
-        <SideNavContent onNavigate={onNavigate} showIcons={showIcons} onSignOut={onSignOut} />
+        <SideNavContent
+          onNavigate={onNavigate}
+          showIcons={showIcons}
+          onSignOut={onSignOut}
+          showAdmin={showAdmin}
+        />
       </Stack>
     </nav>
   );

@@ -7,6 +7,9 @@
  * `User` model. Change one and change the other.
  */
 
+/** A person's name. The backend's `User.name` takes 200 characters. */
+export const MAX_NAME = 200;
+
 /** A username. The backend's `User.username` takes 150 characters. */
 export const MAX_USERNAME = 150;
 

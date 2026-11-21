@@ -2,10 +2,13 @@ import type { RouteObject } from "react-router";
 
 import AuthRoot from "@/auth/AuthRoot";
 import GuestOnly from "@/auth/GuestOnly";
+import RequireAdmin from "@/auth/RequireAdmin";
 import RequireAuth, { SIGN_IN_PATH } from "@/auth/RequireAuth";
 import RouteErrorFallback from "@/components/error-boundary/RouteErrorFallback";
 import PageSpinner from "@/components/loading-spinner/PageSpinner";
+import AddMemberPage from "@/pages/AddMemberPage";
 import HomePage from "@/pages/HomePage";
+import MembersPage from "@/pages/MembersPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import SignInPage from "@/pages/SignInPage";
 import RootLayout from "@/RootLayout";
@@ -39,6 +42,22 @@ export const routes: RouteObject[] = [
         ),
         children: [
           { index: true, element: <HomePage /> },
+          {
+            path: "members",
+            element: (
+              <RequireAdmin feature="Members">
+                <MembersPage />
+              </RequireAdmin>
+            ),
+          },
+          {
+            path: "members/new",
+            element: (
+              <RequireAdmin feature="Members">
+                <AddMemberPage />
+              </RequireAdmin>
+            ),
+          },
           { path: "*", element: <NotFoundPage /> },
         ],
       },

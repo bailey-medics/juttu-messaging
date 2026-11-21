@@ -44,6 +44,8 @@ type Props = {
   fluid?: boolean;
   /** Ends the session, from the "Sign out" entry in the side navigation. */
   onSignOut?: () => Promise<void>;
+  /** Whether the side navigation shows the entries only an admin uses. */
+  showAdmin?: boolean;
 };
 
 export default function MainLayout({
@@ -52,6 +54,7 @@ export default function MainLayout({
   isLoading = false,
   fluid = false,
   onSignOut,
+  showAdmin = false,
 }: Props) {
   const location = useLocation();
   // Shut, unless the link that led here asked for it open.
@@ -98,7 +101,7 @@ export default function MainLayout({
           width={`${LAYOUT_SIDEBAR_WIDTH}px`}
         >
           <div style={{ width: LAYOUT_SIDEBAR_WIDTH }}>
-            <SideNav showIcons onNavigate={close} onSignOut={onSignOut} />
+            <SideNav showIcons onNavigate={close} onSignOut={onSignOut} showAdmin={showAdmin} />
           </div>
         </NavigationDrawer>
         <Flex style={{ flex: 1, height: "100%", minWidth: 0 }}>
@@ -114,7 +117,7 @@ export default function MainLayout({
                 flexShrink: 0,
               }}
             >
-              <SideNav showIcons onSignOut={onSignOut} />
+              <SideNav showIcons onSignOut={onSignOut} showAdmin={showAdmin} />
             </Box>
           )}
           {/* `minWidth: 0`, so one long unbroken word cannot push the page

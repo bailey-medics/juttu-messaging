@@ -14,7 +14,8 @@ import { useInstallPrompt } from "@/pwa/useInstallPrompt";
  * Only for somebody signed in, so the navigation ends with "Sign out".
  */
 export default function RootLayout() {
-  const { signOut } = useAuth();
+  const { state, signOut } = useAuth();
+  const isAdmin = state.status === "authenticated" && state.user.is_admin;
 
   // Only when the browser offers an install: on a phone the ribbon gives a
   // right section the room the name would take, so an empty one would hide
@@ -31,7 +32,7 @@ export default function RootLayout() {
   ) : undefined;
 
   return (
-    <MainLayout rightSection={rightSection} onSignOut={signOut}>
+    <MainLayout rightSection={rightSection} onSignOut={signOut} showAdmin={isAdmin}>
       {/* A page that throws shows the fallback inside the frame, so the
           ribbon and the navigation stay and somebody can still go home. */}
       <ErrorBoundary>

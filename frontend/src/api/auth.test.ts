@@ -11,6 +11,7 @@ describe("isSession", () => {
     {},
     { authenticated: true, user: null },
     { authenticated: true, user: { id: "1", username: "sam" } },
+    { authenticated: true, user: { id: 1, username: "sam", name: "Sam" } },
     { authenticated: false, user: { id: 1, username: "sam" } },
     { authenticated: "yes", user: null },
   ])("refuses %j", (body) => {
