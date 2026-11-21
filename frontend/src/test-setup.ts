@@ -12,6 +12,16 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   },
 });
 
+// jsdom has no FontFaceSet. Mantine's autosizing text area listens on
+// document.fonts to resize once web fonts load, as Quill's setup notes.
+Object.defineProperty(document, "fonts", {
+  writable: true,
+  value: {
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  },
+});
+
 // jsdom does not scroll. FormStatus brings a new message into view with
 // scrollIntoView; where it lands is checked in a real browser.
 window.HTMLElement.prototype.scrollIntoView = () => undefined;

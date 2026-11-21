@@ -170,6 +170,10 @@ export const typographyTokens = {
  */
 const appCssVariables = {
   variables: {
+    // The inbox envelope while nothing is waiting, as Quill Medical's: grey
+    // 6 sits back in the navy ribbon and still keeps 3:1, which an icon that
+    // is the whole control needs (WCAG 1.4.11).
+    "--ribbon-icon-idle": greyScale[6],
     "--brand-primary": brandColours.primary,
     "--brand-secondary": brandColours.secondary,
     "--brand-background": brandColours.background,

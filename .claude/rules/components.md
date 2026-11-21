@@ -40,6 +40,10 @@ the components it brings, such as cards, icons, buttons and the spinner.
   directly.
 - **Never use `clearable` on a `SelectField`.** If a field is optional, say
   so in its placeholder.
+- **A conversation is not clinical unless its space is.** Leave
+  `NewMessageModal`'s `clinical` prop at its default, false, which shows
+  no patient field at all. Juttu holds no patient data in its first
+  version.
 - **Every new component has a `.stories.tsx` and a `.test.tsx` beside
   it.** `src/stories.test.tsx` finds and renders every story by itself.
 

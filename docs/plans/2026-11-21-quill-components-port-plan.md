@@ -52,9 +52,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 7: Chat and inbox
 
-- [ ] Port Quill's chat components as they are, with their stories and tests: `Messaging` and `MessagesList` from `components/messaging/`, which draw a conversation, and `InboxButton` and `RibbonInbox` from `components/inbox/`, which put the inbox in the top ribbon. Wire `RibbonInbox` into `TopRibbon`'s right-hand section beside the install button, showing nothing until there is something to read. Leave out `MessagingTriagePayment`, Quill's billing demonstration.
+- [x] Port Quill's chat components as they are, with their stories and tests: `Messaging` and `MessagesList` from `components/messaging/`, which draw a conversation, and `InboxButton` and `RibbonInbox` from `components/inbox/`, which put the inbox in the top ribbon. Wire `RibbonInbox` into `TopRibbon`'s right-hand section beside the install button, showing nothing until there is something to read. Leave out `MessagingTriagePayment`, Quill's billing demonstration.
 
-- [ ] Port `NewMessageModal` with a `clinical` prop, false by default. When it is false, the modal shows no patient picker and no "patient as participant" switch; when it is true, it shows both, as Quill's does. The modal takes its patients and its users as props instead of fetching them from Quill's API, because Juttu has no API for either yet; the page that opens it fetches them. Stories show it both ways, and tests pin that a non-clinical modal never shows a patient field. Juttu holds no patient data in its first version, so the clinical form stays dormant until the vision plan builds clinical spaces.
+- [x] Port `NewMessageModal` with a `clinical` prop, false by default. When it is false, the modal shows no patient picker and no "patient as participant" switch; when it is true, it shows both, as Quill's does. The modal takes its patients and its users as props instead of fetching them from Quill's API, because Juttu has no API for either yet; the page that opens it fetches them. Stories show it both ways, and tests pin that a non-clinical modal never shows a patient field. Juttu holds no patient data in its first version, so the clinical form stays dormant until the vision plan builds clinical spaces.
 
 ## Phase 8: Tables, search and sort
 
@@ -115,3 +115,11 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **`renderWithRouter` hands back its router** - Phase 6. Quill's helper uses a browser router, so its `NestedNavLink` tests read `window.location`. Juttu's helper uses a memory router, which leaves `window.location` alone, so the helper now returns the router and those tests read `router.state.location` instead. The tests check the same things.
 
 - **`MainLayout` leaves out what Juttu does not have** - Phase 6: the patient in the ribbon, search, the connectivity and forced-reload strips, exam mode and the footer. It takes a `rightSection` for the ribbon, which `RootLayout` fills with the install button.
+
+- **Phase 7 brought `ProfilePic` and `StackedProfilePics`**, which the plan had listed as not ported, because `Messaging` and `MessagesList` draw them. Their only other need is `AppTooltip`, already in Juttu. Quill's avatar gradients came with them as Quill has them, hard-coded colours included.
+
+- **`RibbonInbox` takes its count as a prop** - Phase 7. Quill's fetches it from the inbox API for the person signed in, and Juttu has neither accounts nor an inbox. With no count it draws nothing, which is how it sits in `RootLayout` today; given a count it shows the envelope, grey at zero and amber with the number above it, as in Quill. The theme gains Quill's `--ribbon-icon-idle`, grey 6, with Quill's 3:1 contrast test.
+
+- **The test setup stubs `document.fonts`**, as Quill's does - Phase 7. Mantine's autosizing text area, which `NewMessageModal` uses, listens on it, and jsdom has none.
+
+- **The `Messaging` stories use Quill's demo conversation** in `src/demo-data/messaging/`, made up and clinical, as the plan's "as they are" asks. The chat tests keep Quill's clinical sample text too; only `NewMessageModal`'s non-clinical default uses team examples.

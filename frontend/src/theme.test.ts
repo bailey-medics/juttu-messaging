@@ -11,7 +11,7 @@ import { DEFAULT_THEME, mergeMantineTheme } from "@mantine/core";
 
 import brand from "@/brand.json";
 import breakpoints from "@/breakpoints.json";
-import { AA_TEXT, contrastRatio } from "@/lib/colour-contrast/contrast";
+import { AA_LARGE_OR_GRAPHIC, AA_TEXT, contrastRatio } from "@/lib/colour-contrast/contrast";
 import {
   appIdentity,
   brandColours,
@@ -68,6 +68,16 @@ function rgbTriplet(hex: string): string {
 }
 
 describe("cssVariablesResolver", () => {
+  it("keeps the idle inbox envelope at 3:1 or more on the ribbon in both schemes", () => {
+    const icon = resolvedVariables.variables["--ribbon-icon-idle"] ?? "";
+
+    for (const variables of [resolvedVariables.light, resolvedVariables.dark]) {
+      expect(contrastRatio(icon, variables["--ribbon-bg"] ?? "")).toBeGreaterThanOrEqual(
+        AA_LARGE_OR_GRAPHIC,
+      );
+    }
+  });
+
   it("uses primary shade 5 as the primaryShade", () => {
     expect(resolved.primaryColor).toBe("primary");
     expect(resolved.primaryShade).toBe(5);

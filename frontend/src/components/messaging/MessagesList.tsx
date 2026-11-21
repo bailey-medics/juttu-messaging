@@ -1,0 +1,135 @@
+/**
+ * Messages List Component
+ *
+ * Displays a list of message threads with profile icons, unread counts,
+ * and message previews. Automatically uses ProfilePic for single-participant
+ * threads and StackedProfilePics for multi-participant threads.
+ */
+
+import type { StackedParticipant } from "@/components/profile-pic";
+import { StackedProfilePics } from "@/components/profile-pic";
+import ProfilePic from "@/components/profile-pic/ProfilePic";
+import UnreadBadge from "@/components/badge/UnreadBadge";
+import Heading from "@/components/typography/Heading";
+import BodyText from "@/components/typography/BodyText";
+import BodyTextClamp from "@/components/typography/BodyTextClamp";
+import BaseCard from "@/components/base-card/BaseCard";
+import StateMessage from "@/components/message-cards/StateMessage";
+import { IconMessage } from "@/components/icons/appIcons";
+import { Group, Skeleton, Stack, UnstyledButton } from "@mantine/core";
+
+export type MessageThread = {
+  /** Unique thread identifier */
+  id: string;
+  /** Display name shown as the card heading */
+  displayName: string;
+  /** Participants for profile icon display */
+  profiles: StackedParticipant[];
+  /** Last message preview */
+  lastMessage: string;
+  /** Last message timestamp (ISO 8601) */
+  lastMessageTime: string;
+  /** Number of unread messages */
+  unreadCount: number;
+};
+
+type Props = {
+  threads: MessageThread[];
+  onThreadClick: (thread: MessageThread) => void;
+  isLoading?: boolean;
+};
+
+/**
+ * Format timestamp to relative time (e.g., "2 hours ago")
+ */
+function formatTime(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return timestamp;
+  }
+}
+
+export default function MessagesList({ threads, onThreadClick, isLoading }: Props) {
+  const iconSize = "lg";
+
+  if (isLoading) {
+    return (
+      <Stack gap="sm">
+        {[1, 2, 3].map((i) => (
+          <BaseCard key={i}>
+            <Group wrap="nowrap" align="flex-start">
+              <Skeleton height={64} circle />
+              <div style={{ flex: 1 }}>
+                <Skeleton height={20} width="60%" mb="xs" />
+                <Skeleton height={16} width="100%" mb="xs" />
+                <Skeleton height={14} width="40%" />
+              </div>
+            </Group>
+          </BaseCard>
+        ))}
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="sm">
+      {threads.length === 0 && (
+        <StateMessage
+          icon={<IconMessage />}
+          title="No messages to show"
+          description="Messages from your care team will appear here."
+          colour="warning"
+        />
+      )}
+      {threads.map((thread) => (
+        // A button, not a clickable div, so the thread opens from the
+        // keyboard as well as the mouse.
+        <UnstyledButton
+          key={thread.id}
+          onClick={() => onThreadClick(thread)}
+          w="100%"
+          ta="left"
+        >
+          <BaseCard>
+            <Group wrap="nowrap" align="flex-start">
+              {thread.profiles.length > 1 ? (
+                <StackedProfilePics participants={thread.profiles} size={iconSize} />
+              ) : (
+                <ProfilePic
+                  givenName={thread.profiles[0]?.givenName}
+                  familyName={thread.profiles[0]?.familyName}
+                  gradientIndex={thread.profiles[0]?.gradientIndex}
+                  size={iconSize}
+                />
+              )}
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Group justify="space-between" mb="xs">
+                  <Group gap="xs">
+                    <Heading>{thread.displayName}</Heading>
+                    <UnreadBadge count={thread.unreadCount} />
+                  </Group>
+                  <BodyText>{formatTime(thread.lastMessageTime)}</BodyText>
+                </Group>
+
+                <BodyTextClamp lineClamp={2}>{thread.lastMessage}</BodyTextClamp>
+              </div>
+            </Group>
+          </BaseCard>
+        </UnstyledButton>
+      ))}
+    </Stack>
+  );
+}
