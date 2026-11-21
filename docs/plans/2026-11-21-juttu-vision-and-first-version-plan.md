@@ -91,7 +91,9 @@ to 7 are built by the [skeleton plan](2026-11-21-juttu-skeleton-plan.md).
 
 ## Phase 10: Audit trail
 
-- [ ] Add an append-only audit table and one function that writes to it, and record every sign-in, sign-out and failed sign-in. From here on, every phase that changes data writes an audit entry, and its tests check for it.
+- [x] Add an append-only audit table and one function that writes to it, and record every sign-in, sign-out and failed sign-in. From here on, every phase that changes data writes an audit entry, and its tests check for it.
+
+- [x] Found while building: neither Quill Medical nor Turva has an audit table to port, so `backend/app/audit` is new. `AuditEvent` keeps what happened, the account, the client's address, the time and a small `detail`. A Postgres trigger in its first migration refuses every `UPDATE`, `DELETE` and `TRUNCATE`, so the rule holds for a script or a person at `psql`, not only for Django. Django's own sign-in signals write the three entries, so every way in or out is caught whichever view calls `login`, `logout` or `authenticate`. A failed sign-in names the account it tried, when there is one, but never stores the text typed as the username: people sometimes type their password there, and OWASP's logging cheat sheet says a log must never hold a password. The action is a Python enum rather than choices on the column, so a later phase adds one without a migration. `client_address` in `backend/app/client_address.py` reads the address by the same rule as the sign-in rate limit, and a test holds the two together. Two things for later phases: a sign-in refused by the rate limit is not recorded, since it never reaches `authenticate`; and a test that needs `transaction=True` will meet the `TRUNCATE` guard when pytest-django empties the tables, so Phase 18 may need to exclude this table from that flush.
 
 ## Phase 11: Organisations and roles
 

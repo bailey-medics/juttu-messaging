@@ -47,6 +47,11 @@ anything. `CLAUDE.md` only points here.
   so a view nobody thought about is closed. The public ones, such as the
   health check and sign-in, are public on purpose and say so with
   `permission_classes = [AllowAny]`.
+- **Every change to data writes an audit entry**, through `record` in
+  `backend/app/audit/record.py`, and the change's tests check for it. The
+  audit table is append-only: a Postgres trigger refuses every `UPDATE`,
+  `DELETE` and `TRUNCATE` on it. An entry never holds a password, a token
+  or a message's text.
 - **Messages are append-only.** Nothing is edited in place; a correction is
   a new message that amends the old one.
 - **Ported from Quill Medical, not written fresh**, where Quill already has
