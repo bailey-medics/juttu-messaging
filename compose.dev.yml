@@ -1,0 +1,126 @@
+# Juttu's development stack: Postgres, the backend, the Vite dev server and
+# the Caddy reverse proxy in front of them. Ported from Quill Medical's.
+#
+# The project is named `juttu`, so its containers and volumes never share a
+# name with Quill Medical's or Turva's stacks on the same machine. Each
+# published port is about a hundred above the usual one, and can be changed
+# through its variable in the gitignored root .env (see .env.example):
+#
+#   Caddy, HTTP     JUTTU_HTTP_PORT      8180   the address to use
+#   Caddy, HTTPS    JUTTU_HTTPS_PORT     8543
+#   backend         JUTTU_WEB_PORT       8100
+#   Vite            JUTTU_FRONTEND_PORT  5273
+#   Postgres        JUTTU_POSTGRES_PORT  5533
+#
+# Every port is published on this machine only, unless JUTTU_BIND names
+# another address to listen on.
+#
+# Usage: s/up, s/down and s/rebuild, or `just up`, `just down` and
+# `just rebuild`.
+
+name: juttu
+
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: juttu
+      POSTGRES_USER: juttu
+      # A development value, for a database that only this machine can
+      # reach. The box's long-running copy sets its own.
+      POSTGRES_PASSWORD: ${JUTTU_POSTGRES_PASSWORD:-juttu_dev_only}
+    # Published for psql and an editor's database view. The backend reaches
+    # it on the stack's own network as `db`.
+    ports:
+      - "${JUTTU_BIND:-127.0.0.1}:${JUTTU_POSTGRES_PORT:-5533}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juttu -d juttu"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  backend:
+    image: juttu-backend-dev
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: dev
+    environment:
+      BACKEND_ENV: development
+      DB_HOST: db
+      DB_NAME: juttu
+      DB_USER: juttu
+      DB_PASSWORD: ${JUTTU_POSTGRES_PASSWORD:-juttu_dev_only}
+    # As the host user on Linux, where s/up sets HOST_UID, so what the
+    # backend writes into the worktree stays the host user's.
+    user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
+    # Bring the database up to the latest migration, then serve with
+    # Django's runserver, which reloads when a file changes.
+    command:
+      - sh
+      - -c
+      - python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "${JUTTU_BIND:-127.0.0.1}:${JUTTU_WEB_PORT:-8100}:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  frontend:
+    image: juttu-frontend-dev
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      # Vite passes /api to the backend inside the stack.
+      JUTTU_API: http://backend:8000
+      JUTTU_FRONTEND_PORT: "5273"
+    ports:
+      - "${JUTTU_BIND:-127.0.0.1}:${JUTTU_FRONTEND_PORT:-5273}:5273"
+    volumes:
+      - ./frontend:/srv/frontend
+      # The image's own packages, not the host's: a named volume over the
+      # mounted folder, seeded from the image the first time it is made.
+      - frontend_node_modules:/srv/frontend/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:5273/"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  caddy:
+    image: public.ecr.aws/docker/library/caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    ports:
+      - "${JUTTU_BIND:-127.0.0.1}:${JUTTU_HTTP_PORT:-8180}:80"
+      - "${JUTTU_BIND:-127.0.0.1}:${JUTTU_HTTPS_PORT:-8543}:443"
+    volumes:
+      - ./caddy/dev/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  frontend_node_modules:
+  caddy_data:
+  caddy_config:

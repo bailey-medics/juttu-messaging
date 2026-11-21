@@ -1,0 +1,46 @@
+# Caddy in front of the development stack. Ported from Quill Medical's
+# caddy/dev/Caddyfile.
+#
+# One origin for the app and the API, as in deployment, so cookies behave
+# in development as they will for real. compose.dev.yml publishes port 80
+# on JUTTU_HTTP_PORT (8180) and port 443 on JUTTU_HTTPS_PORT (8543).
+
+{
+	# Caddy would send http://localhost to https://localhost on port 443,
+	# which is not the port compose.dev.yml publishes. Both ports serve the
+	# app instead.
+	auto_https disable_redirects
+}
+
+(juttu) {
+	encode zstd gzip
+
+	# The API goes to the backend.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# A browser installs the PWA only when its manifest has this type, and
+	# reads a new one only when it is not cached. `>` replaces the header
+	# once the upstream has answered, so it is not sent twice.
+	@webmanifest path /*.webmanifest
+	header @webmanifest >Content-Type "application/manifest+json"
+	header @webmanifest >Cache-Control "no-cache"
+
+	# Everything else is the app, from the Vite dev server.
+	handle {
+		reverse_proxy frontend:5273
+	}
+}
+
+http://:80 {
+	import juttu
+}
+
+# HTTPS with a certificate from Caddy's own internal authority, so a
+# browser warns unless that authority is trusted. A phone installs a PWA
+# only over HTTPS, which the long-running copy on the dev box provides.
+https://localhost:443 {
+	tls internal
+	import juttu
+}

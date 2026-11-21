@@ -1,0 +1,146 @@
+# The checks every commit runs, through .githooks/pre-commit, and that
+# s/lint runs over the whole repository. Ported from Quill Medical and
+# Turva. CI's `hooks` job runs s/lint too.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # LICENSE is the Free Software Foundation's text, kept byte for byte.
+      - id: trailing-whitespace
+        exclude: ^LICENSE$
+      - id: end-of-file-fixer
+        exclude: ^LICENSE$
+      - id: check-yaml
+      - id: check-json
+        # TypeScript's configs are JSONC: comments are part of the format,
+        # and ours explain why a compiler option is set. This hook reads
+        # strict JSON. Prettier still formats them.
+        exclude: ^frontend/tsconfig.*\.json$
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # Secret scanning, on what is staged. It reads its rules from
+  # .gitleaks.toml, which must extend the built-in rules.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # ShellCheck finds the mistakes that are easy to make in shell: an
+  # unquoted variable, a failure nobody notices, a cd that may not happen.
+  # It brings its own binary, so no machine needs one installed, and checks
+  # every file pre-commit tags as shell: the scripts in s/, .githooks/ and
+  # the bats tests.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--source-path=SCRIPTDIR]
+
+  # The security audit of the GitHub Actions workflows: unpinned actions,
+  # credentials left in a checkout, a value an outsider can set reaching a
+  # shell. Offline, because the audits that ask GitHub need a token.
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.32.0
+    hooks:
+      - id: zizmor
+        args: [--no-progress, --offline, --min-severity=low]
+
+  # actionlint checks each workflow's syntax and expressions, and runs
+  # ShellCheck over its `run:` steps.
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: v1.7.12.25
+    hooks:
+      - id: actionlint
+        additional_dependencies:
+          - shellcheck-py==0.11.0.1
+
+  # British English, in the documents. New words go in cspell.config.json,
+  # in alphabetical order, never in an inline comment.
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v10.4.0
+    hooks:
+      - id: cspell
+        name: Spell check with cspell
+        args: [--no-progress, --config, cspell.config.json]
+        types: [markdown]
+
+  # rbubley/mirrors-prettier is the maintained mirror, and tracks stable
+  # Prettier releases. Files under frontend/ take frontend/.prettierrc.json,
+  # the same settings the frontend's own format check uses.
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.10
+    hooks:
+      - id: prettier
+        types_or: [markdown, json, yaml, css]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.50.0
+    hooks:
+      - id: markdownlint
+        args: [--config, .markdownlint.json]
+
+  # Lint and format the backend. ruff reads its settings from
+  # backend/pyproject.toml, the one ruff config.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # Strict type checking of the backend, with the settings in
+  # backend/pyproject.toml's [tool.mypy]. The Django and DRF plugins load
+  # config.settings, so every package it imports is listed here too. The extra packages are the ones
+  # the backend imports, pinned to backend/poetry.lock so mypy checks
+  # against the versions the code runs on. Bump them with the lock, never
+  # one without the other: s/tests/mypy-pins.bats fails when they differ.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.4.1
+    hooks:
+      - id: mypy
+        name: mypy (backend, strict)
+        files: ^backend/.*\.py$
+        # Django writes each migration with `makemigrations`, untyped. A
+        # merged migration is never edited, so it is left out.
+        exclude: ^backend/.*/migrations/
+        language_version: python3.14
+        args: [--config-file=backend/pyproject.toml]
+        additional_dependencies:
+          - django==6.1.3
+          - django-stubs==6.1.2
+          - django-stubs-ext==6.1.2
+          - djangorestframework==3.18.3
+          - djangorestframework-stubs==3.18.2
+          - pydantic==2.14.3
+          - pydantic-settings==2.16.3
+          - pytest==9.2.0
+          - pytest-django==4.14.0
+          - python-json-logger==4.2.0
+
+  # A security linter for Python: shell commands, unsafe YAML loading, weak
+  # hashes and the like. The tests are left out, because pytest is built
+  # from assert, which bandit reports everywhere.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        files: ^backend/
+        exclude: (_test\.py|conftest\.py)$
+        language_version: python3.14
+
+  - repo: local
+    hooks:
+      # The repository is public, so a private network address, a private
+      # network's name or a MAC address must not reach it. Each machine can
+      # also list its own literals, such as device names, in
+      # local/home-details-denylist, which is never committed.
+      - id: check-home-details
+        name: Check for home and dev set-up details
+        entry: s/checks/check-home-details
+        language: system
+        types: [text]

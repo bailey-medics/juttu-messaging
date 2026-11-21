@@ -1,0 +1,124 @@
+name: CI
+
+# One workflow for every pull request, and for every push to main, which
+# checks the merged result. It runs the same commands a developer runs:
+# s/lint, s/test and s/frontend.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hooks:
+    name: Hooks (pre-commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        id: python
+        with:
+          python-version: "3.14"
+
+      # Keyed on the resolved patch version: a cached environment names the
+      # interpreter that built it, and breaks when the runner's Python moves.
+      #
+      # pre-commit's own default home, outside the checkout. Inside it, the
+      # cache is a set of untracked files, which s/lint then checks as though
+      # they were part of the change.
+      - name: Cache the hooks' environments
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-py${{ steps.python.outputs.python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: python -m pip install "pre-commit>=4,<5"
+
+      - name: Run every hook over every file
+        run: bash s/lint --color=always
+
+  scripts:
+    name: Script tests (bats)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The scripts in s/ are tested with stand-ins for docker, poetry and
+      # npm, so this job needs no container. The justfile's tests ask just
+      # for each recipe's commands.
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      # install-action downloads the upstream release and checks its
+      # checksum. `fallback: none` stops it building from source instead.
+      - uses: taiki-e/install-action@25f51f6b1bf4e18876107cece836f4f77ac17c8c # v2.90.7
+        with:
+          tool: just
+          fallback: none
+
+      - name: Run the bats tests
+        run: bash s/test s/tests
+
+  backend:
+    name: Backend (tests, migrations, image)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # In the same throwaway container a developer's ./s/test uses.
+      - name: Run the backend tests
+        run: bash s/test backend
+
+      # On a throwaway Postgres: every migration applies, undoes and applies
+      # again, and leaves no difference from the models.
+      - name: Check the migrations
+        run: bash s/test migrations
+
+      - name: Build the production image
+        run: docker build --file backend/Dockerfile --target prod --tag juttu-backend:ci .
+
+  frontend:
+    name: Frontend (types, lint, tests, builds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # Matching frontend/Dockerfile and the `engines` field.
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci` installs exactly the committed lock, and fails if
+      # package.json and the lock disagree.
+      - name: Install the packages
+        run: bash s/frontend install
+
+      # Types, lint, format, tests, the build and the Storybook build.
+      - name: Run the frontend gate
+        run: bash s/frontend
+
+      - name: Build the development image
+        run: docker build --tag juttu-frontend-dev:ci frontend

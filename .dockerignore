@@ -1,0 +1,18 @@
+# Kept out of every image's build context.
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv
+**/node_modules
+**/*.log
+.git/
+local/
+.env
+
+# Backend tests live beside the module they test, under backend/app/,
+# which the Dockerfile copies whole. Nothing runs them in the image. By
+# the suffix only, never `test_*.py`.
+backend/app/**/*_test.py
+backend/config/**/*_test.py
+backend/conftest.py

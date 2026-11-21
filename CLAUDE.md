@@ -1,7 +1,4 @@
-# Juttu
+# Claude Code instructions
 
-Juttu is an open-source messaging service, open to anyone but built first
-for healthcare. The name is Finnish for a chat or a story.
-
-The repository is new and holds no code yet. Working instructions, rules
-and skills come from `mark-house-style`, linked into `~/.claude/`.
+See [AGENTS.md](AGENTS.md). It is the single source of agent instructions
+for this repository.

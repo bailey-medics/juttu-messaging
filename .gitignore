@@ -2,3 +2,15 @@
 CLAUDE.local.md
 .claude/settings.local.json
 local/
+
+# The repository's own pre-commit, if a machine installs one here
+.venv/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# This machine's own settings, such as a changed port. See .env.example.
+.env

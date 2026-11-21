@@ -1,0 +1,16 @@
+# Gitleaks configuration: the rules to scan with, and the known values that
+# are not secrets. Read by the pre-commit hook.
+# See https://github.com/gitleaks/gitleaks#configuration
+#
+# A config file REPLACES the built-in rules unless it says to extend them,
+# and with no rules every scan passes. The [extend] block below is what
+# makes the scan a scan: never remove it. s/tests/gitleaks-config.bats
+# fails if it goes.
+#
+# Add an allowlist entry only for a value proven not to be a secret, as
+# narrow as it can be, with a description saying what the value is.
+
+title = "Juttu gitleaks config"
+
+[extend]
+useDefault = true

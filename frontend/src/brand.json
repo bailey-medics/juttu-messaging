@@ -1,0 +1,48 @@
+{
+  "identity": {
+    "name": "Juttu",
+    "short_name": "Juttu"
+  },
+  "brand": {
+    "primary": "#001a36",
+    "secondary": "#C8963E",
+    "background": "#ffffff",
+    "mark": "#c9c8ca"
+  },
+  "palette": {
+    "primary": [
+      "#bdd2eb",
+      "#93b4d9",
+      "#6894c0",
+      "#3d6fa0",
+      "#245d8f",
+      "#143f6b",
+      "#0a2f56",
+      "#042340",
+      "#001a36",
+      "#000d1f"
+    ],
+    "secondary": [
+      "#fdf6ec",
+      "#fae8cc",
+      "#f5d5a0",
+      "#efc072",
+      "#e5a84a",
+      "#c8963e",
+      "#a87b2f",
+      "#886223",
+      "#6b4c1a",
+      "#503813"
+    ],
+    "grey": [
+      "#f8f9fa",
+      "#f1f3f5",
+      "#e9ecef",
+      "#dee2e6",
+      "#ced4da",
+      "#adb5bd",
+      "#868e96",
+      "#495057"
+    ]
+  }
+}

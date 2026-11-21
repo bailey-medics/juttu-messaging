@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Run the test suites.
+#
+# Usage:
+#   s/test                    every suite
+#   s/test s/tests            the bats tests only
+#   s/test backend [args]     the backend tests only, with pytest's args
+#   s/test migrations         the migration check only
+#   s/test frontend           the frontend's Vitest suite only
+#
+# The suites:
+#
+#   s/tests/   bats tests for the scripts in s/ and the git hook. They run
+#              on the host and need bats; nothing they test reaches Docker
+#              or GitHub.
+#   backend/   pytest, in a throwaway container built from the backend's
+#              dev image with this worktree mounted, beside a throwaway
+#              Postgres, so it runs from any worktree without the dev
+#              stack. See compose.unit-tests.yml.
+#   frontend/  Vitest, on the host, through s/frontend.
+#   migrations s/migrate check: the migrations apply, undo and match the
+#              models, on a throwaway Postgres. See compose.migrate.yml.
+#
+# Each later phase of the skeleton plan adds its own suite here.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+run_bats() {
+	if ! command -v bats >/dev/null 2>&1; then
+		echo "bats not found. Install it with your package manager, such as:" >&2
+		echo "  sudo apt install bats" >&2
+		exit 1
+	fi
+
+	echo "==> bats s/tests"
+	bats s/tests
+}
+
+# shellcheck source=utils/project-name.sh
+source s/utils/project-name.sh
+
+run_backend() {
+	if ! command -v docker >/dev/null 2>&1; then
+		echo "docker not found. The backend tests run in a container, so Docker is needed." >&2
+		exit 1
+	fi
+
+	echo "==> pytest backend (in a throwaway container)"
+
+	local project status=0
+	project="$(project_name juttu-test)"
+
+	# On Linux the container runs as the host user, so what pytest writes
+	# into the worktree stays the host user's. `run` starts the tests'
+	# Postgres first and leaves it running, so it is removed afterwards,
+	# whatever the tests' result.
+	HOST_UID="$(id -u)" HOST_GID="$(id -g)" \
+		docker compose -p "${project}" -f compose.unit-tests.yml \
+		run --rm --build backend pytest "$@" || status=$?
+
+	docker compose -p "${project}" -f compose.unit-tests.yml \
+		down --volumes --remove-orphans >/dev/null 2>&1 || true
+
+	return "${status}"
+}
+
+run_migrations() {
+	echo "==> migrations (on a throwaway Postgres)"
+	s/migrate check
+}
+
+run_frontend() {
+	echo "==> vitest frontend"
+	s/frontend test:ci
+}
+
+case "${1:-}" in
+	"")
+		run_bats
+		run_backend
+		run_migrations
+		run_frontend
+		;;
+	s/tests)
+		run_bats
+		;;
+	backend)
+		shift
+		run_backend "$@"
+		;;
+	migrations)
+		run_migrations
+		;;
+	frontend)
+		run_frontend
+		;;
+	*)
+		echo "Usage: s/test [s/tests | backend [pytest args] | migrations | frontend]" >&2
+		exit 2
+		;;
+esac

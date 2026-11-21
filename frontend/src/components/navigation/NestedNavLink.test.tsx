@@ -1,0 +1,503 @@
+/**
+ * NestedNavLink Component Tests
+ *
+ * Tests for the recursive navigation link component including:
+ * - Basic rendering and navigation
+ * - Active state detection
+ * - Child item expansion based on active route
+ * - Icon display options
+ * - Nested navigation hierarchies
+ */
+
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithRouter } from "@/test/test-utils";
+import userEvent from "@testing-library/user-event";
+import NestedNavLink, { type NavItem } from "./NestedNavLink";
+
+// Whether the navigation is folded behind the hamburger. Wide by default.
+const mockNavCollapsed = { value: false };
+vi.mock("@/components/layouts/useNavCollapsed", () => ({
+  useNavCollapsed: () => mockNavCollapsed.value,
+}));
+
+/** The router of the last render, so a test can read where a link went. */
+let router: ReturnType<typeof renderWithRouter>["router"] | undefined;
+
+/** Render with the router helper, keeping its router. */
+function render(...args: Parameters<typeof renderWithRouter>) {
+  const result = renderWithRouter(...args);
+  router = result.router;
+  return result;
+}
+
+/** The address the router is at now. */
+function currentPath(): string | undefined {
+  return router?.state.location.pathname;
+}
+
+/** The router state the last navigation carried. */
+function lastLinkState(): unknown {
+  return router?.state.location.state;
+}
+
+// Sample navigation items for testing
+const singleNavItem: NavItem = {
+  label: "Dashboard",
+  href: "/dashboard",
+  icon: "home",
+};
+
+const navItemWithChildren: NavItem = {
+  label: "Spaces",
+  href: "/spaces",
+  icon: "user",
+  children: [
+    { label: "All Spaces", href: "/spaces/all" },
+    { label: "New Space", href: "/spaces/new" },
+    { label: "Recent", href: "/spaces/recent" },
+  ],
+};
+
+const nestedNavItem: NavItem = {
+  label: "Settings",
+  href: "/settings",
+  icon: "settings",
+  children: [
+    { label: "Profile", href: "/settings/profile" },
+    {
+      label: "Security",
+      href: "/settings/security",
+      children: [
+        { label: "Password", href: "/settings/security/password" },
+        { label: "Two-Factor", href: "/settings/security/2fa" },
+      ],
+    },
+  ],
+};
+
+describe("NestedNavLink Component", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("Basic rendering", () => {
+    it("renders a single nav item", () => {
+      render(<NestedNavLink item={singleNavItem} />);
+
+      expect(screen.getByText("Dashboard")).toBeInTheDocument();
+    });
+
+    it("renders nav item without icon by default", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} />);
+
+      // Should not render the icon when showIcons is false
+      const themeIcons = container.querySelectorAll(".mantine-ThemeIcon-root");
+      expect(themeIcons).toHaveLength(0);
+    });
+
+    it("renders nav item with icon when showIcons is true", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} showIcons />);
+
+      // Should render the icon (SVG element)
+      const svgs = container.querySelectorAll("svg");
+      expect(svgs.length).toBeGreaterThan(0);
+    });
+
+    it("renders nav item without icon if none specified", () => {
+      const itemNoIcon: NavItem = {
+        label: "Simple",
+        href: "/simple",
+      };
+
+      const { container } = render(<NestedNavLink item={itemNoIcon} showIcons />);
+
+      // No leftSection should be rendered when no icon is specified
+      const leftSection = container.querySelector(
+        ".mantine-NavLink-section[data-position='left']",
+      );
+      expect(leftSection).toBeNull();
+    });
+  });
+
+  describe("Navigation", () => {
+    it("navigates to correct route when clicked", async () => {
+      const user = userEvent.setup();
+      render(<NestedNavLink item={singleNavItem} />);
+
+      const navLink = screen.getByText("Dashboard");
+      await user.click(navLink);
+
+      await waitFor(() => {
+        expect(currentPath()).toBe("/dashboard");
+      });
+    });
+
+    it("calls onNavigate callback when clicked", async () => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+
+      render(<NestedNavLink item={singleNavItem} onNavigate={onNavigate} />);
+
+      const navLink = screen.getByText("Dashboard");
+      await user.click(navLink);
+
+      await waitFor(() => {
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("Active state", () => {
+    it("marks item as active when on exact route", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} />, {
+        initialRoute: "/dashboard",
+      });
+
+      // Mantine adds data-active attribute to active NavLinks
+      const activeLinks = container.querySelectorAll("[data-active='true']");
+      expect(activeLinks.length).toBeGreaterThan(0);
+    });
+
+    it("does not mark item as active when on different route", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} />, {
+        initialRoute: "/other",
+      });
+
+      const activeLinks = container.querySelectorAll("[data-active='true']");
+      expect(activeLinks).toHaveLength(0);
+    });
+
+    it("marks an item with no children as active on a page beneath it", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} />, {
+        initialRoute: `${singleNavItem.href}/4`,
+      });
+
+      const activeLinks = container.querySelectorAll("a[data-active='true']");
+      expect(activeLinks).toHaveLength(1);
+    });
+
+    it("does not mark an exact item as active on a page beneath it", () => {
+      const { container } = render(<NestedNavLink item={{ ...singleNavItem, exact: true }} />, {
+        initialRoute: `${singleNavItem.href}/4`,
+      });
+
+      const activeLinks = container.querySelectorAll("a[data-active='true']");
+      expect(activeLinks).toHaveLength(0);
+    });
+
+    it("still marks an exact item as active on its own route", () => {
+      const { container } = render(<NestedNavLink item={{ ...singleNavItem, exact: true }} />, {
+        initialRoute: singleNavItem.href,
+      });
+
+      const activeLinks = container.querySelectorAll("a[data-active='true']");
+      expect(activeLinks).toHaveLength(1);
+    });
+  });
+
+  describe("Child items", () => {
+    it("does not show children when parent is not active", () => {
+      render(<NestedNavLink item={navItemWithChildren} />, {
+        initialRoute: "/dashboard",
+      });
+
+      expect(screen.getByText("Spaces")).toBeInTheDocument();
+      expect(screen.queryByText("All Spaces")).not.toBeInTheDocument();
+      expect(screen.queryByText("New Space")).not.toBeInTheDocument();
+    });
+
+    it("shows children when on parent route", () => {
+      render(<NestedNavLink item={navItemWithChildren} />, {
+        initialRoute: "/spaces",
+      });
+
+      expect(screen.getByText("Spaces")).toBeInTheDocument();
+      expect(screen.getByText("All Spaces")).toBeInTheDocument();
+      expect(screen.getByText("New Space")).toBeInTheDocument();
+      expect(screen.getByText("Recent")).toBeInTheDocument();
+    });
+
+    it("shows children when on child route", () => {
+      render(<NestedNavLink item={navItemWithChildren} />, {
+        initialRoute: "/spaces/all",
+      });
+
+      expect(screen.getByText("Spaces")).toBeInTheDocument();
+      expect(screen.getByText("All Spaces")).toBeInTheDocument();
+      expect(screen.getByText("New Space")).toBeInTheDocument();
+    });
+
+    it("marks child as active when on child route", () => {
+      const { container } = render(<NestedNavLink item={navItemWithChildren} />, {
+        initialRoute: "/spaces/new",
+      });
+
+      // Both parent and child should be visible
+      expect(screen.getByText("Spaces")).toBeInTheDocument();
+      expect(screen.getByText("New Space")).toBeInTheDocument();
+
+      // Only the child should be marked active
+      const activeLinks = container.querySelectorAll("[data-active='true']");
+      // We need to check that the "New Space" link is the one marked active
+      expect(activeLinks.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Nested children", () => {
+    it("shows deeply nested children when on nested route", () => {
+      render(<NestedNavLink item={nestedNavItem} />, {
+        initialRoute: "/settings/security/password",
+      });
+
+      // All levels should be visible
+      expect(screen.getByText("Settings")).toBeInTheDocument();
+      expect(screen.getByText("Profile")).toBeInTheDocument();
+      expect(screen.getByText("Security")).toBeInTheDocument();
+      expect(screen.getByText("Password")).toBeInTheDocument();
+      expect(screen.getByText("Two-Factor")).toBeInTheDocument();
+    });
+
+    it("does not show third level when on second level route", () => {
+      render(<NestedNavLink item={nestedNavItem} />, {
+        initialRoute: "/settings/profile",
+      });
+
+      // First and second level visible
+      expect(screen.getByText("Settings")).toBeInTheDocument();
+      expect(screen.getByText("Profile")).toBeInTheDocument();
+      expect(screen.getByText("Security")).toBeInTheDocument();
+
+      // Third level not visible (Security children)
+      expect(screen.queryByText("Password")).not.toBeInTheDocument();
+      expect(screen.queryByText("Two-Factor")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Interactive navigation", () => {
+    it("navigates to child route when child is clicked", async () => {
+      const user = userEvent.setup();
+      render(<NestedNavLink item={navItemWithChildren} />, {
+        initialRoute: "/spaces",
+      });
+
+      const childLink = screen.getByText("All Spaces");
+      await user.click(childLink);
+
+      await waitFor(() => {
+        expect(currentPath()).toBe("/spaces/all");
+      });
+    });
+
+    it("calls onNavigate for child items", async () => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+
+      render(<NestedNavLink item={navItemWithChildren} onNavigate={onNavigate} />, {
+        initialRoute: "/spaces",
+      });
+
+      const childLink = screen.getByText("New Space");
+      await user.click(childLink);
+
+      await waitFor(() => {
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("Keeping the drawer open", () => {
+    const heading: NavItem = { ...navItemWithChildren, keepsDrawerOpen: true };
+
+    it("does not call onNavigate when a heading that keeps the drawer open is clicked", async () => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+      render(<NestedNavLink item={heading} onNavigate={onNavigate} />);
+
+      await user.click(screen.getByText("Spaces"));
+
+      await waitFor(() => {
+        expect(currentPath()).toBe("/spaces");
+      });
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(screen.getByText("All Spaces")).toBeInTheDocument();
+    });
+
+    it("still calls onNavigate when one of its children is clicked", async () => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+      render(<NestedNavLink item={heading} onNavigate={onNavigate} />, {
+        initialRoute: "/spaces",
+      });
+
+      await user.click(screen.getByText("New Space"));
+
+      await waitFor(() => {
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("closes the drawer when the heading's own page is already open", async () => {
+      // Tapping it changes nothing, so the open drawer is only in the way.
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+      render(<NestedNavLink item={heading} onNavigate={onNavigate} />, {
+        initialRoute: "/spaces",
+      });
+
+      await user.click(screen.getByText("Spaces"));
+
+      await waitFor(() => {
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("across a change of layout", () => {
+      beforeEach(() => {
+        mockNavCollapsed.value = false;
+        window.history.pushState(null, "Test page", "/");
+      });
+
+      it("asks the next layout to open its drawer when the navigation is folded away", async () => {
+        mockNavCollapsed.value = true;
+        const user = userEvent.setup();
+        render(<NestedNavLink item={heading} />);
+
+        await user.click(screen.getByText("Spaces"));
+
+        await waitFor(() => {
+          expect(currentPath()).toBe("/spaces");
+        });
+        expect(lastLinkState()).toEqual({ navDrawerOpen: true });
+      });
+
+      it("asks for nothing on a wide screen, where there is no drawer", async () => {
+        const user = userEvent.setup();
+        render(<NestedNavLink item={heading} />);
+
+        await user.click(screen.getByText("Spaces"));
+
+        await waitFor(() => {
+          expect(currentPath()).toBe("/spaces");
+        });
+        expect(lastLinkState()).toBeNull();
+      });
+
+      it("asks for nothing from an ordinary link", async () => {
+        mockNavCollapsed.value = true;
+        const user = userEvent.setup();
+        render(<NestedNavLink item={navItemWithChildren} />);
+
+        await user.click(screen.getByText("Spaces"));
+
+        await waitFor(() => {
+          expect(currentPath()).toBe("/spaces");
+        });
+        expect(lastLinkState()).toBeNull();
+      });
+    });
+
+    it("does not call onNavigate for a heading without an href", async () => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+      render(<NestedNavLink item={{ ...heading, href: undefined }} onNavigate={onNavigate} />);
+
+      await user.click(screen.getByText("Spaces"));
+
+      await waitFor(() => {
+        expect(currentPath()).toBe("/spaces/all");
+      });
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Parent without href", () => {
+    const parentWithoutHref: NavItem = {
+      label: "Teaching",
+      children: [
+        { label: "Assessments", href: "/teaching" },
+        { label: "My history", href: "/teaching/history" },
+      ],
+    };
+
+    it("renders parent and expands when child route is active", () => {
+      render(<NestedNavLink item={parentWithoutHref} />, {
+        initialRoute: "/teaching",
+      });
+
+      expect(screen.getByText("Teaching")).toBeInTheDocument();
+      expect(screen.getByText("Assessments")).toBeInTheDocument();
+      expect(screen.getByText("My history")).toBeInTheDocument();
+    });
+
+    it("does not mark parent as active when child is active", () => {
+      const { container } = render(<NestedNavLink item={parentWithoutHref} />, {
+        initialRoute: "/teaching",
+      });
+
+      // Only NavLink roots should be checked for active state
+      const navLinks = container.querySelectorAll(".mantine-NavLink-root");
+      const activeLabels = Array.from(navLinks)
+        .filter((el) => el.getAttribute("data-active") === "true")
+        .map((el) => el.textContent);
+
+      // Only "Assessments" child should be active, not the "Teaching" parent
+      expect(activeLabels).toHaveLength(1);
+      expect(activeLabels[0]).toContain("Assessments");
+    });
+
+    it("navigates to first child href when parent is clicked", async () => {
+      const user = userEvent.setup();
+      render(<NestedNavLink item={parentWithoutHref} />, {
+        initialRoute: "/teaching",
+      });
+
+      const parentLink = screen.getByText("Teaching");
+      await user.click(parentLink);
+
+      await waitFor(() => {
+        expect(currentPath()).toBe("/teaching");
+      });
+    });
+
+    it("does not expand when on unrelated route", () => {
+      render(<NestedNavLink item={parentWithoutHref} />, {
+        initialRoute: "/dashboard",
+      });
+
+      expect(screen.getByText("Teaching")).toBeInTheDocument();
+      expect(screen.queryByText("Assessments")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Font size", () => {
+    it("uses responsive font size from design system", () => {
+      const { container } = render(<NestedNavLink item={singleNavItem} />);
+
+      const navLink = container.querySelector<HTMLElement>(".mantine-NavLink-root");
+      expect(navLink?.style.fontSize).toBe("var(--mantine-font-size-md)");
+    });
+  });
+
+  it("renders an item with an href as a real, focusable link", () => {
+    // Mantine draws an <a> with no href when navigation happens in an
+    // onClick, and that is unreachable from the keyboard.
+    render(<NestedNavLink item={{ label: "Settings", href: "/settings" }} />);
+    const link = screen.getByRole("link", { name: "Settings" });
+    expect(link).toHaveAttribute("href", "/settings");
+    link.focus();
+    expect(link).toHaveFocus();
+  });
+
+  it("renders an item without an href as a button", () => {
+    render(
+      <NestedNavLink
+        item={{
+          label: "Admin",
+          children: [{ label: "Users", href: "/admin/users" }],
+        }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Admin" })).toBeInTheDocument();
+  });
+});

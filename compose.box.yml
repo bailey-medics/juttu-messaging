@@ -1,0 +1,79 @@
+# The long-running copy of Juttu on the dev box, for the team's phones.
+#
+# Apart from the development stack in every way: its own Compose project,
+# `juttu-box`, its own database volume and its own port, 8290
+# (JUTTU_BOX_PORT). It runs the production images, built from a clean copy
+# of origin/main, never from a working tree.
+#
+# It listens on this machine only. The private network's HTTPS proxy, set
+# up once by hand (docs/dev-box.md), is the only way in, so the copy is
+# never reachable from the public internet. No address or machine name is
+# written here: the box's own settings live in local/box.env, which git
+# ignores.
+#
+# Usage: s/box deploy, or `just box-deploy`.
+
+name: juttu-box
+
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: juttu
+      POSTGRES_USER: juttu
+      POSTGRES_PASSWORD: ${JUTTU_BOX_POSTGRES_PASSWORD:?set it in local/box.env}
+    # No published port: only the backend, on this stack's network, reaches
+    # the database.
+    volumes:
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juttu -d juttu"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    image: juttu-box-backend:${JUTTU_BOX_TAG:-latest}
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: prod
+    restart: unless-stopped
+    environment:
+      BACKEND_ENV: production
+      DB_HOST: db
+      DB_NAME: juttu
+      DB_USER: juttu
+      DB_PASSWORD: ${JUTTU_BOX_POSTGRES_PASSWORD:?set it in local/box.env}
+      JUTTU_SECRET_KEY: ${JUTTU_BOX_SECRET_KEY:?set it in local/box.env}
+      # s/box works this out from JUTTU_BOX_ADDRESS on every call, so no
+      # address is written here.
+      JUTTU_ALLOWED_HOSTS: ${JUTTU_BOX_ALLOWED_HOSTS:?run this through s/box}
+    # Bring the database up to the latest migration, then serve with
+    # Gunicorn, as the prod image does.
+    command:
+      - sh
+      - -c
+      - >-
+        python manage.py migrate &&
+        exec gunicorn config.wsgi --workers 2 --bind 0.0.0.0:8000
+        --forwarded-allow-ips '*'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: juttu-box-web:${JUTTU_BOX_TAG:-latest}
+    build:
+      context: .
+      dockerfile: ./caddy/box/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${JUTTU_BOX_PORT:-8290}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db_data:
