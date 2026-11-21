@@ -1,0 +1,274 @@
+"""Conversations and messages: who may read and post, and that nothing changes."""
+
+from typing import TYPE_CHECKING
+
+import pytest
+from django.db import DatabaseError, transaction
+from django.test import Client
+
+from app.accounts.models import User
+from app.audit.models import AuditEvent
+from app.conversations.models import PROTECTION_NONE, Conversation, Message
+from app.conversations.services import post, start_channel, start_direct
+from app.organisations.services import (
+    add_member,
+    make_first_admin,
+    the_organisation,
+)
+from app.spaces.models import Space
+from app.spaces.services import add_to_space, create_space
+
+if TYPE_CHECKING:
+    from django.test.client import _MonkeyPatchedWSGIResponse as TestResponse
+
+pytestmark = pytest.mark.django_db
+
+PASSWORD = "a long enough made-up password"
+
+
+def person(username: str) -> User:
+    user = User.objects.create_user(username, PASSWORD)
+    add_member(the_organisation(), user, by=None)
+
+    return user
+
+
+@pytest.fixture
+def sam() -> User:
+    user = User.objects.create_user("sam", PASSWORD)
+    make_first_admin(user)
+
+    return user
+
+
+@pytest.fixture
+def alex() -> User:
+    return person("alex")
+
+
+@pytest.fixture
+def priya() -> User:
+    return person("priya")
+
+
+@pytest.fixture
+def release(sam: User, alex: User, priya: User) -> Space:
+    space = create_space(
+        the_organisation(), "Release", is_clinical=False, by=sam
+    )
+    add_to_space(space, alex, by=sam)
+    add_to_space(space, priya, by=sam)
+
+    return space
+
+
+@pytest.fixture
+def general(sam: User, release: Space) -> Conversation:
+    return start_channel(release, "general", by=sam)
+
+
+def signed_in(user: User) -> Client:
+    client = Client()
+    client.force_login(user)
+
+    return client
+
+
+def send(
+    client: Client, conversation: Conversation, body: str, **extra: object
+) -> TestResponse:
+    return client.post(
+        f"/api/conversations/{conversation.pk}/messages",
+        {"body": body, **extra},
+        content_type="application/json",
+    )
+
+
+def test_a_member_posts_and_reads_a_channel(
+    alex: User, general: Conversation
+) -> None:
+    client = signed_in(alex)
+
+    response = client.post(
+        f"/api/conversations/{general.pk}/messages",
+        {"body": "  Release notes are ready.  "},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    messages = client.get(f"/api/conversations/{general.pk}/messages").json()[
+        "messages"
+    ]
+    assert [m["body"] for m in messages] == ["Release notes are ready."]
+    assert messages[0]["author"]["id"] == alex.pk
+
+
+def test_a_stored_message_names_its_format_and_protection(
+    alex: User, general: Conversation
+) -> None:
+    message = post(general, "Hello", by=alex)
+
+    assert message.format_version == 1
+    assert message.protection == PROTECTION_NONE == "none_at_application_level"
+
+
+def test_posting_is_audited_without_the_text(
+    alex: User, general: Conversation
+) -> None:
+    post(general, "Something private", by=alex)
+
+    entry = AuditEvent.objects.order_by("-id").first()
+    assert entry is not None and entry.action == "message_posted"
+    assert "Something private" not in str(entry.detail)
+
+
+def test_a_message_cannot_be_changed_or_deleted(
+    alex: User, general: Conversation
+) -> None:
+    message = post(general, "Hello", by=alex)
+
+    with (
+        pytest.raises(DatabaseError, match="append-only"),
+        transaction.atomic(),
+    ):
+        Message.objects.filter(pk=message.pk).update(body="Changed")
+
+    with (
+        pytest.raises(DatabaseError, match="append-only"),
+        transaction.atomic(),
+    ):
+        Message.objects.filter(pk=message.pk).delete()
+
+    assert Message.objects.get(pk=message.pk).body == "Hello"
+
+
+def test_a_correction_is_a_new_message_that_amends_the_old(
+    alex: User, general: Conversation
+) -> None:
+    original = post(general, "Releas on Friday", by=alex)
+
+    response = send(
+        signed_in(alex), general, "Release on Friday", amends=original.pk
+    )
+
+    assert response.status_code == 201
+    assert response.json()["amends"] == original.pk
+    assert Message.objects.get(pk=original.pk).body == "Releas on Friday"
+
+
+def test_nobody_corrects_somebody_else_s_message(
+    alex: User, priya: User, general: Conversation
+) -> None:
+    original = post(general, "Mine", by=alex)
+
+    response = send(signed_in(priya), general, "Not yours", amends=original.pk)
+
+    assert response.status_code == 400
+
+
+def test_a_direct_conversation_is_only_for_its_people(
+    sam: User, alex: User, priya: User, release: Space
+) -> None:
+    response = signed_in(alex).post(
+        f"/api/spaces/{release.pk}/conversations",
+        {"kind": "direct", "user_ids": [sam.pk]},
+        content_type="application/json",
+    )
+    direct = Conversation.objects.get(pk=response.json()["id"])
+
+    post(direct, "Just between us", by=alex)
+    outsider = signed_in(priya)
+
+    assert (
+        outsider.get(f"/api/conversations/{direct.pk}/messages").status_code
+        == 404
+    )
+    assert send(outsider, direct, "Let me in").status_code == 404
+    listed = outsider.get(f"/api/spaces/{release.pk}/conversations").json()[
+        "conversations"
+    ]
+    assert direct.pk not in [c["id"] for c in listed]
+
+
+def test_a_member_lists_the_channels_and_their_own_direct_conversations(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    mine = start_direct(release, [sam], by=alex)
+    start_direct(release, [sam], by=priya)
+
+    listed = (
+        signed_in(alex).get(f"/api/spaces/{release.pk}/conversations").json()
+    )
+
+    assert [c["id"] for c in listed["conversations"]] == [general.pk, mine.pk]
+    assert listed["conversations"][1]["title"] == "sam"
+
+
+def test_somebody_not_in_the_space_cannot_reach_its_channel(
+    general: Conversation,
+) -> None:
+    """Guessing the conversation's number reveals nothing."""
+    stranger = person("stranger")
+
+    assert (
+        signed_in(stranger)
+        .get(f"/api/conversations/{general.pk}/messages")
+        .status_code
+        == 404
+    )
+    assert send(signed_in(stranger), general, "Hello?").status_code == 404
+
+
+def test_somebody_taken_out_of_the_space_loses_its_conversations(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    from app.spaces.services import remove_from_space
+
+    remove_from_space(release, alex, by=sam)
+
+    assert (
+        signed_in(alex)
+        .get(f"/api/conversations/{general.pk}/messages")
+        .status_code
+        == 404
+    )
+
+
+def test_only_somebody_who_manages_spaces_opens_a_channel(
+    alex: User, release: Space
+) -> None:
+    response = signed_in(alex).post(
+        f"/api/spaces/{release.pk}/conversations",
+        {"kind": "channel", "name": "random"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_a_direct_conversation_needs_people_in_the_space(
+    alex: User, release: Space
+) -> None:
+    stranger = person("stranger")
+
+    response = signed_in(alex).post(
+        f"/api/spaces/{release.pk}/conversations",
+        {"kind": "direct", "user_ids": [stranger.pk]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("body", ["", "   "])
+def test_an_empty_message_is_refused(
+    alex: User, general: Conversation, body: str
+) -> None:
+    assert send(signed_in(alex), general, body).status_code == 400
+
+
+def test_somebody_not_signed_in_is_refused(general: Conversation) -> None:
+    assert (
+        Client().get(f"/api/conversations/{general.pk}/messages").status_code
+        == 403
+    )

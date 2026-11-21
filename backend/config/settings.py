@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "app.audit",
     "app.organisations",
     "app.spaces",
+    "app.conversations",
 ]
 
 MIDDLEWARE = [

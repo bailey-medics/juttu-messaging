@@ -127,11 +127,13 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 14: Conversations and messages, backend
 
-- [ ] Channels and direct messages are both conversations in a space. Messages are append-only, as in Quill Medical: nothing is edited in place, and a correction is a new message that amends the old one.
+- [x] Channels and direct messages are both conversations in a space. Messages are append-only, as in Quill Medical: nothing is edited in place, and a correction is a new message that amends the old one.
 
-- [ ] Messages are encrypted in transit and on disk, and readable by the server. On disk, the box's operating system encrypts the disk or the Postgres volume; Juttu's code handles no keys. The stored message carries a format version and a field naming how its body is protected, at first "none at application level", so a space can move to end-to-end encryption later without a new table.
+- [x] Messages are encrypted in transit and on disk, and readable by the server. On disk, the box's operating system encrypts the disk or the Postgres volume; Juttu's code handles no keys. The stored message carries a format version and a field naming how its body is protected, at first "none at application level", so a space can move to end-to-end encryption later without a new table.
 
-- [ ] Access is checked on the server for every read and every post, with tests that one member cannot reach another's conversation by guessing its identifier. Conversations are listed with a query that filters in the database, not after loading them all, which is the fault in Quill Medical's version.
+- [x] Access is checked on the server for every read and every post, with tests that one member cannot reach another's conversation by guessing its identifier. Conversations are listed with a query that filters in the database, not after loading them all, which is the fault in Quill Medical's version.
+
+- [x] Found while building: `backend/app/conversations` holds `Conversation`, of kind channel or direct, `Participant` rows for a direct one, and `Message`. A Postgres trigger refuses every change to a message, as the audit table's does, and a correction names the message it amends; only its author can correct it, in the same conversation. Each message stores `format_version` 1 and `protection` "none_at_application_level". `GET` and `POST /api/spaces/{id}/conversations` and `GET` and `POST /api/conversations/{id}/messages` check access on every call, and a conversation somebody cannot read answers 404. Only somebody holding `manage_spaces` opens a channel; any member starts a direct conversation with others in the space. `conversations_for` lists with one query, filtering in the database. Each post writes a `message_posted` audit entry naming the message, never its text. `GET` returns the latest 200 messages; paging further back waits until a conversation needs it.
 
 ## Phase 15: Conversations and messages, frontend
 

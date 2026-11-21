@@ -26,6 +26,8 @@ class AuditAction(StrEnum):
     SPACE_CREATED = "space_created"
     SPACE_MEMBER_ADDED = "space_member_added"
     SPACE_MEMBER_REMOVED = "space_member_removed"
+    CONVERSATION_STARTED = "conversation_started"
+    MESSAGE_POSTED = "message_posted"
 
 
 class AuditEvent(models.Model):
