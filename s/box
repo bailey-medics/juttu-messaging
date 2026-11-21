@@ -82,6 +82,19 @@ allowed_hosts() {
 	fi
 }
 
+# The origin phones open the copy from, for Django's CSRF check: the
+# private network's proxy ends HTTPS before Caddy, so Django cannot tell
+# the page was HTTPS. Empty until JUTTU_BOX_ADDRESS is set.
+trusted_origins() {
+	local address
+
+	address="$(setting JUTTU_BOX_ADDRESS)"
+
+	if [ -n "${address}" ]; then
+		echo "https://${address}"
+	fi
+}
+
 # Read one setting from local/box.env, without running the file.
 setting() {
 	local name="$1"
@@ -97,6 +110,7 @@ box_compose() {
 	fi
 
 	JUTTU_BOX_ALLOWED_HOSTS="$(allowed_hosts)" \
+		JUTTU_BOX_TRUSTED_ORIGINS="$(trusted_origins)" \
 		docker compose -p juttu-box --env-file "${env_file}" -f "${compose_file}" "$@"
 }
 

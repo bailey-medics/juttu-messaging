@@ -172,3 +172,35 @@ def test_the_database_password_is_hidden_when_printed(
     monkeypatch.setenv("DB_PASSWORD", "do-not-print-me")
 
     assert "do-not-print-me" not in repr(Settings())
+
+
+def test_no_extra_origin_is_trusted_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("JUTTU_CSRF_TRUSTED_ORIGINS", raising=False)
+
+    assert Settings().csrf_trusted_origins == []
+
+
+def test_the_trusted_origins_are_read_as_a_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "JUTTU_CSRF_TRUSTED_ORIGINS",
+        " https://juttu.example:8290 , , http://localhost:8180",
+    )
+
+    assert Settings().csrf_trusted_origins == [
+        "https://juttu.example:8290",
+        "http://localhost:8180",
+    ]
+
+
+def test_a_trusted_origin_needs_its_scheme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Django cannot match an origin written without https://."""
+    monkeypatch.setenv("JUTTU_CSRF_TRUSTED_ORIGINS", "juttu.example:8290")
+
+    with pytest.raises(ValidationError, match="starts with https://"):
+        Settings()

@@ -7,7 +7,7 @@ later phase adds its own values here.
 
 from typing import Any, Literal, Self
 
-from pydantic import SecretStr, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: Where the backend is running. Development gets readable logs and Django's
@@ -32,6 +32,10 @@ class Settings(BaseSettings):
         JUTTU_SECRET_KEY: Django's secret key. Required in production.
         JUTTU_ALLOWED_HOSTS: The host names Django answers, separated by
             commas. Required in production.
+        JUTTU_CSRF_TRUSTED_ORIGINS: The origins a page may post from,
+            such as ``https://juttu.example:8290``, separated by commas.
+            Needed behind a proxy that ends HTTPS before Caddy, as the
+            private network's proxy does on the dev box.
         DB_HOST: The Postgres server's host name.
         DB_PORT: The port Postgres listens on, inside its network.
         DB_NAME: The database Juttu keeps its tables in.
@@ -52,12 +56,26 @@ class Settings(BaseSettings):
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     JUTTU_SECRET_KEY: SecretStr = SecretStr("")
     JUTTU_ALLOWED_HOSTS: str = ""
+    JUTTU_CSRF_TRUSTED_ORIGINS: str = ""
 
     DB_HOST: str = "db"
     DB_PORT: int = 5432
     DB_NAME: str = "juttu"
     DB_USER: str = "juttu"
     DB_PASSWORD: SecretStr = SecretStr("")
+
+    @field_validator("JUTTU_CSRF_TRUSTED_ORIGINS")
+    @classmethod
+    def _origins_name_their_scheme(cls, value: str) -> str:
+        """Refuse an origin without its scheme, which Django cannot use."""
+        for origin in _listed(value):
+            if not origin.startswith(("https://", "http://")):
+                raise ValueError(
+                    "Each JUTTU_CSRF_TRUSTED_ORIGINS entry starts with "
+                    "https:// or http://"
+                )
+
+        return value
 
     @model_validator(mode="after")
     def _production_has_its_own_values(self) -> Self:
@@ -77,11 +95,7 @@ class Settings(BaseSettings):
         return self
 
     def _listed_hosts(self) -> list[str]:
-        return [
-            host.strip()
-            for host in self.JUTTU_ALLOWED_HOSTS.split(",")
-            if host.strip()
-        ]
+        return _listed(self.JUTTU_ALLOWED_HOSTS)
 
     @property
     def dev_mode(self) -> bool:
@@ -99,6 +113,16 @@ class Settings(BaseSettings):
     def allowed_hosts(self) -> list[str]:
         """The hosts Django answers: the listed ones, or this machine's."""
         return self._listed_hosts() or list(DEFAULT_ALLOWED_HOSTS)
+
+    @property
+    def csrf_trusted_origins(self) -> list[str]:
+        """The origins Django's CSRF check accepts beyond the request's own.
+
+        On the dev box the private network's proxy ends HTTPS and passes
+        plain HTTP to Caddy, so Django sees an HTTP request from an HTTPS
+        page and refuses it unless that page's origin is listed here.
+        """
+        return _listed(self.JUTTU_CSRF_TRUSTED_ORIGINS)
 
     @property
     def database(self) -> dict[str, Any]:
@@ -121,6 +145,11 @@ class Settings(BaseSettings):
             # before a request uses it.
             "CONN_HEALTH_CHECKS": True,
         }
+
+
+def _listed(value: str) -> list[str]:
+    """The entries of a comma-separated setting, trimmed, blanks left out."""
+    return [entry.strip() for entry in value.split(",") if entry.strip()]
 
 
 settings = Settings()

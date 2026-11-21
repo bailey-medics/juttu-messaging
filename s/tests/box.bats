@@ -28,6 +28,7 @@ setup() {
 #!/usr/bin/env bash
 echo "JUTTU_BOX_TAG=\${JUTTU_BOX_TAG:-} docker \$*" >>"${BATS_TEST_TMPDIR}/calls"
 echo "\${JUTTU_BOX_ALLOWED_HOSTS:-}" >>"${BATS_TEST_TMPDIR}/hosts"
+echo "\${JUTTU_BOX_TRUSTED_ORIGINS-unset}" >>"${BATS_TEST_TMPDIR}/origins"
 STUB
 	chmod +x "${bin}/docker"
 }
@@ -160,4 +161,19 @@ calls() {
 
 	[ "$status" -eq 0 ]
 	[[ "$(calls)" == *"-p juttu-box "*" exec backend python manage.py create_first_account" ]]
+}
+
+@test "the backend trusts the HTTPS address phones open, for its CSRF check" {
+	mkdir -p "${repo}/local"
+	printf 'JUTTU_BOX_POSTGRES_PASSWORD=x\nJUTTU_BOX_SECRET_KEY=y\nJUTTU_BOX_ADDRESS=box.example:8290\n' >"${repo}/local/box.env"
+
+	box deploy
+
+	[ "$(cat "${BATS_TEST_TMPDIR}/origins")" = "https://box.example:8290" ]
+}
+
+@test "no origin is trusted before the address is set, but the setting is still passed" {
+	box deploy
+
+	[ "$(cat "${BATS_TEST_TMPDIR}/origins")" = "" ]
 }

@@ -50,6 +50,9 @@ services:
       # s/box works this out from JUTTU_BOX_ADDRESS on every call, so no
       # address is written here.
       JUTTU_ALLOWED_HOSTS: ${JUTTU_BOX_ALLOWED_HOSTS:?run this through s/box}
+      # The HTTPS address phones open, so Django's CSRF check accepts a
+      # sign-in from it. Empty until JUTTU_BOX_ADDRESS is set.
+      JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through s/box}
     # Bring the database up to the latest migration, then serve with
     # Gunicorn, as the prod image does.
     command:
