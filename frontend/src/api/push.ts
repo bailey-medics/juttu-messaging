@@ -34,3 +34,28 @@ export async function forgetSubscription(endpoint: string): Promise<void> {
 export async function sayLooking(conversationId: number, looking: boolean): Promise<void> {
   await apiRequest("POST", "/push/looking", { conversation: conversationId, looking });
 }
+
+/** What sends the person a push. Quiet unless they choose otherwise. */
+export type NotifyLevel = "quiet" | "everything" | "nothing";
+
+function isNotifyLevel(value: unknown): value is NotifyLevel {
+  return value === "quiet" || value === "everything" || value === "nothing";
+}
+
+function levelFrom(body: unknown): NotifyLevel {
+  if (!isRecord(body) || !isNotifyLevel(body.level)) {
+    throw new ApiError(502, "The backend's answer about notifications was not understood");
+  }
+
+  return body.level;
+}
+
+/** What the person has chosen to be notified about. */
+export async function getNotifyLevel(): Promise<NotifyLevel> {
+  return levelFrom(await apiRequest("GET", "/push/settings"));
+}
+
+/** Change what the person is notified about, on every device. */
+export async function setNotifyLevel(level: NotifyLevel): Promise<NotifyLevel> {
+  return levelFrom(await apiRequest("POST", "/push/settings", { level }));
+}

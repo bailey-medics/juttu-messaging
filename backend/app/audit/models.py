@@ -30,6 +30,7 @@ class AuditAction(StrEnum):
     MESSAGE_POSTED = "message_posted"
     PUSH_SUBSCRIBED = "push_subscribed"
     PUSH_UNSUBSCRIBED = "push_unsubscribed"
+    NOTIFICATION_SETTING_CHANGED = "notification_setting_changed"
 
 
 class AuditEvent(models.Model):

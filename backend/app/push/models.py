@@ -61,3 +61,33 @@ class Looking(models.Model):
 
     def __str__(self) -> str:
         return f"User {self.user_id} looking at {self.conversation_id}"
+
+
+class NotifyLevel(models.TextChoices):
+    """What sends a person a push. Quiet unless they choose otherwise."""
+
+    #: A direct message, or a message that mentions them. The default.
+    QUIET = "quiet", "Direct messages and mentions"
+    EVERYTHING = "everything", "Every message"
+    NOTHING = "nothing", "Nothing"
+
+
+class NotificationSetting(models.Model):
+    """What one person has chosen to be notified about.
+
+    A person with no row is quiet: the default is that messages wait to be
+    read, and only what is for them notifies.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_setting",
+    )
+    level = models.CharField(
+        max_length=16, choices=NotifyLevel.choices, default=NotifyLevel.QUIET
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"User {self.user_id} notified about {self.level}"

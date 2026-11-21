@@ -171,7 +171,9 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 20: Quiet notification settings
 
-- [ ] Mentions of a person by name. Each person sets what notifies them, and the default is quiet: a direct message, a mention or a question for you notifies; everything else waits to be read.
+- [x] Mentions of a person by name. Each person sets what notifies them, and the default is quiet: a direct message, a mention or a question for you notifies; everything else waits to be read.
+
+- [x] Found while building: a mention is `@username`, matched whatever its case, because usernames are unique and a display name is not; a trailing full stop or comma is punctuation, and an email address is not a mention. Each person has one `NotificationSetting` for every device: quiet, the default, every message, or nothing. Somebody quiet is pushed a direct message, or a message that mentions them and that they may read. A question for you notifies through the same rule once questions exist, in Phase 25. The choice is on the Home page's "Notifications" card, through `GET` and `POST /api/push/settings`, and each change is audited. This changes Phase 19's behaviour: a channel message no longer notifies anybody who has not chosen every message.
 
 ## Phase 21: Card core
 

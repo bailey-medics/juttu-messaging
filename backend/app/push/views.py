@@ -12,13 +12,20 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.conversations.views import caller, readable_conversation
-from app.push.models import PushSubscription
+from app.push.models import NotifyLevel, PushSubscription
 from app.push.serializers import (
     EndpointSerializer,
+    LevelSerializer,
     LookingSerializer,
     SubscriptionSerializer,
 )
-from app.push.services import forget, looking, subscribe
+from app.push.services import (
+    choose_level,
+    forget,
+    level_of,
+    looking,
+    subscribe,
+)
 
 
 class PushKeyView(APIView):
@@ -88,3 +95,22 @@ class LookingView(APIView):
         looking(user, conversation, now=data["looking"])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SettingsView(APIView):
+    """``GET`` what the caller is notified about; ``POST`` changes it."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        return Response({"level": str(level_of(caller(request)))})
+
+    def post(self, request: Request) -> Response:
+        user = caller(request)
+        serializer = LevelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        level = NotifyLevel(serializer.validated_data["level"])
+
+        choose_level(user, level)
+
+        return Response({"level": str(level)})

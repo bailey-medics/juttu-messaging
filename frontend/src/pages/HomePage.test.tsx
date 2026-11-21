@@ -83,4 +83,37 @@ describe("HomePage", () => {
     );
     Reflect.deleteProperty(navigator, "serviceWorker");
   });
+
+  it("changes what notifies the person, on every device", async () => {
+    stubFetchRoutes({
+      "/api/health": { body: { status: "ok" } },
+      "/api/push/settings": { body: { level: "quiet" } },
+      "POST /api/push/settings": { body: { level: "nothing" } },
+    });
+
+    renderWithRouter(<HomePage />);
+    await userEvent.click(await screen.findByRole("radio", { name: /Nothing/ }));
+
+    expect(await screen.findByRole("radio", { name: /Nothing/ })).toBeChecked();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/push/settings",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ level: "nothing" }) }),
+    );
+  });
+
+  it("puts the choice back when it does not save", async () => {
+    stubFetchRoutes({
+      "/api/health": { body: { status: "ok" } },
+      "/api/push/settings": { body: { level: "quiet" } },
+      "POST /api/push/settings": { body: { detail: "Unavailable." }, status: 503 },
+    });
+
+    renderWithRouter(<HomePage />);
+    await userEvent.click(await screen.findByRole("radio", { name: /Every message/ }));
+
+    expect(
+      await screen.findByText("Your choice was not saved. Try again."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Direct messages and mentions/ })).toBeChecked();
+  });
 });

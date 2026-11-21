@@ -2,6 +2,7 @@ import { Stack } from "@mantine/core";
 import { useEffect, useState } from "react";
 
 import { checkHealth } from "@/api/health";
+import { getNotifyLevel, setNotifyLevel, type NotifyLevel } from "@/api/push";
 import BaseCard from "@/components/base-card/BaseCard";
 import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
 import { NotificationsCard } from "@/components/notifications";
@@ -17,12 +18,30 @@ export default function HomePage() {
   const [push, setPush] = useState<PushState | "checking">("checking");
   const [enabling, setEnabling] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [level, setLevel] = useState<NotifyLevel | null>(null);
+  const [levelFailed, setLevelFailed] = useState(false);
 
   useEffect(() => {
     pushState(browserPush)
       .then(setPush)
       .catch(() => setPush("unsupported"));
+    getNotifyLevel()
+      .then(setLevel)
+      .catch(() => setLevel(null));
   }, []);
+
+  async function changeLevel(chosen: NotifyLevel) {
+    const before = level;
+    setLevel(chosen);
+    setLevelFailed(false);
+
+    try {
+      setLevel(await setNotifyLevel(chosen));
+    } catch {
+      setLevel(before);
+      setLevelFailed(true);
+    }
+  }
 
   async function enable() {
     setEnabling(true);
@@ -61,6 +80,9 @@ export default function HomePage() {
         busy={enabling}
         failed={failed}
         onEnable={() => void enable()}
+        level={level}
+        onLevelChange={(chosen) => void changeLevel(chosen)}
+        levelFailed={levelFailed}
       />
     </Stack>
   );

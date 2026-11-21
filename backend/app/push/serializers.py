@@ -5,7 +5,7 @@ from typing import Any
 from rest_framework import serializers
 
 from app.push.endpoints import is_push_endpoint
-from app.push.models import MAX_ENDPOINT_LENGTH
+from app.push.models import MAX_ENDPOINT_LENGTH, NotifyLevel
 
 #: A key written in URL-safe base64, perhaps padded.
 BASE64 = r"^[A-Za-z0-9_-]+=*$"
@@ -48,6 +48,12 @@ class LookingSerializer(serializers.Serializer[dict[str, Any]]):
 
     conversation = serializers.IntegerField(min_value=1)
     looking = serializers.BooleanField()
+
+
+class LevelSerializer(serializers.Serializer[dict[str, Any]]):
+    """What the person wants to be notified about."""
+
+    level = serializers.ChoiceField(choices=NotifyLevel.choices)
 
 
 class EndpointSerializer(serializers.Serializer[dict[str, Any]]):

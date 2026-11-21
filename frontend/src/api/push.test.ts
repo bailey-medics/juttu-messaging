@@ -1,5 +1,12 @@
 import { ApiError } from "@/api/client";
-import { forgetSubscription, getPushKey, sayLooking, saveSubscription } from "@/api/push";
+import {
+  forgetSubscription,
+  getNotifyLevel,
+  getPushKey,
+  sayLooking,
+  saveSubscription,
+  setNotifyLevel,
+} from "@/api/push";
 import { stubFetchJson, stubFetchRoutes } from "@/test/render";
 
 describe("the push client", () => {
@@ -54,5 +61,16 @@ describe("the push client", () => {
       "/api/push/looking",
       expect.objectContaining({ body: JSON.stringify({ conversation: 11, looking: true }) }),
     );
+  });
+});
+
+describe("the notification settings client", () => {
+  it("reads and changes the level, and refuses an answer it does not understand", async () => {
+    stubFetchJson({ level: "everything" });
+    await expect(getNotifyLevel()).resolves.toBe("everything");
+    await expect(setNotifyLevel("everything")).resolves.toBe("everything");
+
+    stubFetchJson({ level: "loud" });
+    await expect(getNotifyLevel()).rejects.toBeInstanceOf(ApiError);
   });
 });

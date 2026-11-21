@@ -1,8 +1,29 @@
-import { Button, Group, Stack } from "@mantine/core";
+import { Button, Group, Radio, Stack } from "@mantine/core";
+
+import type { NotifyLevel } from "@/api/push";
 
 import BaseCard from "@/components/base-card/BaseCard";
 import { BodyText, ErrorMessage, Heading } from "@/components/typography";
 import type { PushState } from "@/pwa/push";
+
+/** The choices of what notifies the person, quiet first as the default. */
+const LEVELS: { value: NotifyLevel; label: string; description: string }[] = [
+  {
+    value: "quiet",
+    label: "Direct messages and mentions",
+    description: "Everything else waits until you open Juttu. The default.",
+  },
+  {
+    value: "everything",
+    label: "Every message",
+    description: "In every conversation you are in.",
+  },
+  { value: "nothing", label: "Nothing", description: "No notifications on any device." },
+];
+
+function isLevel(value: string): value is NotifyLevel {
+  return LEVELS.some((level) => level.value === value);
+}
 
 /** What the card says for each state, and whether it offers the button. */
 const WORDING: Record<PushState | "checking", { text: string; offer: boolean }> = {
@@ -31,6 +52,11 @@ export interface NotificationsCardProps {
   /** Something went wrong last time, so the person may try again. */
   failed?: boolean;
   onEnable: () => void;
+  /** What notifies the person, on every device, or null while it loads. */
+  level?: NotifyLevel | null;
+  onLevelChange?: (level: NotifyLevel) => void;
+  /** The last choice of level did not save. */
+  levelFailed?: boolean;
 }
 
 /**
@@ -42,6 +68,9 @@ export default function NotificationsCard({
   busy = false,
   failed = false,
   onEnable,
+  level = null,
+  onLevelChange,
+  levelFailed = false,
 }: NotificationsCardProps) {
   const { text, offer } = WORDING[state];
 
@@ -60,6 +89,29 @@ export default function NotificationsCard({
             </Button>
           </Group>
         )}
+        {level !== null && (
+          <Radio.Group
+            label="Notify me about"
+            value={level}
+            onChange={(value) => {
+              if (isLevel(value)) {
+                onLevelChange?.(value);
+              }
+            }}
+          >
+            <Stack gap="xs" mt="xs">
+              {LEVELS.map((choice) => (
+                <Radio
+                  key={choice.value}
+                  value={choice.value}
+                  label={choice.label}
+                  description={choice.description}
+                />
+              ))}
+            </Stack>
+          </Radio.Group>
+        )}
+        {levelFailed && <ErrorMessage>Your choice was not saved. Try again.</ErrorMessage>}
       </Stack>
     </BaseCard>
   );

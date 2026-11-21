@@ -30,7 +30,13 @@ from app.organisations.services import (
 from app.push import services
 from app.push.endpoints import is_push_endpoint
 from app.push.management.commands.generate_push_keys import key_pair
-from app.push.models import Looking, PushSubscription
+from app.push.mentions import mentioned_usernames
+from app.push.models import (
+    Looking,
+    NotificationSetting,
+    NotifyLevel,
+    PushSubscription,
+)
 from app.push.services import Push, deliver, forget, push_for, subscribe
 from app.spaces.models import Space
 from app.spaces.services import add_to_space, create_space, remove_from_space
@@ -283,8 +289,16 @@ class TestTheKey:
 
 class TestWhoIsSentWhat:
     @pytest.fixture(autouse=True)
-    def push_on(self, settings: DjangoSettings) -> None:
+    def push_on(
+        self, settings: DjangoSettings, alex: User, priya: User
+    ) -> None:
+        """Push on, and alex and priya told of every message, as Phase 19
+        sent them before quiet became the default in Phase 20."""
         settings.PUSH_KEYS = KEYS
+        for user in (alex, priya):
+            NotificationSetting.objects.create(
+                user=user, level=NotifyLevel.EVERYTHING
+            )
 
     def test_everybody_else_in_a_channel_is_sent_a_push(
         self,
@@ -532,8 +546,16 @@ class TestKeys:
 
 class TestLooking:
     @pytest.fixture(autouse=True)
-    def push_on(self, settings: DjangoSettings) -> None:
+    def push_on(
+        self, settings: DjangoSettings, alex: User, priya: User
+    ) -> None:
+        """Push on, and alex and priya told of every message, as Phase 19
+        sent them before quiet became the default in Phase 20."""
         settings.PUSH_KEYS = KEYS
+        for user in (alex, priya):
+            NotificationSetting.objects.create(
+                user=user, level=NotifyLevel.EVERYTHING
+            )
 
     def say(self, user: User, conversation: int, looking: bool) -> int:
         response = signed_in(user).post(
@@ -625,3 +647,155 @@ class TestLooking:
         )
 
         assert response.status_code == 403
+
+
+class TestQuietByDefault:
+    @pytest.fixture(autouse=True)
+    def push_on(self, settings: DjangoSettings) -> None:
+        settings.PUSH_KEYS = KEYS
+
+    @pytest.fixture(autouse=True)
+    def subscribed(self, alex: User, priya: User) -> None:
+        for user in (alex, priya):
+            subscribe(user, endpoint(user.username), P256DH, AUTH)
+
+    def pushed(self, sent: Sent) -> list[str]:
+        return sorted(address for address, _ in sent)
+
+    def test_a_channel_message_waits_to_be_read(
+        self, sent: Sent, sam: User, general: Conversation
+    ) -> None:
+        deliver(post(general, "Release at four", by=sam).pk)
+
+        assert sent == []
+
+    def test_a_direct_message_notifies(
+        self, sent: Sent, sam: User, alex: User, release: Space
+    ) -> None:
+        direct = start_direct(release, [alex], by=sam)
+
+        deliver(post(direct, "Got a minute?", by=sam).pk)
+
+        assert self.pushed(sent) == [endpoint("alex")]
+
+    @pytest.mark.parametrize(
+        "body",
+        ["@alex can you check?", "Thanks, @ALEX.", "(@alex) and others"],
+    )
+    def test_a_mention_notifies_only_who_is_mentioned(
+        self, sent: Sent, sam: User, general: Conversation, body: str
+    ) -> None:
+        deliver(post(general, body, by=sam).pk)
+
+        assert self.pushed(sent) == [endpoint("alex")]
+
+    def test_an_address_is_not_a_mention(
+        self, sent: Sent, sam: User, general: Conversation
+    ) -> None:
+        deliver(post(general, "Write to team@alex today", by=sam).pk)
+
+        assert sent == []
+
+    def test_mentioning_somebody_outside_the_space_notifies_nobody(
+        self, sent: Sent, sam: User, general: Conversation
+    ) -> None:
+        outsider = person("olu")
+        subscribe(outsider, endpoint("olu"), P256DH, AUTH)
+
+        deliver(post(general, "@olu have a look", by=sam).pk)
+
+        assert sent == []
+
+    def test_somebody_who_chose_everything_hears_every_message(
+        self, sent: Sent, sam: User, priya: User, general: Conversation
+    ) -> None:
+        signed_in(priya).post(
+            "/api/push/settings",
+            {"level": "everything"},
+            content_type="application/json",
+        )
+
+        deliver(post(general, "Release at four", by=sam).pk)
+
+        assert self.pushed(sent) == [endpoint("priya")]
+
+    def test_somebody_who_chose_nothing_hears_nothing(
+        self, sent: Sent, sam: User, alex: User, release: Space
+    ) -> None:
+        signed_in(alex).post(
+            "/api/push/settings",
+            {"level": "nothing"},
+            content_type="application/json",
+        )
+        direct = start_direct(release, [alex], by=sam)
+
+        deliver(post(direct, "@alex urgent", by=sam).pk)
+
+        assert sent == []
+
+
+class TestSettings:
+    def test_a_person_is_quiet_until_they_choose(self, alex: User) -> None:
+        response = signed_in(alex).get("/api/push/settings")
+
+        assert response.json() == {"level": "quiet"}
+
+    def test_a_choice_is_kept_and_audited(self, alex: User) -> None:
+        client = signed_in(alex)
+
+        response = client.post(
+            "/api/push/settings",
+            {"level": "everything"},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert client.get("/api/push/settings").json() == {
+            "level": "everything"
+        }
+        event = AuditEvent.objects.get(
+            action=AuditAction.NOTIFICATION_SETTING_CHANGED
+        )
+        assert (event.actor, event.detail) == (alex, {"level": "everything"})
+
+    def test_choosing_the_same_again_writes_nothing(self, alex: User) -> None:
+        for _ in range(2):
+            signed_in(alex).post(
+                "/api/push/settings",
+                {"level": "quiet"},
+                content_type="application/json",
+            )
+
+        assert not AuditEvent.objects.filter(
+            action=AuditAction.NOTIFICATION_SETTING_CHANGED
+        ).exists()
+
+    def test_an_unknown_choice_is_refused(self, alex: User) -> None:
+        response = signed_in(alex).post(
+            "/api/push/settings",
+            {"level": "loud"},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+
+    def test_somebody_signed_out_has_no_settings(self, client: Client) -> None:
+        assert client.get("/api/push/settings").status_code == 403
+
+
+class TestMentionParsing:
+    @pytest.mark.parametrize(
+        ("body", "names"),
+        [
+            ("@sam and @Alex", {"sam", "alex"}),
+            ("ask @first.last, please", {"first.last"}),
+            ("@sam.", {"sam"}),
+            ("mail me at sam@example.com", set()),
+            ("@", set()),
+            ("@@sam", set()),
+        ],
+    )
+    def test_usernames_are_read_from_the_text(
+        self, body: str, names: set[str]
+    ) -> None:
+        assert mentioned_usernames(body) == names

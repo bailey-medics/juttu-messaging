@@ -36,3 +36,42 @@ describe("NotificationsCard", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("NotificationsCard's choice of what notifies", () => {
+  it("shows the person's choice, quiet as the default", () => {
+    renderWithTheme(<NotificationsCard state="on" level="quiet" onEnable={vi.fn()} />);
+
+    expect(screen.getByRole("radio", { name: /Direct messages and mentions/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Every message/ })).not.toBeChecked();
+  });
+
+  it("hands on a new choice", async () => {
+    const onLevelChange = vi.fn();
+    renderWithTheme(
+      <NotificationsCard
+        state="unsupported"
+        level="quiet"
+        onEnable={vi.fn()}
+        onLevelChange={onLevelChange}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("radio", { name: /Every message/ }));
+
+    expect(onLevelChange).toHaveBeenCalledWith("everything");
+  });
+
+  it("offers no choice until it has loaded", () => {
+    renderWithTheme(<NotificationsCard state="on" onEnable={vi.fn()} />);
+
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  });
+
+  it("says when a choice was not saved", () => {
+    renderWithTheme(
+      <NotificationsCard state="on" level="quiet" levelFailed onEnable={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Your choice was not saved. Try again.")).toBeInTheDocument();
+  });
+});

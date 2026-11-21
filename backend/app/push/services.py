@@ -16,7 +16,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import connection, transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from pywebpush import WebPushException, webpush  # type: ignore[import-untyped]
 
@@ -25,7 +25,13 @@ from app.audit.models import AuditAction
 from app.audit.record import record
 from app.config import PushKeys
 from app.conversations.models import Conversation, ConversationKind, Message
-from app.push.models import Looking, PushSubscription
+from app.push.mentions import mentioned
+from app.push.models import (
+    Looking,
+    NotificationSetting,
+    NotifyLevel,
+    PushSubscription,
+)
 from app.spaces.services import members_of
 
 logger = logging.getLogger(__name__)
@@ -128,11 +134,38 @@ def looking(user: User, conversation: Conversation, *, now: bool) -> None:
     )
 
 
-def recipients(message: Message) -> QuerySet[User]:
-    """Everybody who may read *message* and is not looking at it already.
+def level_of(user: User) -> NotifyLevel:
+    """What *user* has chosen to be notified about: quiet, unless changed."""
+    found = NotificationSetting.objects.filter(user=user).first()
 
-    The person who wrote it is left out, and so is anybody with the
-    conversation on screen now, who sees the message arrive live.
+    return NotifyLevel(found.level) if found else NotifyLevel.QUIET
+
+
+@transaction.atomic
+def choose_level(user: User, level: NotifyLevel) -> None:
+    """Record what *user* wants to be notified about, with its audit entry."""
+    if level_of(user) == level:
+        return
+
+    NotificationSetting.objects.update_or_create(
+        user=user, defaults={"level": level}
+    )
+
+    record(
+        AuditAction.NOTIFICATION_SETTING_CHANGED,
+        actor=user,
+        detail={"level": str(level)},
+    )
+
+
+def recipients(message: Message) -> QuerySet[User]:
+    """Everybody to push *message* to.
+
+    Only people who may read it, never its writer, and nobody with the
+    conversation on screen now, who sees the message arrive live. Then each
+    person's own choice: somebody quiet, the default, is pushed a direct
+    message or a message that mentions them; somebody who chose everything
+    is pushed every message; somebody who chose nothing, none.
     """
     conversation = message.conversation
     watching = Looking.objects.filter(
@@ -149,7 +182,15 @@ def recipients(message: Message) -> QuerySet[User]:
             conversation_participations__conversation=conversation
         )
 
-    return people
+    chose_everything = Q(notification_setting__level=NotifyLevel.EVERYTHING)
+    quiet = Q(notification_setting__isnull=True) | Q(
+        notification_setting__level=NotifyLevel.QUIET
+    )
+    for_them = Q(pk__in=mentioned(message.body).values("pk"))
+    if conversation.kind == ConversationKind.DIRECT:
+        for_them = Q()
+
+    return people.filter(chose_everything | (quiet & for_them)).distinct()
 
 
 def push_for(message: Message) -> Push:
