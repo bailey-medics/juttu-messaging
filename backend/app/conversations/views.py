@@ -26,6 +26,7 @@ from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
     MAX_MESSAGE_LENGTH,
     ConversationRefused,
+    all_conversations_for,
     can_read,
     conversations_for,
     mark_read,
@@ -97,9 +98,10 @@ def conversation_body(
     if conversation.kind == ConversationKind.CHANNEL:
         title = conversation.name
     else:
+        # ``all()`` uses the people a caller prefetched, if it did.
         others = [
             p.user.display_name
-            for p in conversation.participants.select_related("user")
+            for p in conversation.participants.all()
             if p.user_id != user.pk
         ]
         title = ", ".join(sorted(others))
@@ -138,6 +140,42 @@ def optional_int(serializer: NewMessageSerializer, name: str) -> int | None:
 
 def refused(error: ConversationRefused) -> Response:
     return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def home_conversation_body(
+    conversation: Conversation, user: User, unread: int
+) -> dict[str, object]:
+    """A conversation as Home lists it: with its space, and when it was last
+    active, since the list spans every space."""
+    last_active_at = getattr(
+        conversation, "last_active_at", conversation.created_at
+    )
+
+    return {
+        **conversation_body(conversation, user, unread),
+        "space": {
+            "id": conversation.space_id,
+            "name": conversation.space.name,
+        },
+        "last_active_at": last_active_at.isoformat(),
+    }
+
+
+class ConversationsView(APIView):
+    """``GET`` every conversation the caller may read, for Home."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = caller(request)
+        found = list(all_conversations_for(user))
+        unread = unread_counts(user, [c.pk for c in found])
+
+        bodies = [
+            home_conversation_body(c, user, unread.get(c.pk, 0)) for c in found
+        ]
+
+        return Response({"conversations": bodies})
 
 
 class SpaceConversationsView(APIView):

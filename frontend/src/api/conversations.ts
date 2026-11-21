@@ -1,5 +1,5 @@
 /**
- * Conversations in a space, and their messages: the backend's
+ * Conversations and their messages: the backend's `/api/conversations`,
  * `/api/spaces/{id}/conversations` and `/api/conversations/{id}/messages`.
  */
 
@@ -13,6 +13,13 @@ export interface ConversationSummary {
   title: string;
   /** Messages from others the person has not read yet. */
   unread_count: number;
+}
+
+/** A conversation as Home lists it, across every space. */
+export interface HomeConversation extends ConversationSummary {
+  space: { id: number; name: string };
+  /** When its newest message was sent, or when it was started. */
+  last_active_at: string;
 }
 
 export interface ChatMessage {
@@ -38,6 +45,21 @@ export function isConversationSummary(value: unknown): value is ConversationSumm
   );
 }
 
+export function isHomeConversation(value: unknown): value is HomeConversation {
+  if (!isRecord(value) || !isConversationSummary(value)) {
+    return false;
+  }
+
+  const record: Record<string, unknown> = value;
+
+  return (
+    isRecord(record.space) &&
+    typeof record.space.id === "number" &&
+    typeof record.space.name === "string" &&
+    typeof record.last_active_at === "string"
+  );
+}
+
 export function isChatMessage(value: unknown): value is ChatMessage {
   if (!isRecord(value) || !isRecord(value.author)) {
     return false;
@@ -57,6 +79,13 @@ export function isChatMessage(value: unknown): value is ChatMessage {
 
 function notUnderstood(): ApiError {
   return new ApiError(502, "The backend's answer about conversations was not understood");
+}
+
+/** Every conversation the caller may read, most recently active first. */
+export async function listMyConversations(): Promise<HomeConversation[]> {
+  const body = await apiRequest("GET", "/conversations");
+
+  return listOf(body, "conversations", isHomeConversation);
 }
 
 /** The channels in a space, and the caller's own direct conversations. */

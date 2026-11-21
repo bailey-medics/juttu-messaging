@@ -4,6 +4,7 @@ from django.db import transaction
 from django.urls import URLPattern, path
 
 from app.conversations.views import (
+    ConversationsView,
     EventsView,
     MarkReadView,
     MessagesView,
@@ -18,6 +19,11 @@ urlpatterns: list[URLPattern] = [
         "events",
         transaction.non_atomic_requests(EventsView.as_view()),
         name="events",
+    ),
+    path(
+        "conversations",
+        ConversationsView.as_view(),
+        name="conversations",
     ),
     path(
         "spaces/<int:space_id>/conversations",

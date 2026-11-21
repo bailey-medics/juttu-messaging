@@ -47,7 +47,39 @@ def conversations_for(user: User, space: Space) -> QuerySet[Conversation]:
         Conversation.objects.filter(space=space)
         .filter(Q(kind=ConversationKind.CHANNEL) | Q(participants__user=user))
         .distinct()
+        .prefetch_related("participants__user")
         .order_by("created_at", "pk")
+    )
+
+
+def all_conversations_for(user: User) -> QuerySet[Conversation]:
+    """Every conversation *user* may read, across all their spaces.
+
+    The rule of ``can_read``, in the database: a space they are in today,
+    and a channel or a direct conversation they take part in. The most
+    recently active comes first, by its newest message, or by when it was
+    started if it has none. Nothing, for a closed account.
+    """
+    if not user.is_active:
+        return Conversation.objects.none()
+
+    newest = (
+        Message.objects.filter(conversation=OuterRef("pk"))
+        .order_by("-pk")
+        .values("created_at")[:1]
+    )
+    readable = Conversation.objects.filter(
+        Q(space__memberships__user=user)
+        & Q(space__memberships__left_at__isnull=True)
+        & (Q(kind=ConversationKind.CHANNEL) | Q(participants__user=user))
+    ).values("pk")
+
+    return (
+        Conversation.objects.filter(pk__in=readable)
+        .select_related("space")
+        .prefetch_related("participants__user")
+        .annotate(last_active_at=Coalesce(Subquery(newest), F("created_at")))
+        .order_by("-last_active_at", "-pk")
     )
 
 

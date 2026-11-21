@@ -442,3 +442,65 @@ def test_nobody_marks_a_conversation_they_cannot_read(
     )
 
     assert response.status_code == 404
+
+
+def home_list(user: User) -> list[dict[str, object]]:
+    response = signed_in(user).get("/api/conversations")
+    assert response.status_code == 200
+
+    conversations: list[dict[str, object]] = response.json()["conversations"]
+
+    return conversations
+
+
+def test_home_lists_every_conversation_across_spaces_newest_first(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    design = create_space(
+        the_organisation(), "Design", is_clinical=False, by=sam
+    )
+    add_to_space(design, alex, by=sam)
+    ideas = start_channel(design, "ideas", by=sam)
+    post(general, "Latest in Release.", by=sam)
+
+    found = home_list(alex)
+
+    assert [c["id"] for c in found] == [general.pk, ideas.pk]
+    assert found[0]["space"] == {"id": release.pk, "name": "Release"}
+    assert found[0]["title"] == "general"
+    assert found[0]["kind"] == "channel"
+    assert found[0]["unread_count"] == 1
+    assert found[1]["space"] == {"id": design.pk, "name": "Design"}
+
+
+def test_home_leaves_out_a_direct_conversation_somebody_is_not_in(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    direct = start_direct(release, [alex], by=sam)
+
+    assert direct.pk in [c["id"] for c in home_list(alex)]
+    assert [c["id"] for c in home_list(priya)] == [general.pk]
+
+
+def test_home_leaves_out_a_space_somebody_has_left(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    from app.spaces.services import remove_from_space
+
+    remove_from_space(release, alex, by=sam)
+
+    assert home_list(alex) == []
+
+
+def test_home_lists_a_conversation_once_however_it_is_reached(
+    sam: User, alex: User, release: Space
+) -> None:
+    direct = start_direct(release, [alex], by=sam)
+    post(direct, "One.", by=sam)
+    post(direct, "Two.", by=alex)
+
+    assert [c["id"] for c in home_list(alex)] == [direct.pk]
+
+
+def test_home_needs_somebody_signed_in(client: Client) -> None:
+    assert client.get("/api/conversations").status_code == 403
