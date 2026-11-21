@@ -12,6 +12,10 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   },
 });
 
+// jsdom does not scroll. FormStatus brings a new message into view with
+// scrollIntoView; where it lands is checked in a real browser.
+window.HTMLElement.prototype.scrollIntoView = () => undefined;
+
 // jsdom has no media queries. Mantine asks for one to choose the colour
 // scheme; the real answer is checked in a browser.
 Object.defineProperty(window, "matchMedia", {

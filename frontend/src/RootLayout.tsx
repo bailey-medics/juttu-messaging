@@ -3,6 +3,8 @@ import { Outlet } from "react-router";
 
 import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
 import InstallButton from "@/components/install-button/InstallButton";
+import { PageMessageProvider } from "@/components/page-message";
+import PageMessageDisplay from "@/components/page-message/PageMessageDisplay";
 import TopRibbon from "@/components/ribbon";
 import { HEADER_HEIGHT } from "@/layout";
 import { useInstallPrompt } from "@/pwa/useInstallPrompt";
@@ -29,7 +31,12 @@ export default function RootLayout() {
           {/* A page that throws shows the fallback inside the frame, so the
               ribbon stays and somebody can still go home. */}
           <ErrorBoundary>
-            <Outlet />
+            {/* As Quill Medical's MainLayout does: a page's status messages
+                show under its PageHeader, or at the top when it has none. */}
+            <PageMessageProvider>
+              <PageMessageDisplay fallback />
+              <Outlet />
+            </PageMessageProvider>
           </ErrorBoundary>
         </Container>
       </AppShell.Main>

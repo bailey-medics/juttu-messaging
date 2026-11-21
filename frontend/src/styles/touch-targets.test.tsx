@@ -11,9 +11,10 @@ import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { Button, Modal } from "@mantine/core";
 import { renderWithMantine } from "@/test/test-utils";
+import FormStatus from "@/components/form/Form/FormStatus";
+import PasswordField from "@/components/form/PasswordField";
+import TextField from "@/components/form/TextField";
 
-// The form fields' cases come with the form components, in Phase 5 of the
-// Quill components plan.
 describe("touch-targets.css selectors", () => {
   it("reaches the modal close button", () => {
     renderWithMantine(
@@ -23,6 +24,25 @@ describe("touch-targets.css selectors", () => {
     );
     const close = screen.getByRole("button", { name: "Close dialog" });
     expect(close).toHaveClass("mantine-CloseButton-root");
+  });
+
+  it("reaches the FormStatus dismiss button", () => {
+    renderWithMantine(<FormStatus variant="success" title="Saved" onDismiss={vi.fn()} />);
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    expect(dismiss).toHaveClass("mantine-CloseButton-root");
+  });
+
+  it("reaches the wrapper of a form text field", () => {
+    renderWithMantine(<TextField label="Name" />);
+    const wrapper = screen.getByLabelText("Name").parentElement;
+    expect(wrapper).toHaveClass("mantine-Input-wrapper");
+  });
+
+  it("reaches the password visibility toggle", () => {
+    const { container } = renderWithMantine(<PasswordField label="Password" />);
+    expect(
+      container.querySelector(".mantine-PasswordInput-visibilityToggle"),
+    ).toBeInTheDocument();
   });
 
   it("reaches a compact xs button", () => {

@@ -42,7 +42,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 5: Forms
 
-- [ ] Add `react-hook-form`, as Quill's forms use, and port `components/form/`: `Form`, `FormContext`, `FormStatus`, `FormStatusNarrow`, `SubmitButton`, `TextField`, `EmailField`, `PasswordField`, `TextAreaField`, `CheckboxField`, `RadioField`, `SelectField`, `MultiSelectField`, `SolidSwitch`, `FilterSelect` and `FilterModal`, and `DirtyFormNavigation` from `components/warnings/`, which warns before somebody leaves a form unsaved. Leave out `DateField` until a page needs a date, since it brings `@mantine/dates`. Port the form half of Quill's touch-target and disabled-control tests. Bring `components/page-message/` too, whose `PageMessageDisplay` draws with `FormStatus`, and put its slot back in `PageHeader`, as Quill has it. This phase is what the vision plan's sign-in page, its Phase 9, is built from.
+- [x] Add `react-hook-form`, as Quill's forms use, and port `components/form/`: `Form`, `FormContext`, `FormStatus`, `FormStatusNarrow`, `SubmitButton`, `TextField`, `EmailField`, `PasswordField`, `TextAreaField`, `CheckboxField`, `RadioField`, `SelectField`, `MultiSelectField`, `SolidSwitch`, `FilterSelect` and `FilterModal`, and `DirtyFormNavigation` from `components/warnings/`, which warns before somebody leaves a form unsaved. Leave out `DateField` until a page needs a date, since it brings `@mantine/dates`. Port the form half of Quill's touch-target and disabled-control tests. Bring `components/page-message/` too, whose `PageMessageDisplay` draws with `FormStatus`, and put its slot back in `PageHeader`, as Quill has it. This phase is what the vision plan's sign-in page, its Phase 9, is built from.
 
 ## Phase 6: Layout and navigation
 
@@ -103,3 +103,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 - **The error boundaries came across without reporting or feedback** - Phase 4. Quill's `ErrorBoundary` and `RouteErrorFallback` send each error to Quill's error reporting and offer a "Tell us what happened" feedback form, through `lib/error-reporting` and `lib/feedback`. Juttu has neither, so its boundaries log the error to the console and offer a reload. Both are features for a later plan.
 
 - **Juttu's spinner is three dots pulsing inside its speech bubble** - Phase 4. `BubbleSpinner` draws the icon's bubble as a still SVG, with three small boxes over it that pulse in turn, as a conversation shows somebody typing. Like Quill's quill, only `transform` and `opacity` animate, and only on HTML boxes, and it holds still for anybody who asks for less motion. ESLint now refuses Mantine's `Loader`, as Quill's does.
+
+- **Phase 5 brought `SortChevron` from Phase 8** - Quill's `MultiSelectField` draws its sort chevron, so `components/sort/` came across in Phase 5. Phase 8 ports the rest.
+
+- **The form system keeps two casts, each with its reason** - Phase 5. Juttu's lint refuses every `as`, but React context cannot carry a generic, so `Form` and `useFormContext` restore the caller's field values with one cast each, under a lint-disable comment that says why. Every other cast in the form code became a type guard: the stories' `watch()` values, the tests' error messages, and the flash message `PageMessageContext` reads from router state, which now keeps only a text description.
+
+- **The page-message provider sits in `RootLayout` until Phase 6** - Quill mounts `PageMessageProvider` in `MainLayout`. Juttu mounts it in the same place, around the page inside `RootLayout`, and Phase 6 moves it into `MainLayout`.

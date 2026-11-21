@@ -56,12 +56,13 @@ export default tseslint.config(
       },
     },
   },
-  // The one button that shows a small ring while it works, with the button's
+  // The buttons that show a small ring while they work, with the button's
   // own label saying what is happening, as in Quill Medical.
   {
     files: [
       "src/components/button/ButtonPairRed.tsx",
       "src/components/button/ButtonPair.stories.tsx",
+      "src/components/form/Form/SubmitButton.tsx",
     ],
     rules: { "no-restricted-imports": ["error", { paths: [ACTION_ICON] }] },
   },
@@ -72,6 +73,7 @@ export default tseslint.config(
       "src/components/button/BurgerButton.tsx",
       "src/components/button/SearchButton.tsx",
       "src/components/button/ExtraButton.tsx",
+      "src/components/form/FilterSelect.tsx",
     ],
     rules: { "no-restricted-imports": "off" },
   },

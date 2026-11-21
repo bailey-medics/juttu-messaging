@@ -33,6 +33,13 @@ the components it brings, such as cards, icons, buttons and the spinner.
   wide as its text, on one line; when a row runs out of room, the layout
   around it gives way. Badge colours come from
   `components/badge/badgeColours.ts`.
+- **Every form is a `<Form>`**, from `components/form/Form/`, with Juttu's
+  field components (`TextField`, `PasswordField`, `SelectField` and the
+  rest) and its `SubmitButton`. `Form` carries the saving, saved and
+  failed states, and `FormStatus` reports them. Never use Mantine's inputs
+  directly.
+- **Never use `clearable` on a `SelectField`.** If a field is optional, say
+  so in its placeholder.
 - **Every new component has a `.stories.tsx` and a `.test.tsx` beside
   it.** `src/stories.test.tsx` finds and renders every story by itself.
 
@@ -83,6 +90,10 @@ the components it brings, such as cards, icons, buttons and the spinner.
   `greyScale` from `@/theme`, or use tokens such as `c="primary.7"`.
 - **In CSS modules**, use the CSS variables, such as
   `var(--mantine-color-text)` and `var(--brand-secondary)`.
+- **Dark mode borders**: every form field's input uses
+  `var(--mantine-color-primary-9)` for its border in dark mode, through
+  `[data-mantine-color-scheme="dark"]` selectors in its CSS module. An
+  error uses `var(--error-color)`, and `var(--error-focus-color)` on focus.
 
 ## Accessibility
 

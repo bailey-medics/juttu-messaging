@@ -6,6 +6,7 @@
   "ignorePaths": [".git", ".venv", "node_modules", "dist", "build", "local"],
   "words": [
     "ASGI",
+    "clearable",
     "conftest",
     "CONN",
     "crpd",

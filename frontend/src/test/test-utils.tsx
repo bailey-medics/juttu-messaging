@@ -10,6 +10,8 @@ import { render, type RenderOptions, type RenderResult } from "@testing-library/
 import type { ReactElement, ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 
+import { PageMessageProvider } from "@/components/page-message";
+import PageMessageDisplay from "@/components/page-message/PageMessageDisplay";
 import { cssVariablesResolver, theme } from "@/theme";
 
 function MantineWrapper({ children }: { children: ReactNode }) {
@@ -34,7 +36,15 @@ export function renderWithRouter(
   options?: Omit<RenderOptions, "wrapper"> & { initialRoute?: string },
 ): RenderResult {
   const { initialRoute = "/", ...rest } = options ?? {};
-  const router = createMemoryRouter([{ path: "*", element: ui }], {
+  // As Quill Medical's helper does: the page-message provider around the
+  // page, so a page's status messages show as they do in the app.
+  const page = (
+    <PageMessageProvider>
+      <PageMessageDisplay fallback />
+      {ui}
+    </PageMessageProvider>
+  );
+  const router = createMemoryRouter([{ path: "*", element: page }], {
     initialEntries: [initialRoute],
   });
 
@@ -53,4 +63,29 @@ export function cssClass(classes: CSSModuleClasses, name: string): string {
   }
 
   return value;
+}
+
+/**
+ * A CSS length in rem as the browser computes it in px, at a 16px root, as
+ * Quill Medical's helper does: "2.1rem" becomes "33.6px". Other parts are
+ * left as they are.
+ */
+export function remToPx(value: string, rootFontSize = 16): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((part) => {
+      const match = /^(-?(?:\d*\.)?\d+)rem$/.exec(part);
+      const number = match?.[1];
+
+      if (number === undefined) {
+        return part;
+      }
+
+      const px = Number(number) * rootFontSize;
+
+      // Trim floating-point noise (2.1rem * 16 = 33.6, not 33.599999999999994)
+      return `${Number(px.toFixed(5))}px`;
+    })
+    .join(" ");
 }

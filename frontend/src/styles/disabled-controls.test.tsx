@@ -16,13 +16,14 @@ import { ActionIcon } from "@mantine/core";
 import { renderWithMantine } from "@/test/test-utils";
 import ActionCardButton from "@/components/button/ActionCardButton";
 import AddButton from "@/components/button/AddButton";
+import CheckboxField from "@/components/form/CheckboxField";
+import SolidSwitch from "@/components/form/SolidSwitch";
+import TextField from "@/components/form/TextField";
 import ButtonPair from "@/components/button/ButtonPair";
 import ButtonPairRed from "@/components/button/ButtonPairRed";
 import IconTextButton from "@/components/button/IconTextButton";
 import PreviousNextButton from "@/components/button/PreviousNextButton";
 
-// The form fields' cases come with the form components, in Phase 5 of the
-// Quill components plan.
 describe("disabled-controls.css selectors", () => {
   it("reaches a disabled action card button", () => {
     renderWithMantine(<ActionCardButton label="Sending…" onClick={vi.fn()} disabled />);
@@ -42,6 +43,32 @@ describe("disabled-controls.css selectors", () => {
     const button = screen.getByRole("button", { name: "Refresh" });
     expect(button).toHaveClass("mantine-ActionIcon-root");
     expect(button).toBeDisabled();
+  });
+});
+
+describe("disabled-controls.css reaches the other controls", () => {
+  it("a disabled checkbox", () => {
+    renderWithMantine(<CheckboxField label="Agree" disabled />);
+
+    const input = screen.getByRole("checkbox", { name: "Agree" });
+    expect(input.className).toMatch(/mantine-/);
+    expect(input).toBeDisabled();
+  });
+
+  it("a disabled switch", () => {
+    renderWithMantine(<SolidSwitch aria-label="Notify me" disabled />);
+
+    const input = screen.getByRole("switch", { name: "Notify me" });
+    expect(input.className).toMatch(/mantine-/);
+    expect(input).toBeDisabled();
+  });
+
+  it("a disabled text field", () => {
+    renderWithMantine(<TextField label="Name" disabled />);
+
+    const input = screen.getByLabelText("Name");
+    expect(input.className).toMatch(/mantine-/);
+    expect(input).toBeDisabled();
   });
 });
 
