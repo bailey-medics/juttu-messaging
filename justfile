@@ -1,0 +1,27 @@
+set shell := ["bash", "-c"]
+
+# These recipes are thin wrappers over the scripts in s/, which hold the
+# one implementation of each repeated job. Use `just` for the short names,
+# or call ./s/<script> directly. Both work.
+
+default:
+    @just --list
+
+
+# Switch on the tracked git hook in .githooks, so every commit runs
+# pre-commit on the staged files. Once per clone: the setting is shared by
+# every worktree.
+setup:
+    @./s/install-hooks
+
+
+alias l := lint
+# Run every check pre-commit enforces, over the whole repository
+lint *args:
+    @./s/lint {{args}}
+
+
+alias t := test
+# Run the test suites
+test:
+    @./s/test

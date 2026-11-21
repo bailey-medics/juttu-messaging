@@ -18,9 +18,12 @@ anything. `CLAUDE.md` only points here.
 
 ## Layout
 
-| Path          | What it is                                                  |
-| ------------- | ----------------------------------------------------------- |
-| `docs/plans/` | Plan documents: what is being built, and the decisions made |
+| Path          | What it is                                                      |
+| ------------- | --------------------------------------------------------------- |
+| `docs/plans/` | Plan documents: what is being built, and the decisions made     |
+| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them   |
+| `s/tests/`    | bats tests for the scripts and the git hook                     |
+| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone |
 
 ## Core invariants
 
@@ -28,7 +31,9 @@ anything. `CLAUDE.md` only points here.
   machines Juttu is built on goes into a tracked file: no private network
   address, no private network name, no device name, no MAC address. A
   plan that has to refer to one names it in angle brackets, such as
-  `<the dev box's private network name>`.
+  `<the dev box's private network name>`. The `check-home-details` hook
+  refuses the patterns, and each machine can list its own literals in
+  `local/home-details-denylist`, which is never committed.
 - **No patient data, ever, in the first version.** It is for developers.
   Never put real patient data, credentials or secrets into the repository
   or into a test fixture.
@@ -45,11 +50,31 @@ anything. `CLAUDE.md` only points here.
   stacks on the same machine, so each port is about a hundred above the
   usual one and can be changed through a `JUTTU_*` variable in the
   gitignored root `.env`.
-- **British English**, in prose, comments, docs and identifiers.
+- **British English**, in prose, comments, docs and identifiers. cspell
+  checks the documents with `en-GB`. A new word goes in
+  `cspell.config.json`, in alphabetical order, never in an inline comment.
+- **`LICENSE` is kept byte for byte.** It is the Free Software
+  Foundation's AGPL-3.0 text, so the whitespace hooks leave it alone.
 
 ## Commands
 
-There are none yet. Each phase of the skeleton plan adds its own here.
+```sh
+just setup    # switch on the tracked git hook, once per clone
+./s/lint      # every check pre-commit enforces, over the whole repository
+./s/test      # the test suites
+```
+
+Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of
+the skeleton plan adds its own commands here.
+
+## Before every commit
+
+```sh
+./s/lint
+./s/test
+```
+
+Do not commit red.
 
 ## Git workflow
 

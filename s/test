@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Run the test suites.
+#
+# Usage: s/test, or `just test`. One suite so far:
+#
+#   s/tests/   bats tests for the scripts in s/ and the git hook. They run
+#              on the host and need bats; nothing they test reaches Docker
+#              or GitHub.
+#
+# Each later phase of the skeleton plan adds its own suite here.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v bats >/dev/null 2>&1; then
+	echo "bats not found. Install it with your package manager, such as:" >&2
+	echo "  sudo apt install bats" >&2
+	exit 1
+fi
+
+echo "==> bats s/tests"
+bats s/tests

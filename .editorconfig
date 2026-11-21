@@ -1,0 +1,29 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+[*.md]
+# Trailing whitespace is significant in Markdown (two spaces = line break).
+trim_trailing_whitespace = false
+
+# Shell scripts use tabs.
+[{s/**,.githooks/*,*.sh,*.bats}]
+indent_style = tab
+
+[{justfile,*.just}]
+indent_size = 4
+
+[LICENSE]
+# The Free Software Foundation's text, kept byte for byte.
+trim_trailing_whitespace = false
+insert_final_newline = false

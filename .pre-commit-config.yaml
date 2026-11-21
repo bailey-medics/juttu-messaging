@@ -1,0 +1,76 @@
+# The checks every commit runs, through .githooks/pre-commit, and that
+# s/lint runs over the whole repository. Ported from Quill Medical and
+# Turva, keeping only the checks that need no application code to run on.
+# The backend's Python checks and the workflow audits arrive with the code
+# they check.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # LICENSE is the Free Software Foundation's text, kept byte for byte.
+      - id: trailing-whitespace
+        exclude: ^LICENSE$
+      - id: end-of-file-fixer
+        exclude: ^LICENSE$
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # Secret scanning, on what is staged. It reads its rules from
+  # .gitleaks.toml, which must extend the built-in rules.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # ShellCheck finds the mistakes that are easy to make in shell: an
+  # unquoted variable, a failure nobody notices, a cd that may not happen.
+  # It brings its own binary, so no machine needs one installed, and checks
+  # every file pre-commit tags as shell: the scripts in s/, .githooks/ and
+  # the bats tests.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--source-path=SCRIPTDIR]
+
+  # British English, in the documents. New words go in cspell.config.json,
+  # in alphabetical order, never in an inline comment.
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v10.4.0
+    hooks:
+      - id: cspell
+        name: Spell check with cspell
+        args: [--no-progress, --config, cspell.config.json]
+        types: [markdown]
+
+  # rbubley/mirrors-prettier is the maintained mirror, and tracks stable
+  # Prettier releases.
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.10
+    hooks:
+      - id: prettier
+        types_or: [markdown, json, yaml, css]
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.50.0
+    hooks:
+      - id: markdownlint
+        args: [--config, .markdownlint.json]
+
+  - repo: local
+    hooks:
+      # The repository is public, so a private network address, a private
+      # network's name or a MAC address must not reach it. Each machine can
+      # also list its own literals, such as device names, in
+      # local/home-details-denylist, which is never committed.
+      - id: check-home-details
+        name: Check for home and dev set-up details
+        entry: s/checks/check-home-details
+        language: system
+        types: [text]

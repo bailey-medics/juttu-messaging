@@ -1,0 +1,8 @@
+{
+  "version": "0.2",
+  "language": "en-GB",
+  "enabledLanguageIds": ["markdown"],
+  "files": ["**/*.md"],
+  "ignorePaths": [".git", ".venv", "node_modules", "dist", "build", "local"],
+  "words": ["crpd", "Juttu", "Turva", "worktrees"]
+}

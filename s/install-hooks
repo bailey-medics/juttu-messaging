@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Switch on this clone's tracked git hook, in .githooks/.
+#
+# Usage: s/install-hooks (or `just setup`). Once per clone: the setting is
+# shared by every worktree. The path is relative on purpose, so git
+# resolves it against the worktree that is committing, and each worktree
+# runs its own branch's hook. Not `pre-commit install`, whose untracked
+# hook nobody reviews, and which refuses to run once core.hooksPath is set.
+#
+# It changes local git configuration only, never installs packages, and
+# never replaces a hooks path somebody else set.
+set -euo pipefail
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+	echo "Usage: s/install-hooks (switch on this clone's tracked git hook)"
+	exit 0
+fi
+
+if [ "$#" -ne 0 ]; then
+	echo "Usage: s/install-hooks (no arguments); no configuration changed." >&2
+	exit 2
+fi
+
+# Target the checkout holding this script, not a git directory inherited
+# from a command in another repository. A linked worktree uses its .git file.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+root="$(pwd -P)"
+
+if [ "$(git rev-parse --show-toplevel)" != "${root}" ]; then
+	echo "The hook installer must belong to the root of its own git checkout." >&2
+	exit 1
+fi
+
+if [ ! -x .githooks/pre-commit ]; then
+	echo "The tracked .githooks/pre-commit is missing or not executable; no configuration changed." >&2
+	exit 1
+fi
+
+existing=""
+if existing="$(git config --get core.hooksPath)"; then
+	if [ "${existing}" != ".githooks" ]; then
+		echo "A custom core.hooksPath is already set; inspect it before switching on. No configuration changed." >&2
+		exit 1
+	fi
+else
+	status=$?
+	[ "${status}" -eq 1 ] || exit "${status}"
+fi
+
+git config --local core.hooksPath .githooks
+echo "Git hook switched on: each commit now runs .githooks/pre-commit"

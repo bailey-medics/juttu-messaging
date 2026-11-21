@@ -23,7 +23,7 @@ any external server, are recorded in the vision plan and not repeated here.
 
 - [x] Add the AGPL-3.0 `LICENSE`, and write `AGENTS.md`: what Juttu is, its invariants, its commands and what needs approval. `CLAUDE.md` then only points to it.
 
-- [ ] Port the checks that need no code to run on: the spelling configuration, with "Juttu" and "Turva" in its word list, the Markdown and editor settings, the pre-commit configuration and the tracked git hook, with a `just` recipe that switches the hook on. Safe to be on `main` on its own: it adds rules and nothing that runs.
+- [x] Port the checks that need no code to run on: the spelling configuration, with "Juttu" and "Turva" in its word list, the Markdown and editor settings, the pre-commit configuration and the tracked git hook, with a `just` recipe that switches the hook on. Safe to be on `main` on its own: it adds rules and nothing that runs.
 
 ## Phase 2: Backend skeleton
 

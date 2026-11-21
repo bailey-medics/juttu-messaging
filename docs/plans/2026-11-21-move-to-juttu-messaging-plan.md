@@ -18,8 +18,7 @@ The outcome is one checkout at `~/github/juttu-messaging`, pushing to
 
 ## Before running /f
 
-- [x] Create `bailey-medics/juttu-messaging` on GitHub. Done 21 November
-      2026.
+- [x] Create `bailey-medics/juttu-messaging` on GitHub. Done 21 November 2026.
 - [ ] Give the `bailey-medics` fine-grained token access to
       `juttu-messaging`. Until then, `gh` and `git` on the dev box cannot
       see the repository: `gh repo view` could not resolve it on 21
