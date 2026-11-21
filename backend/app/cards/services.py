@@ -15,7 +15,7 @@ from app.audit.models import AuditAction
 from app.audit.record import record
 from app.cards.kinds import EventRefused, kind_named
 from app.cards.models import Card, CardEvent
-from app.conversations.live import announce
+from app.conversations.live import announce, hold_post_lock
 from app.conversations.models import Conversation
 from app.conversations.services import can_read
 from app.push.services import notify_about_card
@@ -42,6 +42,10 @@ def receive(
     )
     update = kind.apply(card.state if card else None, accepted)
     now = timezone.now()
+
+    # Card event ids then commit in order, as message ids do, which live
+    # delivery's "everything after the last id" relies on.
+    hold_post_lock()
 
     if card is None:
         card = Card(

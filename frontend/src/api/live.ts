@@ -3,6 +3,7 @@
  */
 
 import { isRecord } from "@/api/client";
+import { isLivingCard, type LivingCard } from "@/api/cards";
 import { isChatMessage, type ChatMessage } from "@/api/conversations";
 
 /** One new message, as the stream announces it. */
@@ -29,17 +30,44 @@ export function eventsUrl(after: string): string {
   return after === "" ? "/api/events" : `/api/events?after=${encodeURIComponent(after)}`;
 }
 
-/** A stream event's data as a new message, or null if it is not one. */
-export function liveMessageFrom(data: unknown): LiveMessage | null {
+/** A card that changed, as the stream sends it: the card as it now stands. */
+export interface LiveCard {
+  conversation: number;
+  space: number;
+  card: LivingCard;
+}
+
+export function isLiveCard(value: unknown): value is LiveCard {
+  return (
+    isRecord(value) &&
+    typeof value.conversation === "number" &&
+    typeof value.space === "number" &&
+    isLivingCard(value.card)
+  );
+}
+
+function parsed(data: unknown): unknown {
   if (typeof data !== "string") {
     return null;
   }
 
   try {
-    const parsed: unknown = JSON.parse(data);
-
-    return isLiveMessage(parsed) ? parsed : null;
+    return JSON.parse(data);
   } catch {
     return null;
   }
+}
+
+/** A stream event's data as a new message, or null if it is not one. */
+export function liveMessageFrom(data: unknown): LiveMessage | null {
+  const found = parsed(data);
+
+  return isLiveMessage(found) ? found : null;
+}
+
+/** A stream event's data as a changed card, or null if it is not one. */
+export function liveCardFrom(data: unknown): LiveCard | null {
+  const found = parsed(data);
+
+  return isLiveCard(found) ? found : null;
 }

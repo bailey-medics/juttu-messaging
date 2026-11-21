@@ -19,6 +19,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.accounts.models import User
+from app.cards.bodies import card_body
+from app.cards.models import CardEvent
 from app.conversations import live
 from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
@@ -303,18 +305,23 @@ class EventStreamRenderer(BaseRenderer):
         return json.dumps(data).encode()
 
 
-def last_event_id(request: Request) -> int | None:
-    """The last message id the app had, or None to start from now.
+def last_event_id(request: Request) -> live.Cursor | None:
+    """How far the app had reached, or None to start from now.
 
     A browser reconnecting by itself sends ``Last-Event-ID``; the app sends
     ``?after=`` when it opens a new stream after a failure. Anything that is
-    not a whole number is ignored.
+    not an event id is ignored.
     """
     given = request.headers.get("Last-Event-ID") or request.query_params.get(
         "after", ""
     )
 
-    return int(given) if given.isdigit() else None
+    return live.Cursor.parse(given)
+
+
+def card_event_body(card_event: CardEvent) -> dict[str, object]:
+    """A card, as it stands after *card_event*, for the live stream."""
+    return card_body(card_event.card)
 
 
 class EventsView(APIView):
@@ -336,6 +343,7 @@ class EventsView(APIView):
                 user.pk,
                 last_event_id(request),
                 describe=message_body,
+                describe_card=card_event_body,
                 still_signed_in=still_signed_in,
             ),
             content_type="text/event-stream",

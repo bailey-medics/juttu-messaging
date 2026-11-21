@@ -2,6 +2,7 @@ import { Box, SimpleGrid, Stack } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 
+import { listCards, type LivingCard } from "@/api/cards";
 import { ApiError, isRecord } from "@/api/client";
 import {
   listMessages,
@@ -11,11 +12,12 @@ import {
   type ChatMessage,
 } from "@/api/conversations";
 import { useAuth } from "@/auth/AuthContext";
+import { LivingCardView } from "@/components/cards";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
 import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
 import { PageHeader } from "@/components/typography";
-import { useLiveMessages } from "@/live/LiveContext";
+import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
 import { useLooking } from "@/live/useLooking";
 
 import { apiFailure } from "./apiFailure";
@@ -43,6 +45,37 @@ function markSeen(conversationId: number, seen: ChatMessage[]) {
  */
 function withMessage(list: ChatMessage[], message: ChatMessage): ChatMessage[] {
   return list.some((m) => m.id === message.id) ? list : [...list, message];
+}
+
+/** *list* with *card* as it now stands, in place, or on the end if new. */
+function withCard(list: LivingCard[], card: LivingCard): LivingCard[] {
+  return list.some((c) => c.id === card.id)
+    ? list.map((c) => (c.id === card.id ? card : c))
+    : [...list, card];
+}
+
+/** A card, in the shape `Messaging` draws in a message's place. */
+function cardForMessaging(card: LivingCard): Message {
+  return {
+    id: `card-${card.id}`,
+    senderId: "",
+    text: "",
+    timestamp: card.created_at,
+    card: <LivingCardView card={card} />,
+  };
+}
+
+/**
+ * The messages and cards together, by when each was made. Both times are
+ * the backend's, written the same way, so they sort as text.
+ */
+function timeline(messages: ChatMessage[], cards: LivingCard[]): Message[] {
+  const drawn = [
+    ...messages.map((m) => ({ at: m.created_at, item: forMessaging(m, true) })),
+    ...cards.map((c) => ({ at: c.created_at, item: cardForMessaging(c) })),
+  ];
+
+  return drawn.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).map((d) => d.item);
 }
 
 /** The action that opens a message's thread. */
@@ -76,8 +109,9 @@ function forMessaging(message: ChatMessage, withThread: boolean): Message {
 
 /**
  * One conversation, at `/conversations/:conversationId`: its latest
- * messages and the box to write one. Messages load when the page opens,
- * and new ones arrive live, replies in an open thread too. A conversation the
+ * messages, its living cards among them by when each was made, and the box
+ * to write one. Messages and cards load when the page opens, and change
+ * live: new messages, replies in an open thread, and cards in place. A conversation the
  * person cannot read shows "Page not found", as the backend answers.
  */
 export default function ConversationPage() {
@@ -87,6 +121,7 @@ export default function ConversationPage() {
   const { state } = useAuth();
   const { showMessage } = usePageMessage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [cards, setCards] = useState<LivingCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
@@ -103,6 +138,10 @@ export default function ConversationPage() {
       const found = await listMessages(id);
       setMessages(found);
       markSeen(id, found);
+      // Cards only add to the page, so one that fails to load is left out.
+      listCards(id)
+        .then(setCards)
+        .catch(() => setCards([]));
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
         setMissing(true);
@@ -133,6 +172,12 @@ export default function ConversationPage() {
 
   // Nobody is sent a push about the conversation they are looking at.
   useLooking(id);
+
+  useLiveCards(({ conversation, card }) => {
+    if (conversation === id) {
+      setCards((current) => withCard(current, card));
+    }
+  });
 
   useLiveMessages(({ conversation, message }) => {
     if (conversation !== id) {
@@ -204,7 +249,7 @@ export default function ConversationPage() {
       <SimpleGrid cols={{ base: 1, md: threadId === null ? 1 : 2 }} spacing="md">
         <Box mih="20rem">
           <Messaging
-            messages={messages.map((m) => forMessaging(m, true))}
+            messages={timeline(messages, cards)}
             currentUserId={currentUserId}
             onSend={(text) => void send(text)}
             onAction={(messageId, action) => {

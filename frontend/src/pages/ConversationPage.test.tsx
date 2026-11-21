@@ -316,4 +316,91 @@ describe("the conversation page", () => {
       expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
     });
   });
+
+  describe("cards", () => {
+    const failing = {
+      id: 5,
+      kind: "ci-run",
+      title: "Build 41 on main",
+      state: { status: "running" },
+      needs_attention: false,
+      created_at: "2026-11-21T10:05:00Z",
+      updated_at: "2026-11-21T10:05:00Z",
+      events: [{ id: 1, summary: "Running", received_at: "2026-11-21T10:05:00Z" }],
+    };
+
+    function openWithCards(cards: unknown[]) {
+      stubEventSource();
+      stubFetchRoutes({
+        "/api/auth/me": { body: SIGNED_IN },
+        "/api/conversations/11/messages": {
+          body: {
+            messages: [
+              hello,
+              { ...hello, id: 22, body: "Later.", created_at: "2026-11-21T10:10:00Z" },
+            ],
+          },
+        },
+        "/api/conversations/11/cards": { body: { cards } },
+        "POST /api/conversations/11/read": { body: null, status: 204 },
+      });
+      renderAt("/conversations/11");
+    }
+
+    it("shows each card among the messages, by when it was made", async () => {
+      openWithCards([failing]);
+
+      const card = await screen.findByText("Build 41 on main");
+      const before = screen.getByText("Release notes are ready.");
+      const after = screen.getByText("Later.");
+
+      expect(
+        before.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        card.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("changes a card in place as it arrives live", async () => {
+      openWithCards([failing]);
+      await screen.findByText("Running");
+
+      latestStream().emit(
+        "card",
+        {
+          conversation: 11,
+          space: 7,
+          card: {
+            ...failing,
+            needs_attention: true,
+            events: [
+              ...failing.events,
+              { id: 2, summary: "Failed on lint", received_at: "2026-11-21T10:09:00Z" },
+            ],
+          },
+        },
+        "0.2",
+      );
+
+      expect(await screen.findByText("Failed on lint")).toBeInTheDocument();
+      expect(screen.getByText("Needs you")).toBeInTheDocument();
+      expect(screen.getAllByText("Build 41 on main")).toHaveLength(1);
+    });
+
+    it("adds a new card that arrives live, but not one from elsewhere", async () => {
+      openWithCards([]);
+      await screen.findByText("Later.");
+
+      latestStream().emit("card", { conversation: 12, space: 7, card: failing }, "0.1");
+      latestStream().emit(
+        "card",
+        { conversation: 11, space: 7, card: { ...failing, id: 6, title: "Build 42" } },
+        "0.2",
+      );
+
+      expect(await screen.findByText("Build 42")).toBeInTheDocument();
+      expect(screen.queryByText("Build 41 on main")).not.toBeInTheDocument();
+    });
+  });
 });

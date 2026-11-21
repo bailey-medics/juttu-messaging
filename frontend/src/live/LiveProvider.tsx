@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
-import { eventsUrl, liveMessageFrom } from "@/api/live";
+import { eventsUrl, liveCardFrom, liveMessageFrom } from "@/api/live";
 
-import { LiveContext, type LiveListener, type LiveValue } from "./LiveContext";
+import {
+  LiveContext,
+  type LiveCardListener,
+  type LiveListener,
+  type LiveValue,
+} from "./LiveContext";
 
 /** How long to wait before opening a new stream after one has failed. */
 export const REOPEN_MS = 5000;
@@ -26,6 +31,7 @@ export const MAX_REOPEN_MS = 60_000;
  */
 export default function LiveProvider({ children }: { children: ReactNode }) {
   const listeners = useRef(new Set<LiveListener>());
+  const cardListeners = useRef(new Set<LiveCardListener>());
 
   useEffect(() => {
     if (typeof EventSource === "undefined") {
@@ -56,6 +62,17 @@ export default function LiveProvider({ children }: { children: ReactNode }) {
           listener(found);
         }
       });
+      opened.addEventListener("card", (event) => {
+        lastId = event.lastEventId || lastId;
+        const found = liveCardFrom(event.data);
+        if (found === null) {
+          return;
+        }
+
+        for (const listener of cardListeners.current) {
+          listener(found);
+        }
+      });
       opened.addEventListener("error", () => {
         if (opened.readyState === EventSource.CLOSED) {
           reopen = setTimeout(open, delay);
@@ -79,6 +96,13 @@ export default function LiveProvider({ children }: { children: ReactNode }) {
 
         return () => {
           listeners.current.delete(listener);
+        };
+      },
+      subscribeCards: (listener) => {
+        cardListeners.current.add(listener);
+
+        return () => {
+          cardListeners.current.delete(listener);
         };
       },
     }),

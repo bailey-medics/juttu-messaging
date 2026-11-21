@@ -1,7 +1,7 @@
 """Live delivery: who receives what, reconnection, and the wake-up."""
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 
 import psycopg
 import pytest
@@ -9,10 +9,13 @@ from django.db import connections
 from django.test import Client
 
 from app.accounts.models import User
+from app.cards import kinds
+from app.cards.kinds import CardKind, JsonObject, Update
+from app.cards.services import receive
 from app.conversations import live, services
 from app.conversations.models import Conversation, Message
 from app.conversations.services import post, start_channel, start_direct
-from app.conversations.views import message_body
+from app.conversations.views import card_event_body, message_body
 from app.organisations.services import (
     add_member,
     make_first_admin,
@@ -105,19 +108,23 @@ def stream_for(
 ) -> Iterator[str]:
     return live.stream(
         user.pk,
-        after,
+        None if after is None else live.Cursor(after, 0),
         describe=message_body,
+        describe_card=card_event_body,
         still_signed_in=lambda: signed_in,
     )
 
 
 def opened(events: Iterator[str]) -> int:
-    """Read the stream's opening, and hand back the id it starts from."""
+    """Read the stream's opening, and hand back the message id it starts
+    from. An id is ``<message id>.<card event id>``."""
     assert next(events) == f"retry: {live.RETRY_MS}\n\n"
     ready = next(events)
     assert "event: ready" in ready
 
-    return int(ready.split("\n")[0].removeprefix("id: "))
+    message, _ = ready.split("\n")[0].removeprefix("id: ").split(".")
+
+    return int(message)
 
 
 def data_of(text: str) -> dict[str, object]:
@@ -142,7 +149,7 @@ class TestDelivery:
         sent = post(general, "Release at four", by=sam)
         arrived = next(events)
 
-        assert arrived.startswith(f"id: {sent.pk}\nevent: message\n")
+        assert arrived.startswith(f"id: {sent.pk}.0\nevent: message\n")
         assert data_of(arrived) == {
             "conversation": general.pk,
             "space": general.space_id,
@@ -269,7 +276,7 @@ class TestReconnection:
         arrived = [next(events) for _ in sent]
 
         assert [e.split("\n")[0] for e in arrived] == [
-            f"id: {m.pk}" for m in sent
+            f"id: {m.pk}.0" for m in sent
         ]
 
 
@@ -300,6 +307,7 @@ class TestEnding:
             alex.pk,
             None,
             describe=message_body,
+            describe_card=card_event_body,
             still_signed_in=lambda: True,
             clock=lambda: next(ticks),
         )
@@ -441,5 +449,133 @@ class TestEventsView:
         next(chunks)
         ready = next(chunks).decode()
 
-        assert ready.startswith(f"id: {latest.pk}\nevent: ready")
+        assert ready.startswith(f"id: {latest.pk}.0\nevent: ready")
         response.close()
+
+
+class BuildKind(CardKind):
+    """A made-up kind of card, as the card core's own tests use."""
+
+    name = "live-test-build"
+
+    def accept(self, event: Mapping[str, object]) -> tuple[str, JsonObject]:
+        return str(event["build"]), {"status": str(event["status"])}
+
+    def apply(self, state: JsonObject | None, event: JsonObject) -> Update:
+        return Update(
+            title="Build",
+            state={"status": event["status"]},
+            summary=str(event["status"]),
+            notify=False,
+        )
+
+
+@pytest.fixture
+def build_kind() -> Iterator[None]:
+    kinds.register(BuildKind())
+
+    yield
+
+    kinds.unregister(BuildKind.name)
+
+
+class TestCards:
+    def test_a_card_event_reaches_a_reader_as_the_card_now_stands(
+        self,
+        waiter: StandInWaiter,
+        build_kind: None,
+        alex: User,
+        general: Conversation,
+    ) -> None:
+        events = stream_for(alex)
+        opened(events)
+
+        happened = receive(
+            general, "live-test-build", {"build": "41", "status": "failed"}
+        )
+        arrived = next(events)
+
+        assert arrived.startswith(f"id: 0.{happened.pk}\nevent: card\n")
+        data = data_of(arrived)
+        assert data["conversation"] == general.pk
+        assert data["space"] == general.space_id
+        card = data["card"]
+        assert isinstance(card, dict)
+        assert (card["title"], card["state"]) == (
+            "Build",
+            {"status": "failed"},
+        )
+
+    def test_a_card_in_a_direct_conversation_reaches_only_its_people(
+        self,
+        waiter: StandInWaiter,
+        build_kind: None,
+        sam: User,
+        alex: User,
+        priya: User,
+        release: Space,
+    ) -> None:
+        direct = start_direct(release, [alex], by=sam)
+        for_priya = stream_for(priya)
+        opened(for_priya)
+
+        receive(direct, "live-test-build", {"build": "41", "status": "failed"})
+
+        assert next(for_priya) == HEARTBEAT
+
+    def test_a_reconnection_gets_the_card_events_it_missed(
+        self,
+        waiter: StandInWaiter,
+        build_kind: None,
+        sam: User,
+        alex: User,
+        general: Conversation,
+    ) -> None:
+        seen = receive(
+            general, "live-test-build", {"build": "41", "status": "running"}
+        )
+        message = post(general, "Watching it", by=sam)
+        missed = receive(
+            general, "live-test-build", {"build": "41", "status": "passed"}
+        )
+
+        events = live.stream(
+            alex.pk,
+            live.Cursor(0, seen.pk),
+            describe=message_body,
+            describe_card=card_event_body,
+            still_signed_in=lambda: True,
+        )
+        opened(events)
+
+        assert next(events).startswith(
+            f"id: {message.pk}.{seen.pk}\nevent: message"
+        )
+        assert next(events).startswith(
+            f"id: {message.pk}.{missed.pk}\nevent: card"
+        )
+
+
+class TestCursor:
+    @pytest.mark.parametrize(
+        ("text", "expected"),
+        [("12.5", live.Cursor(12, 5)), ("0.0", live.Cursor(0, 0))],
+    )
+    def test_both_parts_are_read(
+        self, text: str, expected: live.Cursor
+    ) -> None:
+        assert live.Cursor.parse(text) == expected
+        assert str(expected) == text
+
+    def test_a_bare_message_id_starts_card_events_from_now(
+        self, build_kind: None, general: Conversation
+    ) -> None:
+        latest = receive(
+            general, "live-test-build", {"build": "1", "status": "x"}
+        )
+
+        assert live.Cursor.parse("12") == live.Cursor(12, latest.pk)
+
+    @pytest.mark.parametrize("text", ["", "x", "-1", "1.x", "1.2.3", ".5"])
+    def test_anything_else_starts_from_now(self, text: str) -> None:
+        assert live.Cursor.parse(text) is None

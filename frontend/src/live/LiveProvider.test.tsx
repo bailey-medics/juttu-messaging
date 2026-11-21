@@ -1,9 +1,9 @@
 import { act, render } from "@testing-library/react";
 
-import type { LiveMessage } from "@/api/live";
+import type { LiveCard, LiveMessage } from "@/api/live";
 import { latestStream, stubEventSource } from "@/test/eventSource";
 
-import { useLiveMessages } from "./LiveContext";
+import { useLiveCards, useLiveMessages } from "./LiveContext";
 import LiveProvider, { MAX_REOPEN_MS, REOPEN_MS } from "./LiveProvider";
 
 const arrival: LiveMessage = {
@@ -159,5 +159,54 @@ describe("the live stream", () => {
     const heard = vi.fn();
 
     expect(() => renderListening(heard)).not.toThrow();
+  });
+
+  it("passes each changed card to whoever listens for cards", () => {
+    stubEventSource();
+    const heard = vi.fn();
+    function CardListener() {
+      useLiveCards(heard);
+
+      return null;
+    }
+    render(
+      <LiveProvider>
+        <CardListener />
+      </LiveProvider>,
+    );
+    const changed: LiveCard = {
+      conversation: 3,
+      space: 1,
+      card: {
+        id: 5,
+        kind: "ci-run",
+        title: "Build 41",
+        state: { status: "failed" },
+        needs_attention: true,
+        created_at: "2026-11-21T10:00:00Z",
+        updated_at: "2026-11-21T10:04:00Z",
+        events: [],
+      },
+    };
+
+    latestStream().emit("card", changed, "0.5");
+    latestStream().emit("card", { conversation: 3 }, "0.6");
+
+    expect(heard).toHaveBeenCalledExactlyOnceWith(changed);
+  });
+
+  it("reopens from the last id a card event carried", () => {
+    vi.useFakeTimers();
+    stubEventSource();
+    renderListening(vi.fn());
+
+    latestStream().emit("card", { conversation: 3 }, "9.5");
+    latestStream().fail();
+    act(() => {
+      vi.advanceTimersByTime(REOPEN_MS);
+    });
+
+    expect(latestStream().url).toBe("/api/events?after=9.5");
+    vi.useRealTimers();
   });
 });
