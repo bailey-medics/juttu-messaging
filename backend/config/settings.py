@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "app.spaces",
     "app.conversations",
     "app.push",
+    "app.cards",
 ]
 
 MIDDLEWARE = [

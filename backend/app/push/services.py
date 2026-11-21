@@ -23,6 +23,7 @@ from pywebpush import WebPushException, webpush  # type: ignore[import-untyped]
 from app.accounts.models import User
 from app.audit.models import AuditAction
 from app.audit.record import record
+from app.cards.models import Card, CardEvent
 from app.config import PushKeys
 from app.conversations.models import Conversation, ConversationKind, Message
 from app.push.mentions import mentioned
@@ -158,6 +159,34 @@ def choose_level(user: User, level: NotifyLevel) -> None:
     )
 
 
+def readers_not_looking(conversation: Conversation) -> QuerySet[User]:
+    """Everybody who may read *conversation*, but has not got it on screen.
+
+    Somebody with the conversation on screen now sees what arrives live.
+    """
+    watching = Looking.objects.filter(
+        conversation=conversation, until__gt=timezone.now()
+    ).values("user_id")
+    people = members_of(conversation.space).exclude(pk__in=watching)
+
+    if conversation.kind == ConversationKind.DIRECT:
+        people = people.filter(
+            conversation_participations__conversation=conversation
+        )
+
+    return people
+
+
+def card_recipients(card: Card) -> QuerySet[User]:
+    """Everybody to push a card's event to, once its kind says it needs
+    somebody: every reader not looking, unless they chose nothing. A card
+    that needs somebody counts as being for them, as a mention does.
+    """
+    return readers_not_looking(card.conversation).exclude(
+        notification_setting__level=NotifyLevel.NOTHING
+    )
+
+
 def recipients(message: Message) -> QuerySet[User]:
     """Everybody to push *message* to.
 
@@ -168,19 +197,7 @@ def recipients(message: Message) -> QuerySet[User]:
     is pushed every message; somebody who chose nothing, none.
     """
     conversation = message.conversation
-    watching = Looking.objects.filter(
-        conversation=conversation, until__gt=timezone.now()
-    ).values("user_id")
-    people = (
-        members_of(conversation.space)
-        .exclude(pk=message.author_id)
-        .exclude(pk__in=watching)
-    )
-
-    if conversation.kind == ConversationKind.DIRECT:
-        people = people.filter(
-            conversation_participations__conversation=conversation
-        )
+    people = readers_not_looking(conversation).exclude(pk=message.author_id)
 
     chose_everything = Q(notification_setting__level=NotifyLevel.EVERYTHING)
     quiet = Q(notification_setting__isnull=True) | Q(
@@ -248,6 +265,42 @@ def send_one(
 sender: Callable[[PushSubscription, Push, PushKeys], bool] = send_one
 
 
+def push_for_card(event: CardEvent) -> Push:
+    """The notification about a card's event: its title and what happened."""
+    card = event.card
+
+    return Push(
+        title=card.title,
+        body=event.summary,
+        url=f"/conversations/{card.conversation_id}",
+        tag=f"card-{card.pk}",
+    )
+
+
+def send_to(people: QuerySet[User], push: Push, keys: PushKeys) -> None:
+    """Send *push* to every browser of *people*, deleting any gone ones."""
+    subscriptions = PushSubscription.objects.filter(user__in=people)
+
+    gone = [s.pk for s in subscriptions if not sender(s, push, keys)]
+
+    if gone:
+        PushSubscription.objects.filter(pk__in=gone).delete()
+
+
+def deliver_card(event_id: int) -> None:
+    """Send the push about one card event to everybody it is for."""
+    keys = settings.PUSH_KEYS
+    event = (
+        CardEvent.objects.select_related("card__conversation__space")
+        .filter(pk=event_id, notified=True)
+        .first()
+    )
+    if keys is None or event is None:
+        return
+
+    send_to(card_recipients(event.card), push_for_card(event), keys)
+
+
 def deliver(message_id: int) -> None:
     """Send the push about one message to every browser that should have it.
 
@@ -263,20 +316,12 @@ def deliver(message_id: int) -> None:
     if keys is None or message is None:
         return
 
-    push = push_for(message)
-    subscriptions = PushSubscription.objects.filter(
-        user__in=recipients(message)
-    )
-
-    gone = [s.pk for s in subscriptions if not sender(s, push, keys)]
-
-    if gone:
-        PushSubscription.objects.filter(pk__in=gone).delete()
+    send_to(recipients(message), push_for(message), keys)
 
 
-def _deliver_in_background(message_id: int) -> None:
+def _in_background(job: Callable[[int], None], item_id: int) -> None:
     try:
-        deliver(message_id)
+        job(item_id)
     finally:
         # The thread opened its own database connection; this closes it.
         connection.close()
@@ -285,15 +330,26 @@ def _deliver_in_background(message_id: int) -> None:
 def start_in_background(message_id: int) -> None:
     """Deliver from a thread of its own, so posting does not wait."""
     threading.Thread(
-        target=_deliver_in_background,
-        args=(message_id,),
+        target=_in_background,
+        args=(deliver, message_id),
         name=f"push-{message_id}",
+        daemon=True,
+    ).start()
+
+
+def start_card_in_background(event_id: int) -> None:
+    """Deliver a card event's push from a thread of its own."""
+    threading.Thread(
+        target=_in_background,
+        args=(deliver_card, event_id),
+        name=f"push-card-{event_id}",
         daemon=True,
     ).start()
 
 
 #: How a delivery is started. Tests run it in their own thread instead.
 start: Callable[[int], None] = start_in_background
+start_card: Callable[[int], None] = start_card_in_background
 
 
 def notify_about(message: Message) -> None:
@@ -303,3 +359,12 @@ def notify_about(message: Message) -> None:
 
     message_id = message.pk
     transaction.on_commit(lambda: start(message_id))
+
+
+def notify_about_card(event: CardEvent) -> None:
+    """Push a card event that needs somebody, once it is committed."""
+    if settings.PUSH_KEYS is None:
+        return
+
+    event_id = event.pk
+    transaction.on_commit(lambda: start_card(event_id))

@@ -31,6 +31,7 @@ class AuditAction(StrEnum):
     PUSH_SUBSCRIBED = "push_subscribed"
     PUSH_UNSUBSCRIBED = "push_unsubscribed"
     NOTIFICATION_SETTING_CHANGED = "notification_setting_changed"
+    CARD_EVENT_RECEIVED = "card_event_received"
 
 
 class AuditEvent(models.Model):
