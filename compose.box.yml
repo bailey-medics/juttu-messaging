@@ -71,6 +71,29 @@ services:
       db:
         condition: service_healthy
 
+  # Watches the repository's GitHub Actions runs and sends each change to
+  # the backend's inlet as a card. It only makes outgoing connections. With
+  # no token or no secret in local/box.env, it says so once and waits.
+  github-watcher:
+    image: juttu-box-backend:${JUTTU_BOX_TAG:-latest}
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: prod
+    restart: unless-stopped
+    environment:
+      JUTTU_GITHUB_TOKEN: ${JUTTU_GITHUB_TOKEN:-}
+      JUTTU_INLET_SECRET: ${JUTTU_BOX_GITHUB_SECRET:-}
+      JUTTU_INLET_URL: http://backend:8000/api/inlet/events
+    command: ["python", "-m", "app.watcher.github_runs"]
+    # The backend image's health check asks for its web server, which the
+    # watcher does not run, so it would always read as unhealthy.
+    healthcheck:
+      disable: true
+    depends_on:
+      backend:
+        condition: service_healthy
+
   web:
     image: juttu-box-web:${JUTTU_BOX_TAG:-latest}
     build:

@@ -89,6 +89,31 @@ These steps are done once, on the dev box, by a person.
    off. Until the secret is set, a deploy says so and sends no card. A card
    that cannot be sent never stops a deploy.
 
+8. Let the box watch the repository's GitHub Actions runs, once:
+   1. On GitHub, make a fine-grained personal access token for
+      `bailey-medics/juttu-messaging` only, with **Actions: read** and
+      nothing else.
+   2. Add it to `local/box.env` as one line:
+
+      ```sh
+      JUTTU_GITHUB_TOKEN=<the token>
+      ```
+
+   3. On the box copy's **Senders** page, register a sender called
+      "GitHub runs", choose its channel, and add its secret too:
+
+      ```sh
+      JUTTU_BOX_GITHUB_SECRET=<the secret>
+      ```
+
+   4. Deploy again, so the watcher reads them.
+
+   About once a minute the watcher asks GitHub for the latest runs. It
+   shows each run as a card that reads "Running", then "Passed", "Failed"
+   or "Cancelled", and every finished run notifies. It only makes outgoing
+   connections. The runs already there when it starts are not sent, so a
+   restart never repeats a notification.
+
 ## Deploy the latest main
 
 ```sh
