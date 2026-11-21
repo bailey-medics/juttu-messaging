@@ -56,17 +56,20 @@ export interface StubAnswer {
 
 /**
  * Make `fetch` answer each API path with its own JSON body, such as
- * `{ "/api/auth/me": { body: SIGNED_IN } }`. A path not listed answers 404,
- * so a test never reaches the network by accident.
+ * `{ "/api/auth/me": { body: SIGNED_IN } }`. A key may name a method too,
+ * as `"POST /api/members"`, and that wins over the bare path for that
+ * method. A path not listed answers 404, so a test never reaches the
+ * network by accident.
  */
 export function stubFetchRoutes(answers: Record<string, StubAnswer>): void {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path =
         typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
-      const answer = answers[path] ?? { body: { detail: "Not found." }, status: 404 };
-
+      const method = (init?.method ?? "GET").toUpperCase();
+      const answer = answers[`${method} ${path}`] ??
+        answers[path] ?? { body: { detail: "Not found." }, status: 404 };
       const status = answer.status ?? 200;
       // A 204 has no body; Response refuses to be given one.
       const body = status === 204 ? null : JSON.stringify(answer.body);

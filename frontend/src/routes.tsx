@@ -7,6 +7,7 @@ import RequireAuth, { SIGN_IN_PATH } from "@/auth/RequireAuth";
 import RouteErrorFallback from "@/components/error-boundary/RouteErrorFallback";
 import PageSpinner from "@/components/loading-spinner/PageSpinner";
 import AddMemberPage from "@/pages/AddMemberPage";
+import ConversationPage from "@/pages/ConversationPage";
 import HomePage from "@/pages/HomePage";
 import MembersPage from "@/pages/MembersPage";
 import NewSpacePage from "@/pages/NewSpacePage";
@@ -55,6 +56,7 @@ export const routes: RouteObject[] = [
             ),
           },
           { path: "spaces/:spaceId", element: <SpacePage /> },
+          { path: "conversations/:conversationId", element: <ConversationPage /> },
           {
             path: "members",
             element: (

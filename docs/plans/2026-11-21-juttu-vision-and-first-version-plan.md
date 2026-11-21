@@ -137,11 +137,11 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 15: Conversations and messages, frontend
 
-- [ ] The list of spaces and conversations, the conversation view and the box to write a message, with stories and tests. Messages load when the page opens; live delivery comes in Phase 18.
+- [x] The list of spaces and conversations, the conversation view and the box to write a message, with stories and tests. Messages load when the page opens; live delivery comes in Phase 18.
 
 - [x] Split when reached: nothing yet let anybody make a space or put people in one, so this phase lands as two. The first adds `/spaces`, the spaces a person is in; `/spaces/new`, where an admin makes one; and `/spaces/{id}`, with its conversations and people, where an admin opens a channel and puts members of the organisation in the space. A space the person is not in shows "Page not found", as the backend answers. "Spaces" joins the side navigation. A conversation's row leads to `/conversations/{id}`, which the second half adds.
 
-- [ ] The conversation view, at `/conversations/{id}`, with `Messaging` showing the messages and the box to write one, and a way to start a direct conversation with somebody in the space.
+- [x] The conversation view, at `/conversations/{id}`, with `Messaging` showing the messages and the box to write one, and a way to start a direct conversation with somebody in the space. Built as `ConversationPage` on Quill Medical's `Messaging`, and a "Message" entry on each person in a space, which reopens a one-to-one conversation that already exists. Found while building: the backend has no endpoint for one conversation, so the page's title comes from the space page that linked to it and reads "Conversation" after a reload; and `Messaging` empties the box as soon as it sends, so a message that fails to send says "Not sent" but loses its text.
 
 ## Phase 16: Threads
 

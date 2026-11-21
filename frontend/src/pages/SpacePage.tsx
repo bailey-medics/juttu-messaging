@@ -3,7 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { ApiError } from "@/api/client";
-import { listConversations, startChannel, type ConversationSummary } from "@/api/conversations";
+import {
+  listConversations,
+  startChannel,
+  startDirect,
+  type ConversationSummary,
+} from "@/api/conversations";
 import { listMembers, type Member } from "@/api/members";
 import {
   addToSpace,
@@ -13,11 +18,13 @@ import {
   type SpacePerson,
 } from "@/api/spaces";
 import { useAuth } from "@/auth/AuthContext";
+import EllipsisMenu from "@/components/ellipsis-menu/EllipsisMenu";
 import type { FormSubmitResult } from "@/components/form/Form";
 import PageSpinner from "@/components/loading-spinner/PageSpinner";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
 import { AddToSpaceForm, NameForm } from "@/components/spaces";
 import DataTable from "@/components/tables/DataTable";
+import { usePageMessage } from "@/components/page-message";
 import { Heading, PageHeader } from "@/components/typography";
 
 import { apiFailure } from "./apiFailure";
@@ -33,6 +40,7 @@ export default function SpacePage() {
   const id = Number(spaceId);
   const { state } = useAuth();
   const navigate = useNavigate();
+  const { showMessage } = usePageMessage();
   const [space, setSpace] = useState<Space | null>(null);
   const [missing, setMissing] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -41,6 +49,7 @@ export default function SpacePage() {
   const [error, setError] = useState<string | null>(null);
 
   const isAdmin = state.status === "authenticated" && state.user.is_admin;
+  const myId = state.status === "authenticated" ? state.user.id : 0;
 
   const load = useCallback(async () => {
     try {
@@ -106,6 +115,27 @@ export default function SpacePage() {
     }
   }
 
+  function open(conversation: ConversationSummary) {
+    void navigate(`/conversations/${conversation.id}`, {
+      state: { title: conversation.title },
+    });
+  }
+
+  async function messagePerson(person: SpacePerson) {
+    // A direct conversation with just this person is titled with their name.
+    const existing = conversations.find((c) => c.kind === "direct" && c.title === person.name);
+    if (existing !== undefined) {
+      open(existing);
+      return;
+    }
+
+    try {
+      open(await startDirect(id, [person.id]));
+    } catch (failure) {
+      showMessage({ variant: "error", title: apiFailure(failure) });
+    }
+  }
+
   const inSpace = new Set(people.map((p) => p.id));
   const choices = organisation
     .filter((m) => !inSpace.has(m.id))
@@ -122,7 +152,7 @@ export default function SpacePage() {
           { header: "Kind", render: (c) => (c.kind === "channel" ? "Channel" : "Direct") },
         ]}
         getRowKey={(c) => c.id}
-        onRowClick={(c) => void navigate(`/conversations/${c.id}`)}
+        onRowClick={open}
         error={error}
         emptyMessage="No conversations yet."
       />
@@ -140,6 +170,16 @@ export default function SpacePage() {
         columns={[
           { header: "Name", render: (p) => p.name },
           { header: "Username", render: (p) => p.username },
+          {
+            header: "",
+            render: (p) =>
+              p.id === myId ? null : (
+                <EllipsisMenu
+                  aria-label={`Actions for ${p.name}`}
+                  items={[{ label: `Message ${p.name}`, onClick: () => void messagePerson(p) }]}
+                />
+              ),
+          },
         ]}
         getRowKey={(p) => p.id}
         emptyMessage="Nobody is in this space."
