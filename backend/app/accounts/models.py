@@ -1,9 +1,8 @@
 """The account a person signs in with, and the sign-in attempts counted.
 
-A username and a password, as in Quill Medical. Nothing else yet: an
-email address arrives with invites in Phase 12, and roles with
-organisations in Phase 11, each in the migration of the phase that uses
-it.
+A username, a password and a name, as in Quill Medical. Roles live in
+the organisations app. An email address arrives with the email work the
+vision plan has postponed.
 """
 
 from datetime import datetime
@@ -63,6 +62,9 @@ class User(AbstractBaseUser):
         unique=True,
         validators=[UnicodeUsernameValidator()],
     )
+    # The person's name, as others see it. Blank for an account made before
+    # names were asked for; ``display_name`` then falls back to the username.
+    name = models.CharField(max_length=200, blank=True, default="")
     # Closing an account keeps its row, so what the person wrote still
     # names them. A closed account cannot sign in.
     is_active = models.BooleanField(default=True)
@@ -83,6 +85,11 @@ class User(AbstractBaseUser):
 
     def __str__(self) -> str:
         return self.username
+
+    @property
+    def display_name(self) -> str:
+        """Who to say this is: their name, or their username without one."""
+        return self.name or self.username
 
 
 class SignInAttempt(models.Model):

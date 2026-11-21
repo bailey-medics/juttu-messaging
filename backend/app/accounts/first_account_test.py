@@ -40,7 +40,7 @@ def test_it_makes_the_account_it_is_told(
 def test_it_refuses_once_an_account_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Every later account comes from an invite."""
+    """An organisation admin adds every later account."""
     User.objects.create_user("alex", PASSWORD)
     answer(monkeypatch, "sam", PASSWORD, PASSWORD)
 

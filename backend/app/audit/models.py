@@ -22,6 +22,7 @@ class AuditAction(StrEnum):
     MEMBER_ADDED = "member_added"
     COMPETENCY_GRANTED = "competency_granted"
     POSITION_FILLED = "position_filled"
+    MEMBER_REMOVED = "member_removed"
 
 
 class AuditEvent(models.Model):

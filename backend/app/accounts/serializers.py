@@ -21,7 +21,9 @@ class SignInSerializer(serializers.Serializer[dict[str, Any]]):
 class UserSerializer(serializers.ModelSerializer[User]):
     """The signed-in person, as the app shows them."""
 
+    name = serializers.CharField(source="display_name", read_only=True)
+
     class Meta:
         model = User
-        fields = ["id", "username"]
+        fields = ["id", "username", "name"]
         read_only_fields = fields

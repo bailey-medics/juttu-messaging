@@ -70,7 +70,12 @@ def test_me_names_the_person_signed_in(client: Client, sam: User) -> None:
 
     assert response.json() == {
         "authenticated": True,
-        "user": {"id": sam.pk, "username": "sam"},
+        "user": {
+            "id": sam.pk,
+            "username": "sam",
+            "name": "sam",
+            "is_admin": False,
+        },
     }
 
 

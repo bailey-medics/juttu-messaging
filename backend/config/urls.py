@@ -14,4 +14,5 @@ urlpatterns: list[URLPattern | URLResolver] = [
         name="health",
     ),
     path("api/auth/", include("app.accounts.urls")),
+    path("api/", include("app.organisations.urls")),
 ]

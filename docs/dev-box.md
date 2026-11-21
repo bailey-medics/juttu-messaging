@@ -56,7 +56,7 @@ These steps are done once, on the dev box, by a person.
 
    Nothing is seeded and there is no default password. The account is an
    admin of the Turva organisation. It refuses once any account exists:
-   every later account comes from an invite.
+   an organisation admin adds every later account.
 
 ## Deploy the latest main
 

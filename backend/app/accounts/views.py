@@ -35,9 +35,18 @@ csrf_protected = method_decorator(csrf_protect, name="dispatch")
 
 
 def session_body(user: object) -> dict[str, object]:
-    """Whether *user* is a signed-in person, and who."""
+    """Whether *user* is a signed-in person, who, and whether an admin."""
+    # Here, not at the top: the organisations app imports this one's models.
+    from app.organisations.services import (
+        is_organisation_admin,
+        the_organisation,
+    )
+
     if isinstance(user, User) and user.is_authenticated:
-        return {"authenticated": True, "user": UserSerializer(user).data}
+        body = dict(UserSerializer(user).data)
+        body["is_admin"] = is_organisation_admin(user, the_organisation())
+
+        return {"authenticated": True, "user": body}
 
     return {"authenticated": False, "user": None}
 

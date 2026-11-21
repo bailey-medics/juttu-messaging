@@ -2,9 +2,10 @@
 
 Run through ``just first-account`` on the dev stack, or
 ``just box-first-account`` on the dev box. Nothing is seeded in code and
-there is no default password: the person running it types both. Invites,
-in Phase 12, make every account after this one, so the command refuses
-once any account exists rather than becoming a way round them. The
+there is no default password: the person running it types both. An
+organisation admin adds every account after this one, on the members
+screen, so the command refuses once any account exists rather than
+becoming a way round that. The
 account is made a member and an admin of the organisation.
 """
 
@@ -35,8 +36,8 @@ class Command(BaseCommand):
         """Make the account, or explain why not and change nothing."""
         if User.objects.exists():
             raise CommandError(
-                "An account already exists. Every later account comes "
-                "from an invite."
+                "An account already exists. An organisation admin adds "
+                "every later account."
             )
 
         username = ask("Username: ").strip()
