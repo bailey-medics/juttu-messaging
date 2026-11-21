@@ -1,8 +1,10 @@
 """The conversations' routes."""
 
+from django.db import transaction
 from django.urls import URLPattern, path
 
 from app.conversations.views import (
+    EventsView,
     MarkReadView,
     MessagesView,
     RepliesView,
@@ -10,6 +12,13 @@ from app.conversations.views import (
 )
 
 urlpatterns: list[URLPattern] = [
+    # Outside the per-request transaction: the stream outlives the view,
+    # and each read in it should see what has just been committed.
+    path(
+        "events",
+        transaction.non_atomic_requests(EventsView.as_view()),
+        name="events",
+    ),
     path(
         "spaces/<int:space_id>/conversations",
         SpaceConversationsView.as_view(),

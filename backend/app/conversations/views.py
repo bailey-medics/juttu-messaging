@@ -5,17 +5,21 @@ server that they may: a space or conversation they cannot read answers 404,
 as one that does not exist would.
 """
 
+import json
+from collections.abc import Mapping
 from typing import Any
 
-from django.http import Http404
+from django.http import Http404, StreamingHttpResponse
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.accounts.models import User
+from app.conversations import live
 from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
     MAX_MESSAGE_LENGTH,
@@ -278,3 +282,66 @@ class MarkReadView(APIView):
         mark_read(user, conversation, serializer.validated_data["message_id"])
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventStreamRenderer(BaseRenderer):
+    """Lets a browser asking for ``text/event-stream`` through.
+
+    The stream itself is written by ``live.stream``; this renders only a
+    refusal, such as "not signed in", as JSON.
+    """
+
+    media_type = "text/event-stream"
+    format = "event-stream"
+
+    def render(
+        self,
+        data: object,
+        accepted_media_type: str | None = None,
+        renderer_context: Mapping[str, object] | None = None,
+    ) -> bytes:
+        return json.dumps(data).encode()
+
+
+def last_event_id(request: Request) -> int | None:
+    """The last message id the app had, or None to start from now.
+
+    A browser reconnecting by itself sends ``Last-Event-ID``; the app sends
+    ``?after=`` when it opens a new stream after a failure. Anything that is
+    not a whole number is ignored.
+    """
+    given = request.headers.get("Last-Event-ID") or request.query_params.get(
+        "after", ""
+    )
+
+    return int(given) if given.isdigit() else None
+
+
+class EventsView(APIView):
+    """``GET`` a stream of the new messages the caller may read."""
+
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [EventStreamRenderer, JSONRenderer]
+
+    def get(self, request: Request) -> StreamingHttpResponse:
+        user = caller(request)
+        session = request.session
+        key = session.session_key
+
+        def still_signed_in() -> bool:
+            return key is not None and session.exists(key)
+
+        response = StreamingHttpResponse(
+            live.stream(
+                user.pk,
+                last_event_id(request),
+                describe=message_body,
+                still_signed_in=still_signed_in,
+            ),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        # Asks any proxy that buffers, such as nginx, to pass each event on.
+        response["X-Accel-Buffering"] = "no"
+
+        return response

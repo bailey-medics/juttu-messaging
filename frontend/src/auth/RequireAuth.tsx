@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
 
 import PageSpinner from "@/components/loading-spinner/PageSpinner";
+import LiveProvider from "@/live/LiveProvider";
 
 import { useAuth } from "./AuthContext";
 import CannotReach from "./CannotReach";
@@ -16,6 +17,8 @@ export const SIGN_IN_PATH = "/sign-in";
  * The page they wanted goes with them, so signing in brings them back to
  * it. Not after signing out on purpose, though: the next person to sign in
  * on this device would otherwise land on the last person's page.
+ *
+ * Everything signed in shares one live stream of new messages.
  */
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const { state } = useAuth();
@@ -35,5 +38,5 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to={SIGN_IN_PATH} replace state={from} />;
   }
 
-  return children;
+  return <LiveProvider>{children}</LiveProvider>;
 }

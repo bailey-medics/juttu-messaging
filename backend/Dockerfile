@@ -80,8 +80,11 @@ FROM base AS prod
 # JSON logs, no debug pages, and a refusal to start without its own
 # JUTTU_SECRET_KEY and JUTTU_ALLOWED_HOSTS.
 ENV BACKEND_ENV=production
-# Django's own synchronous workers. The reverse proxy in front sets
-# X-Forwarded-*, and only it can reach this port, so its headers are
-# trusted. Each request is logged once, by Juttu's middleware, so
-# Gunicorn's access log stays off.
-CMD ["gunicorn", "config.wsgi", "--workers", "2", "--bind", "0.0.0.0:8000", "--forwarded-allow-ips", "*"]
+# Gunicorn's threaded workers: each open live stream (GET /api/events)
+# holds one thread, not a whole worker, so two workers of 16 threads serve
+# 32 requests at once. Each thread may hold a database connection, and a
+# stream holds a second while it listens, well inside Postgres's 100. The
+# reverse proxy in front sets X-Forwarded-*, and only it can reach this
+# port, so its headers are trusted. Each request is logged once, by
+# Juttu's middleware, so Gunicorn's access log stays off.
+CMD ["gunicorn", "config.wsgi", "--workers", "2", "--worker-class", "gthread", "--threads", "16", "--bind", "0.0.0.0:8000", "--forwarded-allow-ips", "*"]

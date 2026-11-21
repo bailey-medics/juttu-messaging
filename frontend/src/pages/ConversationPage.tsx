@@ -1,5 +1,5 @@
 import { Box, SimpleGrid, Stack } from "@mantine/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 
 import { ApiError, isRecord } from "@/api/client";
@@ -15,6 +15,7 @@ import NotFoundLayout from "@/components/layouts/NotFoundLayout";
 import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
 import { PageHeader } from "@/components/typography";
+import { useLiveMessages } from "@/live/LiveContext";
 
 import { apiFailure } from "./apiFailure";
 
@@ -33,6 +34,14 @@ function markSeen(conversationId: number, seen: ChatMessage[]) {
   if (newest > 0) {
     markRead(conversationId, newest).catch(() => {});
   }
+}
+
+/**
+ * *list* with *message* on the end, unless it is there already: a message
+ * the person sent arrives both as the answer to sending it and live.
+ */
+function withMessage(list: ChatMessage[], message: ChatMessage): ChatMessage[] {
+  return list.some((m) => m.id === message.id) ? list : [...list, message];
 }
 
 /** The action that opens a message's thread. */
@@ -66,8 +75,8 @@ function forMessaging(message: ChatMessage, withThread: boolean): Message {
 
 /**
  * One conversation, at `/conversations/:conversationId`: its latest
- * messages and the box to write one. Messages load when the page opens;
- * live delivery comes with the vision plan's Phase 18. A conversation the
+ * messages and the box to write one. Messages load when the page opens,
+ * and new ones arrive live, replies in an open thread too. A conversation the
  * person cannot read shows "Page not found", as the backend answers.
  */
 export default function ConversationPage() {
@@ -82,6 +91,9 @@ export default function ConversationPage() {
   const [threadId, setThreadId] = useState<number | null>(null);
   const [replies, setReplies] = useState<ChatMessage[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(false);
+  // Replies already counted in their message's "N replies", so one that
+  // arrives both live and as the answer to sending it counts once.
+  const counted = useRef(new Set<number>());
 
   const currentUserId = state.status === "authenticated" ? String(state.user.id) : "";
 
@@ -106,6 +118,34 @@ export default function ConversationPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     void load();
   }, [load]);
+
+  const countReply = useCallback((sent: ChatMessage) => {
+    if (sent.thread === null || counted.current.has(sent.id)) {
+      return;
+    }
+
+    counted.current.add(sent.id);
+    setMessages((current) =>
+      current.map((m) => (m.id === sent.thread ? { ...m, reply_count: m.reply_count + 1 } : m)),
+    );
+  }, []);
+
+  useLiveMessages(({ conversation, message }) => {
+    if (conversation !== id) {
+      return;
+    }
+
+    if (message.thread === null) {
+      setMessages((current) => withMessage(current, message));
+    } else {
+      countReply(message);
+      if (message.thread === threadId) {
+        setReplies((current) => withMessage(current, message));
+      }
+    }
+
+    markSeen(id, [message]);
+  });
 
   if (missing || !Number.isInteger(id)) {
     return <NotFoundLayout />;
@@ -134,10 +174,8 @@ export default function ConversationPage() {
 
     try {
       const sent = await sendMessage(id, text, threadId);
-      setReplies((current) => [...current, sent]);
-      setMessages((current) =>
-        current.map((m) => (m.id === threadId ? { ...m, reply_count: m.reply_count + 1 } : m)),
-      );
+      setReplies((current) => withMessage(current, sent));
+      countReply(sent);
     } catch (failure) {
       showMessage({ variant: "error", title: `Not sent. ${apiFailure(failure)}` });
     }
@@ -148,7 +186,7 @@ export default function ConversationPage() {
   async function send(text: string) {
     try {
       const sent = await sendMessage(id, text);
-      setMessages((current) => [...current, sent]);
+      setMessages((current) => withMessage(current, sent));
     } catch (failure) {
       showMessage({ variant: "error", title: `Not sent. ${apiFailure(failure)}` });
     }

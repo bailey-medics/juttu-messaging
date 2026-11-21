@@ -13,6 +13,7 @@ from django.db.models.functions import Coalesce
 from app.accounts.models import User
 from app.audit.models import AuditAction
 from app.audit.record import record
+from app.conversations.live import announce, hold_post_lock
 from app.conversations.models import (
     Conversation,
     ConversationKind,
@@ -221,6 +222,9 @@ def post(
     elif thread is not None and thread.thread is not None:
         thread = thread.thread
 
+    # Ids then commit in the order they are given, which live delivery's
+    # "everything after the last id" relies on.
+    hold_post_lock()
     message = Message.objects.create(
         conversation=conversation,
         author=by,
@@ -235,5 +239,6 @@ def post(
         actor=by,
         detail={"conversation": conversation.pk, "message": message.pk},
     )
+    announce(conversation.pk)
 
     return message

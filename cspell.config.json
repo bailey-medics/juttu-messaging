@@ -13,6 +13,7 @@
     "crpd",
     "csrftoken",
     "djangorestframework",
+    "gthread",
     "Gunicorn",
     "httpx",
     "Juttu",

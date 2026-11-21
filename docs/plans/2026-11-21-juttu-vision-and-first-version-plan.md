@@ -157,7 +157,9 @@ Building and testing never touch the dev box: tests use throwaway databases, mad
 
 ## Phase 18: Live delivery
 
-- [ ] A new message reaches every open app at once, without a refresh, by server-sent events, with Gunicorn moved to its threaded workers in the prod image and the box copy, so an open connection holds a thread rather than a whole worker. The app reconnects by itself and fetches what it missed. Tests for delivery, for reconnection, and that a non-member receives nothing.
+- [x] A new message reaches every open app at once, without a refresh, by server-sent events, with Gunicorn moved to its threaded workers in the prod image and the box copy, so an open connection holds a thread rather than a whole worker. The app reconnects by itself and fetches what it missed. Tests for delivery, for reconnection, and that a non-member receives nothing.
+
+- [x] Found while building: each open app holds one stream, `GET /api/events`, opened once by `RequireAuth` for every signed-in page. Posting a message sends a Postgres `NOTIFY` that names only the conversation, never the text, so every Gunicorn worker hears every post with nothing new to run, such as Redis. Each woken stream reads, with the same access rule as `can_read`, the messages its person may read above the last id it sent. A person outside a space, or outside a direct conversation, gets nothing from it. A stream lasts five minutes and sends a comment every fifteen seconds when quiet. It ends early once the account is closed or the session has gone. The browser reconnects with the last event's id, and the app reopens a refused stream with `?after=` and a back-off that doubles up to a minute, so nothing is missed either way. Reading "everything after id N" would skip a message whose transaction committed after a later one, so posting takes a short Postgres advisory lock and ids commit in order. Gunicorn runs two `gthread` workers of sixteen threads. Caddy leaves `/api/events` uncompressed, so each event goes out at once. The space page refreshes its unread counts when a message arrives in that space.
 
 ## Phase 19: Push notifications
 

@@ -54,14 +54,14 @@ services:
       # sign-in from it. Empty until JUTTU_BOX_ADDRESS is set.
       JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through s/box}
     # Bring the database up to the latest migration, then serve with
-    # Gunicorn, as the prod image does.
+    # Gunicorn's threaded workers, as the prod image does.
     command:
       - sh
       - -c
       - >-
         python manage.py migrate &&
-        exec gunicorn config.wsgi --workers 2 --bind 0.0.0.0:8000
-        --forwarded-allow-ips '*'
+        exec gunicorn config.wsgi --workers 2 --worker-class gthread
+        --threads 16 --bind 0.0.0.0:8000 --forwarded-allow-ips '*'
     depends_on:
       db:
         condition: service_healthy

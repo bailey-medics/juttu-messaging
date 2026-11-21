@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { latestStream, stubEventSource } from "@/test/eventSource";
 import { renderAt, SIGNED_IN, stubFetchRoutes } from "@/test/render";
 
 const hello = {
@@ -207,5 +208,112 @@ describe("the conversation page", () => {
     renderAt("/spaces/7");
 
     expect(await screen.findByLabelText("3 unread")).toBeInTheDocument();
+  });
+
+  describe("live", () => {
+    const fromAlex = { ...hello, id: 40, body: "Deploying now." };
+
+    async function openLive(messages: unknown[]) {
+      stubEventSource();
+      stubFetchRoutes({
+        "/api/auth/me": { body: SIGNED_IN },
+        "/api/conversations/11/messages": { body: { messages } },
+        "/api/messages/21/replies": { body: { replies: [] } },
+        "POST /api/conversations/11/read": { body: null, status: 204 },
+        "POST /api/conversations/11/messages": {
+          body: { ...hello, id: 41, author: { id: 1, name: "Sam Patel" }, body: "Thanks!" },
+          status: 201,
+        },
+      });
+      renderAt("/conversations/11");
+      await screen.findByText("Release notes are ready.");
+    }
+
+    it("shows a new message without a refresh, and marks it read", async () => {
+      await openLive([hello]);
+
+      latestStream().emit("message", { conversation: 11, space: 7, message: fromAlex }, "40");
+
+      expect(await screen.findByText("Deploying now.")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          "/api/conversations/11/read",
+          expect.objectContaining({ body: JSON.stringify({ message_id: 40 }) }),
+        ),
+      );
+    });
+
+    it("leaves out a message from another conversation", async () => {
+      await openLive([hello]);
+
+      latestStream().emit("message", { conversation: 12, space: 7, message: fromAlex }, "40");
+
+      await waitFor(() => expect(screen.queryByText("Deploying now.")).not.toBeInTheDocument());
+    });
+
+    it("shows the person's own message once, though it also arrives live", async () => {
+      await openLive([hello]);
+
+      await userEvent.type(screen.getByPlaceholderText("Write a message"), "Thanks!{Enter}");
+      await screen.findByText("Thanks!");
+      latestStream().emit(
+        "message",
+        {
+          conversation: 11,
+          space: 7,
+          message: { ...hello, id: 41, author: { id: 1, name: "Sam Patel" }, body: "Thanks!" },
+        },
+        "41",
+      );
+
+      expect(screen.getAllByText("Thanks!")).toHaveLength(1);
+    });
+
+    it("adds a reply to its open thread and counts it once", async () => {
+      await openLive([hello]);
+      await userEvent.click(await screen.findByRole("button", { name: "Reply" }));
+      await screen.findByRole("heading", { name: "Thread" });
+
+      const reply = { ...hello, id: 42, body: "Looks good.", thread: 21 };
+      latestStream().emit("message", { conversation: 11, space: 7, message: reply }, "42");
+      latestStream().emit("message", { conversation: 11, space: 7, message: reply }, "42");
+
+      expect(await screen.findByText("Looks good.")).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "1 reply" })).toBeInTheDocument();
+      expect(screen.getAllByText("Looks good.")).toHaveLength(1);
+    });
+
+    it("counts a reply in a thread that is not open", async () => {
+      await openLive([hello]);
+
+      latestStream().emit(
+        "message",
+        {
+          conversation: 11,
+          space: 7,
+          message: { ...hello, id: 43, body: "Hidden", thread: 21 },
+        },
+        "43",
+      );
+
+      expect(await screen.findByRole("button", { name: "1 reply" })).toBeInTheDocument();
+      expect(screen.queryByText("Hidden")).not.toBeInTheDocument();
+    });
+
+    it("refreshes a space's unread counts when a message arrives in it", async () => {
+      stubEventSource();
+      stubFetchRoutes(
+        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 0 }]),
+      );
+      renderAt("/spaces/7");
+      await screen.findByText("general");
+
+      stubFetchRoutes(
+        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 1 }]),
+      );
+      latestStream().emit("message", { conversation: 11, space: 7, message: fromAlex }, "40");
+
+      expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
+    });
   });
 });

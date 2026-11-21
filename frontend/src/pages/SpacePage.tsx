@@ -27,6 +27,7 @@ import { AddToSpaceForm, NameForm } from "@/components/spaces";
 import DataTable from "@/components/tables/DataTable";
 import { usePageMessage } from "@/components/page-message";
 import { Heading, PageHeader } from "@/components/typography";
+import { useLiveMessages } from "@/live/LiveContext";
 
 import { apiFailure } from "./apiFailure";
 
@@ -77,6 +78,16 @@ export default function SpacePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     void load();
   }, [load]);
+
+  // A new message anywhere in this space changes its unread counts, and
+  // may be the first in a direct conversation just started.
+  useLiveMessages(({ space: from }) => {
+    if (from === id) {
+      listConversations(id)
+        .then(setConversations)
+        .catch(() => {});
+    }
+  });
 
   useEffect(() => {
     if (isAdmin) {
