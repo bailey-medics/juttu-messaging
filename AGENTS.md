@@ -59,6 +59,11 @@ anything. `CLAUDE.md` only points here.
 - **Every backend function is typed.** mypy runs in strict mode over
   `backend/`, and the packages its hook installs are pinned to
   `backend/poetry.lock`. Bump them together.
+- **A migration is written with `just migrate`, never by hand against the
+  dev stack's database.** It autogenerates against a throwaway Postgres
+  from this worktree's models, and refuses an empty result. `./s/test`
+  checks every migration applies, undoes and matches the models.
+- **A merged migration is never edited.** A change is a new migration.
 - **The backend container runs as an unprivileged user**, uid 10001.
   Never run it as root.
 - **`LICENSE` is kept byte for byte.** It is the Free Software
@@ -71,6 +76,7 @@ just setup    # switch on the tracked git hook, once per clone
 ./s/lint      # every check pre-commit enforces, over the whole repository
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
+just migrate "<message>"   # write a migration for a model change
 ```
 
 Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of

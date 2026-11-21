@@ -1,0 +1,37 @@
+# Juttu's development stack. Phase 3 of the skeleton plan starts it with
+# the database; Phase 6 adds the backend, the frontend and the Caddy
+# reverse proxy in front of them.
+#
+# The project is named `juttu`, so its containers and volumes never share
+# a name with Quill Medical's or Turva's stacks on the same machine. Each
+# published port is about a hundred above the usual one, and can be
+# changed through its variable in the gitignored root .env.
+#
+# Usage:
+#   docker compose -f compose.dev.yml up -d
+
+name: juttu
+
+services:
+  db:
+    image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: juttu
+      POSTGRES_USER: juttu
+      # A development value, for a database that only this machine can
+      # reach. The box's long-running copy sets its own.
+      POSTGRES_PASSWORD: ${JUTTU_POSTGRES_PASSWORD:-juttu_dev_only}
+    # Published on this machine only, for psql and an editor's database
+    # view. The backend reaches it on the stack's own network as `db`.
+    ports:
+      - "127.0.0.1:${JUTTU_POSTGRES_PORT:-5533}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juttu -d juttu"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+volumes:
+  db_data:

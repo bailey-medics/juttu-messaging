@@ -11,3 +11,6 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# This machine's own settings, such as a changed port. See .env.example.
+.env

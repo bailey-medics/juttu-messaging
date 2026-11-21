@@ -9,6 +9,7 @@ PRODUCTION = {
     "BACKEND_ENV": "production",
     "JUTTU_SECRET_KEY": "a-production-secret",
     "JUTTU_ALLOWED_HOSTS": "juttu.example",
+    "DB_PASSWORD": "a-production-password",
 }
 
 
@@ -118,5 +119,56 @@ def test_the_secret_key_is_hidden_when_printed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("JUTTU_SECRET_KEY", "do-not-print-me")
+
+    assert "do-not-print-me" not in repr(Settings())
+
+
+def test_the_database_is_postgres_built_from_its_parts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set(
+        monkeypatch,
+        {
+            "DB_HOST": "db.internal",
+            "DB_PORT": "6543",
+            "DB_NAME": "juttu_box",
+            "DB_USER": "juttu",
+            "DB_PASSWORD": "p@ss/word:1",
+        },
+    )
+
+    database = Settings().database
+
+    assert database["ENGINE"] == "django.db.backends.postgresql"
+    assert database["HOST"] == "db.internal"
+    assert database["PORT"] == 6543
+    assert database["NAME"] == "juttu_box"
+    assert database["USER"] == "juttu"
+    assert database["PASSWORD"] == "p@ss/word:1"
+
+
+def test_each_request_is_one_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = Settings().database
+
+    assert database["ATOMIC_REQUESTS"] is True
+    assert database["CONN_HEALTH_CHECKS"] is True
+
+
+def test_production_needs_a_database_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set(monkeypatch, PRODUCTION)
+    monkeypatch.delenv("DB_PASSWORD")
+
+    with pytest.raises(ValidationError, match="DB_PASSWORD is required"):
+        Settings()
+
+
+def test_the_database_password_is_hidden_when_printed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DB_PASSWORD", "do-not-print-me")
 
     assert "do-not-print-me" not in repr(Settings())

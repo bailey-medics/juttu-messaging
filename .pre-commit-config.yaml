@@ -82,6 +82,9 @@ repos:
       - id: mypy
         name: mypy (backend, strict)
         files: ^backend/.*\.py$
+        # Django writes each migration with `makemigrations`, untyped. A
+        # merged migration is never edited, so it is left out.
+        exclude: ^backend/.*/migrations/
         language_version: python3.14
         args: [--config-file=backend/pyproject.toml]
         additional_dependencies:

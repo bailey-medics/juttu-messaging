@@ -3,12 +3,17 @@
 #
 # `just unit-tests-backend` (and s/test) runs `docker compose run --rm`
 # against this file, so each run is a fresh container built from the dev
-# image with THIS worktree mounted at /app. It needs neither the dev stack
-# nor a database: the unit tests talk to no other service, so the
-# container has no network.
+# image with THIS worktree mounted at /app, beside a Postgres of its own.
+# It needs no dev stack.
+#
+# The tests run on Postgres, never SQLite, so they exercise the database
+# Juttu runs on. That Postgres keeps its data in memory, so nothing
+# survives a run, and s/test removes it afterwards. The two containers
+# share an internal network, so the tests reach nothing outside the run.
 #
 # The compose project name comes from the worktree's folder (see s/test),
-# which keeps each worktree's containers apart from every other's.
+# which keeps each worktree's containers and database apart from every
+# other's.
 
 services:
   backend:
@@ -17,10 +22,14 @@ services:
       context: .
       dockerfile: ./backend/Dockerfile
       target: dev
-    # No env_file: conftest.py and these values are all the tests need, so
-    # a value in a developer's own environment file cannot reach a test.
+    # No env_file: these values are all the tests need, so a value in a
+    # developer's own environment file cannot reach a test.
     environment:
       BACKEND_ENV: testing
+      DB_HOST: db
+      DB_NAME: juttu
+      DB_USER: juttu
+      DB_PASSWORD: test_only
     # As the host user on Linux, where s/test sets HOST_UID, so pytest's
     # cache can be written into the worktree. Otherwise the image's own
     # appuser.
@@ -28,4 +37,30 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-    network_mode: none
+    networks:
+      - tests
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: juttu
+      POSTGRES_USER: juttu
+      POSTGRES_PASSWORD: test_only
+    # In memory: nothing survives the run, and nothing should.
+    tmpfs:
+      - /var/lib/postgresql
+    networks:
+      - tests
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juttu -d juttu"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+networks:
+  # Internal: the containers reach each other and nothing else.
+  tests:
+    internal: true

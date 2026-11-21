@@ -33,7 +33,7 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 3: Database
 
-- [ ] Add Postgres to Compose, published on host port 5533 (`JUTTU_POSTGRES_PORT`), the SQLAlchemy session set-up, and Alembic with an empty first migration. Port the `just` recipe that autogenerates a migration against a throwaway database and fails on an empty result.
+- [x] Add Postgres to Compose, published on host port 5533 (`JUTTU_POSTGRES_PORT`), the SQLAlchemy session set-up, and Alembic with an empty first migration. Port the `just` recipe that autogenerates a migration against a throwaway database and fails on an empty result.
 
 ## Phase 4: Frontend skeleton
 
@@ -72,3 +72,9 @@ any external server, are recorded in the vision plan and not repeated here.
 - **Juttu has its own ports** - the dev box already runs Turva's stack on 80, 443, 5173, 5433 and 8000, and Quill Medical's uses 80, 5173, 5174 and 6006. Ports copied from Quill would clash on Juttu's first start, and an unattended run would stop there. Juttu's are each about a hundred above the usual ones (8100, 5273, 5533, 6106, 8180, 8543, 8290), so they are easy to recognise, and all were free on 21 November 2026.
 
 - **Ported, not written fresh** - Quill Medical's tooling has already been through the problems a new project meets: worktrees sharing a virtual environment, hooks pointing at the wrong checkout, migrations that come out empty. Copying it saves relearning them.
+
+## Found while building
+
+- **Clear Python bytecode caches before landing a unit** - found 21 November 2026, landing Phase 2. `gh stack rebase` checks out each branch in turn, from the bottom of the stack. The bottom branch's `.gitignore` predates the Python rules, so `__pycache__/` folders left by a local test run showed as untracked there, and the rebase stopped part-way. Deleting them (`find backend -name __pycache__ -prune -exec rm -rf {} +`) before `/t-crpd` avoids it. Once the stack merges, every branch carries the rules and the trap goes.
+
+- **The development database is published on this machine only** - Phase 3 binds Postgres to `127.0.0.1:5533`, not to every interface. Only psql and an editor on the dev box need it; the backend reaches it on the stack's own network. The long-running copy in Phase 7 publishes nothing but its web port.

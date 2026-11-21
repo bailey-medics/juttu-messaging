@@ -6,7 +6,6 @@ value out. This module turns what it read into the names Django expects.
 """
 
 from pathlib import Path
-from typing import Any
 
 from app.config import settings as env
 from app.logging_config import logging_settings
@@ -38,8 +37,9 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Phase 9 of the skeleton plan adds Postgres. Until then nothing reads a table.
-DATABASES: dict[str, dict[str, Any]] = {}
+# Postgres, everywhere: development, the tests and the box copy. Never
+# SQLite, so a test exercises the database Juttu runs on.
+DATABASES = {"default": env.database}
 
 # Caddy, and the private network's HTTPS proxy in front of the box copy,
 # end TLS and say so in this header.

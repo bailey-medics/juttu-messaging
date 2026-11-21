@@ -34,3 +34,10 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"./s/test backend -k health"* ]]
 }
+
+@test "just migrate writes a migration through s/migrate new" {
+	run just --dry-run migrate "add users"
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'./s/migrate new "add users"'* ]]
+}

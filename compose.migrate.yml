@@ -1,0 +1,55 @@
+# A throwaway database for `just migrate` and the migration tests, usable
+# from any worktree. Ported from Quill Medical.
+#
+# Autogenerating a migration compares the models in a checkout against a
+# database at the current head. The dev stack's database belongs to
+# whichever worktree started the stack, so autogenerating through it from
+# another worktree compares the WRONG models and writes an empty migration
+# that exits zero. This file gives each worktree its own database for the
+# length of one command instead: Postgres in memory, upgraded to head from
+# this worktree's migrations, compared against this worktree's models,
+# then thrown away.
+#
+# s/migrate names the compose project after the worktree, so several can
+# run at once.
+
+services:
+  migrate:
+    image: juttu-backend-dev
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: dev
+    # No env_file: everything the app needs is set here, so nothing in a
+    # developer's own environment can point this at a real database.
+    environment:
+      BACKEND_ENV: testing
+      DB_HOST: db
+      DB_NAME: juttu
+      DB_USER: juttu
+      DB_PASSWORD: migrate_only
+    # As the host user on Linux, where s/migrate sets HOST_UID, so a new
+    # revision can be written into a worktree the host user owns.
+    user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
+    working_dir: /app
+    volumes:
+      # A new migration is written into THIS worktree.
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: public.ecr.aws/docker/library/postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: juttu
+      POSTGRES_USER: juttu
+      POSTGRES_PASSWORD: migrate_only
+    # In memory: nothing survives `down`, and nothing should.
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U juttu -d juttu"]
+      interval: 2s
+      timeout: 2s
+      retries: 15

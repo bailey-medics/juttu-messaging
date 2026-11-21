@@ -3,6 +3,10 @@
 ``GET /api/health`` is **public on purpose**: Docker's health check and a
 person checking the dev box both call it without signing in. It says only
 that the backend is up, so it gives nothing away.
+
+It reads no table, so ``config.urls`` keeps it out of the per-request
+transaction that ``ATOMIC_REQUESTS`` opens. Otherwise the check would fail
+whenever the database was away.
 """
 
 from rest_framework.permissions import AllowAny

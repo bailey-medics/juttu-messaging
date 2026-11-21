@@ -1,9 +1,16 @@
 """Every route Juttu serves, under the API prefix."""
 
+from django.db import transaction
 from django.urls import URLPattern, path
 
 from app.health import HealthView
 
 urlpatterns: list[URLPattern] = [
-    path("api/health", HealthView.as_view(), name="health"),
+    # Outside the per-request transaction: the health check reads no table,
+    # and must answer even when the database is away.
+    path(
+        "api/health",
+        transaction.non_atomic_requests(HealthView.as_view()),
+        name="health",
+    ),
 ]

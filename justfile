@@ -31,3 +31,9 @@ alias ub := unit-tests-backend
 # Run the backend tests in a throwaway container mounting this worktree
 unit-tests-backend *args:
     @./s/test backend {{args}}
+
+
+alias m := migrate
+# Write a migration for this worktree's model changes (throwaway database)
+migrate message:
+    @./s/migrate new "{{message}}"
