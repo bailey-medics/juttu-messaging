@@ -27,9 +27,9 @@ any external server, are recorded in the vision plan and not repeated here.
 
 ## Phase 2: Backend skeleton
 
-- [ ] Port a minimal FastAPI app from Quill Medical: configuration, structured logging, a health endpoint, its Dockerfile, and the lint and type-check settings. Nothing from Google Cloud comes across.
+- [x] Port a minimal FastAPI app from Quill Medical: configuration, structured logging, a health endpoint, its Dockerfile, and the lint and type-check settings. Nothing from Google Cloud comes across.
 
-- [ ] Port the unit-test container and its `just` recipe, so the tests run from any worktree without the dev stack. Tests for configuration and the health endpoint.
+- [x] Port the unit-test container and its `just` recipe, so the tests run from any worktree without the dev stack. Tests for configuration and the health endpoint.
 
 ## Phase 3: Database
 

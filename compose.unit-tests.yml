@@ -1,0 +1,31 @@
+# Throwaway unit-test containers for any worktree. Ported from Quill
+# Medical.
+#
+# `just unit-tests-backend` (and s/test) runs `docker compose run --rm`
+# against this file, so each run is a fresh container built from the dev
+# image with THIS worktree mounted at /app. It needs neither the dev stack
+# nor a database: the unit tests talk to no other service, so the
+# container has no network.
+#
+# The compose project name comes from the worktree's folder (see s/test),
+# which keeps each worktree's containers apart from every other's.
+
+services:
+  backend:
+    image: juttu-backend-dev
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: dev
+    # No env_file: conftest.py and these values are all the tests need, so
+    # a value in a developer's own environment file cannot reach a test.
+    environment:
+      BACKEND_ENV: testing
+    # As the host user on Linux, where s/test sets HOST_UID, so pytest's
+    # cache can be written into the worktree. Otherwise the image's own
+    # appuser.
+    user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    network_mode: none

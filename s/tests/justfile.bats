@@ -27,3 +27,10 @@ setup() {
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"./s/test"* ]]
 }
+
+@test "just unit-tests-backend passes pytest's arguments to s/test" {
+	run just --dry-run unit-tests-backend -k health
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/test backend -k health"* ]]
+}

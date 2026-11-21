@@ -4,5 +4,5 @@
   "enabledLanguageIds": ["markdown"],
   "files": ["**/*.md"],
   "ignorePaths": [".git", ".venv", "node_modules", "dist", "build", "local"],
-  "words": ["crpd", "Juttu", "Turva", "worktrees"]
+  "words": ["crpd", "Juttu", "mypy", "pytest", "Turva", "worktrees"]
 }

@@ -1,0 +1,70 @@
+[build-system]
+requires = ["poetry-core>=2.1.2,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "juttu-backend"
+version = "0.1.0"
+description = "Juttu's backend: a Django app"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    # Django 6.1, as Turva runs. Not an LTS release; the LTS in this series
+    # is 6.2, a minor upgrade from here.
+    "django>=6.1.3,<6.2",
+    # The JSON API, as Turva's: serializers, views and permissions.
+    "djangorestframework==3.18.3",
+    # The WSGI server for deployment, with Django's own synchronous workers.
+    "gunicorn==26.2.0",
+    # Reads and checks the environment once, in app/config.py.
+    "pydantic==2.14.3",
+    "pydantic-settings>=2.10.1,<3.0.0",
+    "python-json-logger>=4.0.0,<5.0.0",
+]
+
+[tool.poetry]
+# Kept in step with .poetry-version, the Poetry the image installs.
+requires-poetry = ">=2.5,<3"
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^2.0.0"
+pytest = "^9.0.0"
+pytest-django = "4.14.0"
+django-stubs = { extras = ["compatible-mypy"], version = "6.1.2" }
+djangorestframework-stubs = { extras = ["compatible-mypy"], version = "3.18.2" }
+
+# One ruff config for the backend: lint and format. Ruff's formatter
+# stands in for Black, which Quill Medical runs beside it, so there is
+# one tool and not two.
+[tool.ruff]
+target-version = "py314"
+line-length = 79
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+# Read by the "mypy (backend, strict)" pre-commit hook.
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["app", "config", "manage.py"]
+plugins = ["pydantic.mypy", "mypy_django_plugin.main", "mypy_drf_plugin.main"]
+# So `import app` resolves when pre-commit runs mypy from the repository
+# root, naming each file by its path from there.
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
+explicit_package_bases = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+addopts = "-q --strict-markers"
+# A test whose subject is one module sits beside it under app/, as
+# <module>_test.py, so the two sort together. A test of a rule that no
+# one module owns goes in tests/. Only the suffix is collected, so a
+# source file may start with test_ without being run.
+testpaths = ["app", "config"]
+python_files = ["*_test.py"]
+pythonpath = ["."]

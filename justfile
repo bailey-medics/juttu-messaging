@@ -22,6 +22,12 @@ lint *args:
 
 
 alias t := test
-# Run the test suites
+# Run every test suite
 test:
     @./s/test
+
+
+alias ub := unit-tests-backend
+# Run the backend tests in a throwaway container mounting this worktree
+unit-tests-backend *args:
+    @./s/test backend {{args}}

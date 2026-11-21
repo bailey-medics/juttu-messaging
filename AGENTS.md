@@ -18,12 +18,13 @@ anything. `CLAUDE.md` only points here.
 
 ## Layout
 
-| Path          | What it is                                                      |
-| ------------- | --------------------------------------------------------------- |
-| `docs/plans/` | Plan documents: what is being built, and the decisions made     |
-| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them   |
-| `s/tests/`    | bats tests for the scripts and the git hook                     |
-| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone |
+| Path          | What it is                                                                 |
+| ------------- | -------------------------------------------------------------------------- |
+| `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py` |
+| `docs/plans/` | Plan documents: what is being built, and the decisions made                |
+| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them              |
+| `s/tests/`    | bats tests for the scripts and the git hook                                |
+| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone            |
 
 ## Core invariants
 
@@ -38,8 +39,10 @@ anything. `CLAUDE.md` only points here.
   Never put real patient data, credentials or secrets into the repository
   or into a test fixture.
 - **Every endpoint makes an explicit authorisation decision.** None is
-  open by accident. The public ones, such as the health check and sign-in,
-  are public on purpose and say so.
+  open by accident. Django REST framework's default is "signed in only",
+  so a view nobody thought about is closed. The public ones, such as the
+  health check and sign-in, are public on purpose and say so with
+  `permission_classes = [AllowAny]`.
 - **Messages are append-only.** Nothing is edited in place; a correction is
   a new message that amends the old one.
 - **Ported from Quill Medical, not written fresh**, where Quill already has
@@ -53,6 +56,11 @@ anything. `CLAUDE.md` only points here.
 - **British English**, in prose, comments, docs and identifiers. cspell
   checks the documents with `en-GB`. A new word goes in
   `cspell.config.json`, in alphabetical order, never in an inline comment.
+- **Every backend function is typed.** mypy runs in strict mode over
+  `backend/`, and the packages its hook installs are pinned to
+  `backend/poetry.lock`. Bump them together.
+- **The backend container runs as an unprivileged user**, uid 10001.
+  Never run it as root.
 - **`LICENSE` is kept byte for byte.** It is the Free Software
   Foundation's AGPL-3.0 text, so the whitespace hooks leave it alone.
 
@@ -61,7 +69,8 @@ anything. `CLAUDE.md` only points here.
 ```sh
 just setup    # switch on the tracked git hook, once per clone
 ./s/lint      # every check pre-commit enforces, over the whole repository
-./s/test      # the test suites
+./s/test      # every test suite: bats on the host, pytest in a container
+just ub       # the backend tests only, with pytest's arguments
 ```
 
 Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of
