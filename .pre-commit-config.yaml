@@ -1,6 +1,6 @@
 # The checks every commit runs, through .githooks/pre-commit, and that
 # s/lint runs over the whole repository. Ported from Quill Medical and
-# Turva. The workflow audits arrive with the pipeline.
+# Turva. CI's `hooks` job runs s/lint too.
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -40,6 +40,24 @@ repos:
     hooks:
       - id: shellcheck
         args: [--source-path=SCRIPTDIR]
+
+  # The security audit of the GitHub Actions workflows: unpinned actions,
+  # credentials left in a checkout, a value an outsider can set reaching a
+  # shell. Offline, because the audits that ask GitHub need a token.
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.32.0
+    hooks:
+      - id: zizmor
+        args: [--no-progress, --offline, --min-severity=low]
+
+  # actionlint checks each workflow's syntax and expressions, and runs
+  # ShellCheck over its `run:` steps.
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    rev: v1.7.12.25
+    hooks:
+      - id: actionlint
+        additional_dependencies:
+          - shellcheck-py==0.11.0.1
 
   # British English, in the documents. New words go in cspell.config.json,
   # in alphabetical order, never in an inline comment.

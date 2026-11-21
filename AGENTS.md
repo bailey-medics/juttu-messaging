@@ -81,6 +81,10 @@ anything. `CLAUDE.md` only points here.
   error. The rules are in `frontend/src/pwa/cachingRules.ts`, with tests.
 - **npm runs no package's install script unless `allowScripts` in
   `frontend/package.json` allows it.**
+- **GitHub Actions are pinned to full commit SHAs**, with a `# vX.Y.Z`
+  comment. Check the tag's commit on the action's own repository before
+  bumping one; never pin from memory. zizmor and actionlint audit every
+  workflow on each commit.
 - **`LICENSE` is kept byte for byte.** It is the Free Software
   Foundation's AGPL-3.0 text, so the whitespace hooks leave it alone.
 
@@ -111,7 +115,8 @@ the skeleton plan adds its own commands here.
 ./s/frontend  # when the change touches frontend/
 ```
 
-Do not commit red.
+Do not commit red. CI runs the same three on every pull request and every
+push to `main`, in `.github/workflows/ci.yml`.
 
 ## Git workflow
 
