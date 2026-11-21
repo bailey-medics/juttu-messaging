@@ -1,8 +1,9 @@
-import { Stack, Text, Title } from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { useEffect, useState } from "react";
 
 import { checkHealth } from "@/api/health";
 import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
+import { BodyText, PageHeader } from "@/components/typography";
 
 /** The first page: says what Juttu is, and whether its backend is up. */
 export default function HomePage() {
@@ -22,8 +23,8 @@ export default function HomePage() {
 
   return (
     <Stack gap="lg">
-      <Title order={1}>Juttu</Title>
-      <Text>A quiet place for a team, its pipeline and its agents to talk.</Text>
+      <PageHeader title="Home" />
+      <BodyText>A quiet place for a team, its pipeline and its agents to talk.</BodyText>
       <HealthStatus state={state} />
     </Stack>
   );

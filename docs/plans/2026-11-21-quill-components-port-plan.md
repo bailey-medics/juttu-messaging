@@ -2,15 +2,17 @@
 
 Juttu now wears Quill Medical's colours and its top ribbon, and `AGENTS.md` says every view is built from Juttu's own Storybook components, as Quill's are. But Juttu has almost no components to build from: its two pages, `HomePage` and `NotFoundPage`, still use Mantine's `Title`, `Text` and `Stack` directly, which the new rule forbids. The vision plan's next phases need more: the sign-in page in its Phase 9 needs Quill's form fields and buttons, and the spaces and conversations in its Phases 13 to 15 need cards, states, layouts and navigation.
 
-This plan ports Quill's generic components, with their stories and tests, in the order the pages need them: typography first, then icons and buttons, cards and badges, feedback states, forms, and layout and navigation. Each phase strips out anything about patients, teaching or Quill's own brand, and moves Juttu's pages and existing components onto the new pieces as it goes, so the rule holds by the end. Quill's clinical components stay behind, as the vision plan decided for its messaging code.
+This plan ports Quill's generic components, with their stories and tests, in the order the pages need them: typography first, then icons and buttons, cards and badges, feedback states, forms, and layout and navigation. Each phase strips out anything about patients, teaching or Quill's own brand, and moves Juttu's pages and existing components onto the new pieces as it goes, so the rule holds by the end. Quill's clinical components stay behind, except its chat components, which come across with their patient parts behind a `clinical` flag.
 
 ## Open questions
 
-- [ ] **Does Juttu port Quill's chat components now, or design its own for the vision plan's Phase 15?** Quill's `components/messaging/` (`Messaging`, `MessagesList`, `NewMessageModal`, `MessagingTriagePayment`) and `components/inbox/` (`InboxButton`, `RibbonInbox`) draw its conversations and the ribbon's inbox. The vision plan keeps Quill's messaging design but leaves its code behind, because it assumes a patient on every conversation. Porting the presentational parts now would give Phase 15 a start; designing Juttu's own would keep them free of Quill's assumptions. This plan leaves them out until this is answered.
+- [x] **Does Juttu port Quill's chat components now, or design its own for the vision plan's Phase 15?** Quill's `components/messaging/` (`Messaging`, `MessagesList`, `NewMessageModal`, `MessagingTriagePayment`) and `components/inbox/` (`InboxButton`, `RibbonInbox`) draw its conversations and the ribbon's inbox. The vision plan keeps Quill's messaging design but leaves its code behind, because it assumes a patient on every conversation. - Port them as they are, with a `clinical` flag for patient conversations. `Messaging`, `MessagesList`, `NewMessageModal`, `InboxButton` and `RibbonInbox` come across in Phase 7. The patient parts, the patient picker and the "patient as participant" switch in `NewMessageModal`, show only when `clinical` is true, and it is false by default, as a new space is non-clinical in the vision plan. Juttu holds no patient data in its first version, so those parts stay dormant until a clinical space exists. `MessagingTriagePayment`, Quill's billing demonstration, stays behind. Answered in `/t-g`, 21 November 2026.
 
-- [ ] **Are tables, search and sort ported in this plan (Phase 7), or when the first page needs them?** Quill's `tables/` (`DataTable` and its parts), `search/` and `sort/` are generic, but no page in the vision plan needs a table before its Phase 12, the members admin screen. Porting them now keeps the catalogue whole; waiting keeps this plan shorter and ports them against a real page.
+- [x] **Are tables, search and sort ported in this plan (Phase 7), or when the first page needs them?** Quill's `tables/` (`DataTable` and its parts), `search/` and `sort/` are generic, but no page in the vision plan needs a table before its Phase 12, the members admin screen. - Now, in this plan, as its Phase 8 (Phase 7 is now the chat components), so the catalogue holds them before any page needs them. Answered in `/t-g`, 21 November 2026.
 
-- [ ] **What does Juttu's page spinner look like?** Quill's `PageSpinner` turns `QuillSpinner`, an animation of Quill's own quill. Juttu needs its own, or none: Mantine's `Loader` in Quill's colours, or an animation of Juttu's speech bubble, drawn like the icons by `frontend/scripts/make-icons.py`. Phase 4 builds whichever is chosen.
+- [x] **What does Juttu's page spinner look like?** Quill's `PageSpinner` turns `QuillSpinner`, an animation of Quill's own quill. Juttu needs its own: Mantine's `Loader` in Quill's colours, or an animation of Juttu's speech bubble, drawn like the icons by `frontend/scripts/make-icons.py`. - An animation of Juttu's speech bubble, as Quill's spinner animates its quill. Phase 4 draws it. Answered in `/t-g`, 21 November 2026.
+
+- [x] **How does `/t-f` land each phase of this plan?** - Ready pull requests, with CI checked after every phase, as the skeleton plan ran. The Decisions section sets out how. Answered in `/t-g`, 21 November 2026.
 
 ## Before running /f
 
@@ -18,9 +20,9 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 1: Typography
 
-- [ ] Port Quill's typography components from `components/typography/` into `frontend/src/components/typography/`, each with its story and test: `PageHeader`, `Heading`, `BodyText`, `BodyTextBold`, `BodyTextInline`, `BodyTextClamp`, `TextLink`, `ExternalTextLink`, `ErrorMessage`, `EmptyState` and `FieldDescription`, and `Divider` from `components/divider/`. Leave out `PublicTitle` and `PublicBodyText`, which belong to Quill's public site, and `MarkdownView`, which needs a Markdown renderer no Juttu page uses yet. `PageHeader` sets the browser tab's title, from `appIdentity.name` in `theme.ts` where Quill uses its own name.
+- [x] Port Quill's typography components from `components/typography/` into `frontend/src/components/typography/`, each with its story and test: `PageHeader`, `Heading`, `BodyText`, `BodyTextBold`, `BodyTextInline`, `BodyTextClamp`, `TextLink`, `ExternalTextLink`, `ErrorMessage`, `EmptyState` and `FieldDescription`, and `Divider` from `components/divider/`. Leave out `PublicTitle` and `PublicBodyText`, which belong to Quill's public site, and `MarkdownView`, which needs a Markdown renderer no Juttu page uses yet. `PageHeader` sets the browser tab's title, from `appIdentity.name` in `theme.ts` where Quill uses its own name.
 
-- [ ] Move `HomePage`, `NotFoundPage` and the Foundations stories onto them: one `PageHeader` per page, `BodyText` for every paragraph, `TextLink` for the link home. Add a `.claude/rules/components.md`, scoped to `frontend/src/components/**` and ported from Quill's, with only the rules that name components Juttu now has (typography for all text, `PageHeader` once a page, `Heading` for sections) and the language and styling rules. Each later phase adds the rules for the components it brings. Safe to be on `main` on its own: it changes how two pages are drawn, and nothing else.
+- [x] Move `HomePage`, `NotFoundPage` and the Foundations stories onto them: one `PageHeader` per page, `BodyText` for every paragraph, `TextLink` for the link home. Add a `.claude/rules/components.md`, scoped to `frontend/src/components/**` and ported from Quill's, with only the rules that name components Juttu now has (typography for all text, `PageHeader` once a page, `Heading` for sections) and the language and styling rules. Each later phase adds the rules for the components it brings. Safe to be on `main` on its own: it changes how two pages are drawn, and nothing else.
 
 ## Phase 2: Icons, buttons and tooltips
 
@@ -36,7 +38,7 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 ## Phase 4: Feedback and states
 
-- [ ] Port the components that tell somebody what is happening: `ErrorState`, `ErrorBoundary` and `RouteErrorFallback` (wired into the router as its `errorElement`), `ConfirmModal` (leaving out `PasswordConfirmModal` until accounts exist), `OfflineModal`, `UpdatingBanner`, and `ResultMessage` and `StateMessage` from `components/message-cards/`. Build `PageSpinner` as the open question above decides, and use it as the router's fallback while a page loads. Leave out Quill's `QuillSpinner`.
+- [ ] Port the components that tell somebody what is happening: `ErrorState`, `ErrorBoundary` and `RouteErrorFallback` (wired into the router as its `errorElement`), `ConfirmModal` (leaving out `PasswordConfirmModal` until accounts exist), `OfflineModal`, `UpdatingBanner`, and `ResultMessage` and `StateMessage` from `components/message-cards/`. Build `PageSpinner` on an animation of Juttu's speech bubble, the same shape as its icon in `frontend/scripts/make-icons.py`, drawn as an SVG in the brand navy and mark colours, as Quill's `QuillSpinner` animates its quill. For somebody whose system asks for reduced motion it shows the bubble still, as Quill's does. Use it as the router's fallback while a page loads. Leave out `QuillSpinner`.
 
 ## Phase 5: Forms
 
@@ -48,11 +50,27 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 - [ ] Move `RootLayout` onto `MainLayout`, and give `TopRibbon` Quill's burger button and narrow layout back, so the side navigation folds behind the burger on a phone, as in Quill. Add Quill's page rules that now apply to `.claude/rules/pages.md`: right-aligned buttons, and a child navigation link for each new page.
 
-## Phase 7: Tables, search and sort
+## Phase 7: Chat and inbox
 
-- [ ] Only if the open question above says now: port `DataTable`, `DataTableWithResults`, `DataTableControlled`, `DataCard`, `CellContent`, `CellLines`, `SortHeader` and `TablePagination` from `components/tables/`, `SearchFields` from `components/search/`, and `SortChevron` from `components/sort/`, with their stories and tests.
+- [ ] Port Quill's chat components as they are, with their stories and tests: `Messaging` and `MessagesList` from `components/messaging/`, which draw a conversation, and `InboxButton` and `RibbonInbox` from `components/inbox/`, which put the inbox in the top ribbon. Wire `RibbonInbox` into `TopRibbon`'s right-hand section beside the install button, showing nothing until there is something to read. Leave out `MessagingTriagePayment`, Quill's billing demonstration.
+
+- [ ] Port `NewMessageModal` with a `clinical` prop, false by default. When it is false, the modal shows no patient picker and no "patient as participant" switch; when it is true, it shows both, as Quill's does. The modal takes its patients and its users as props instead of fetching them from Quill's API, because Juttu has no API for either yet; the page that opens it fetches them. Stories show it both ways, and tests pin that a non-clinical modal never shows a patient field. Juttu holds no patient data in its first version, so the clinical form stays dormant until the vision plan builds clinical spaces.
+
+## Phase 8: Tables, search and sort
+
+- [ ] Port `DataTable`, `DataTableWithResults`, `DataTableControlled`, `DataCard`, `CellContent`, `CellLines`, `SortHeader` and `TablePagination` from `components/tables/`, `SearchFields` from `components/search/`, and `SortChevron` from `components/sort/`, with their stories and tests. Strip any column or cell that names a patient.
 
 ## Decisions
+
+- **How `/t-f` runs this plan: ready pull requests, and CI checked after every phase** - answered in `/t-g` on 21 November 2026, as the skeleton plan ran. It overrides two defaults in `/t-f`, for this plan only:
+
+  1. **Finish each phase with `/t-crpd`, not `/t-crpd draft`**, so its pull request is marked ready straight away.
+  2. **Then check CI on every pull request in the stack** that carries the workflow, with `gh run list` and `gh run view` for each branch. A check still running is left for the next phase's round.
+  3. **If a check has failed, stop the plan and fix it before the next phase.** Read the failing job's log, reproduce it locally and fix the code, not the check. Then run the same check locally and the branch's tests, and confirm both pass.
+  4. **Fold the fix into the branch it belongs to**, with `just -g stack-move`, `just -g stack-update`, `just -g stack-rebase` and `just -g stack-submit`, and rewrite that pull request's description if the fix changed what it says. This is authorised for this run only.
+  5. **Go back to the top of the stack and carry on** with the next phase.
+
+  The usual two-attempt rule applies. A check that fails because Amazon's image registry refused a pull ("429 Too Many Requests") is re-run once, not fixed. After the last phase, wait for every check to finish, and fix any that fail the same way before reporting the run done.
 
 - **Ported from Quill Medical, with the clinical parts stripped** - Quill's components have already met the accessibility and layout problems a new catalogue meets: badges cut short, touch targets too small on a phone, a modal close button with no name. Each phase ports a component as Quill has it, then removes what assumes a patient, a teaching module or Quill's own brand.
 
@@ -62,4 +80,16 @@ This plan ports Quill's generic components, with their stories and tests, in the
 
 - **Quill's component rules arrive with their components** - Quill's `.claude/rules/components.md` names components such as `BaseCard`, `PageHeader` and `Icon`. Adding it whole now would point at components Juttu does not have, so each phase adds the rules for the components it ports.
 
-- **Not ported** - `passport`, `teaching`, `safety`, `patients`, `letters`, `demographics`, `appointments`, `registration`, `member-lookup`, `member-practice`, `admin`, `add-staff-form`, `documents`, `notes`, `profile-pic`, `gender-icon`, `newsletter`, `retention`, `records-kept-card`, `enabled-features-card`, `stats-card`, `feedback`, `media-dropzone`, `multi-step-form`, `images` and Quill's public-site components. Each is clinical, teaching, or about Quill itself. One may come across later when a vision plan phase needs it, as its own step.
+- **Not ported** - `MessagingTriagePayment`, `passport`, `teaching`, `safety`, `patients`, `letters`, `demographics`, `appointments`, `registration`, `member-lookup`, `member-practice`, `admin`, `add-staff-form`, `documents`, `notes`, `profile-pic`, `gender-icon`, `newsletter`, `retention`, `records-kept-card`, `enabled-features-card`, `stats-card`, `feedback`, `media-dropzone`, `multi-step-form`, `images` and Quill's public-site components. Each is clinical, teaching, or about Quill itself. One may come across later when a vision plan phase needs it, as its own step.
+
+## Found while building
+
+- **`PageHeader` came across without Quill's page-message slot** - 21 November 2026, Phase 1. Quill's `PageHeader` shows a page's status messages under the title, through `components/page-message/`, which no phase listed. Phase 4, the feedback components, brings `components/page-message/` and puts the slot back.
+
+- **The icon register started in Phase 1** - Quill's `ErrorMessage` uses `IconAlertCircle` from `components/icons/appIcons.ts`. Phase 1 added `@tabler/icons-react` and an `appIcons.ts` holding that one icon; Phase 2 brings the rest of the register and the `Icon` wrapper.
+
+- **Quill's test helpers and story helpers came across** - `src/test/test-utils.tsx` gives Quill's `renderWithMantine` and `renderWithRouter`, so the ported tests run unchanged, with a `cssClass` helper for Juttu's stricter index checks. `src/stories/variants.tsx` is Quill's, as it was. Vitest now runs with `css: true`, as Quill's does, so a test sees a CSS module's real class names.
+
+- **Every story is found and rendered by itself** - `src/stories.test.tsx` finds every `*.stories.tsx` with `import.meta.glob`, instead of a list kept by hand, and Storybook wraps every story in a memory router, as Quill's does.
+
+- **The home page's title is "Home"** - `PageHeader` sets the browser tab's title too, so a home page titled "Juttu" would read "Juttu - Juttu". The ribbon already shows the name.

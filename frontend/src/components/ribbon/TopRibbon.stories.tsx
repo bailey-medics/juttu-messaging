@@ -1,20 +1,12 @@
 import { Button } from "@mantine/core";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ReactElement } from "react";
-import { createMemoryRouter, RouterProvider } from "react-router";
 
 import TopRibbon from "@/components/ribbon/TopRibbon";
-
-/** The ribbon's name links home, so each story sits inside a router. */
-function inRouter(element: ReactElement) {
-  return <RouterProvider router={createMemoryRouter([{ path: "/", element }])} />;
-}
 
 const meta = {
   title: "Components/TopRibbon",
   component: TopRibbon,
   parameters: { layout: "fullscreen" },
-  render: (args) => inRouter(<TopRibbon {...args} />),
 } satisfies Meta<typeof TopRibbon>;
 
 export default meta;
@@ -39,5 +31,5 @@ export const NarrowWithRightSection: Story = {
   args: {
     rightSection: <Button variant="white">Install Juttu</Button>,
   },
-  render: (args) => <div style={{ width: 360 }}>{inRouter(<TopRibbon {...args} />)}</div>,
+  decorators: [(Story) => <div style={{ width: 360 }}>{Story()}</div>],
 };

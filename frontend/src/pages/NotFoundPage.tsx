@@ -1,15 +1,16 @@
-import { Anchor, Stack, Text, Title } from "@mantine/core";
-import { Link } from "react-router";
+import { Stack } from "@mantine/core";
+
+import { BodyText, PageHeader, TextLink } from "@/components/typography";
 
 /** Shown for an address that matches no page. */
 export default function NotFoundPage() {
   return (
     <Stack gap="md">
-      <Title order={1}>Page not found</Title>
-      <Text>There is no page at this address.</Text>
-      <Anchor component={Link} to="/">
+      <PageHeader title="Page not found" />
+      <BodyText>There is no page at this address.</BodyText>
+      <TextLink to="/" standalone>
         Go to the home page
-      </Anchor>
+      </TextLink>
     </Stack>
   );
 }

@@ -1,4 +1,6 @@
-import { Badge, Group, Text } from "@mantine/core";
+import { Badge, Group } from "@mantine/core";
+
+import { BodyText } from "@/components/typography";
 
 /** Where the health check has got to. */
 export type HealthState = "checking" | "up" | "down";
@@ -45,7 +47,7 @@ export default function HealthStatus({ state }: HealthStatusProps) {
       <Badge color={colour} c={textColour} size="lg">
         {label}
       </Badge>
-      <Text>{detail}</Text>
+      <BodyText>{detail}</BodyText>
     </Group>
   );
 }

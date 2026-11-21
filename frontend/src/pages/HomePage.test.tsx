@@ -8,7 +8,7 @@ describe("HomePage", () => {
 
     renderAt("/");
 
-    expect(screen.getByRole("heading", { level: 1, name: "Juttu" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
     expect(await screen.findByText("Backend up")).toBeInTheDocument();
   });
 

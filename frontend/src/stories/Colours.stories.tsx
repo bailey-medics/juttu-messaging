@@ -6,9 +6,10 @@
  * surfaces the dark scheme uses.
  */
 
-import { Badge, Group, SimpleGrid, Stack, Title } from "@mantine/core";
+import { Badge, Group, SimpleGrid, Stack } from "@mantine/core";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
+import { Heading } from "@/components/typography";
 import Swatch from "@/stories/Swatch";
 import {
   brandColours,
@@ -56,7 +57,7 @@ function Ramp({
 }) {
   return (
     <Stack gap="xs">
-      <Title order={2}>{name}</Title>
+      <Heading>{name}</Heading>
       <SimpleGrid cols={{ base: 1, sm: 2 }}>
         {shades.map((shade, index) => (
           <Swatch key={shade} name={`${name}.${index}`} colour={shade} use={uses[index]} />
@@ -70,7 +71,7 @@ function Colours() {
   return (
     <Stack gap="xl">
       <Stack gap="xs">
-        <Title order={2}>Brand</Title>
+        <Heading>Brand</Heading>
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <Swatch name="Primary" colour={brandColours.primary} use="navy" />
           <Swatch name="Secondary" colour={brandColours.secondary} use="amber" />
@@ -82,7 +83,7 @@ function Colours() {
       <Ramp name="secondary" shades={secondaryScale} uses={SECONDARY_USES} />
       <Ramp name="gray" shades={greyScale} uses={[]} />
       <Stack gap="xs">
-        <Title order={2}>Status</Title>
+        <Heading>Status</Heading>
         <Group gap="sm">
           {Object.entries(statusColourValues).map(([name, colour]) => (
             <Badge

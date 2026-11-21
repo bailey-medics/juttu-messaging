@@ -7,6 +7,7 @@ import "../src/styles/disabled-controls.css";
 
 import { MantineProvider } from "@mantine/core";
 import type { Decorator, Preview } from "@storybook/react-vite";
+import { createMemoryRouter, RouterProvider } from "react-router";
 
 import { cssVariablesResolver, theme } from "../src/theme";
 
@@ -40,8 +41,32 @@ const withMantine: Decorator = (Story, context) => {
   );
 };
 
+/**
+ * Every story renders inside a memory router, as in Quill Medical's
+ * Storybook, so a component with a link needs nothing of its own. A story
+ * opts out with `parameters.disableDefaultRouter`, and sets the address with
+ * `parameters.routerPath`.
+ */
+const withRouter: Decorator = (Story, context) => {
+  const parameters: Record<string, unknown> = context.parameters;
+
+  if (parameters["disableDefaultRouter"]) {
+    return <Story />;
+  }
+
+  const routerPath = parameters["routerPath"];
+  const initialPath = typeof routerPath === "string" ? routerPath : "/";
+  const router = createMemoryRouter([{ path: "*", element: <Story /> }], {
+    initialEntries: [initialPath],
+  });
+
+  return <RouterProvider router={router} />;
+};
+
 const preview: Preview = {
-  decorators: [withMantine],
+  // Storybook applies the last decorator outermost: the router sits inside
+  // the theme.
+  decorators: [withRouter, withMantine],
   globalTypes: {
     colorScheme: {
       description: "Light or dark mode",

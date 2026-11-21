@@ -1,4 +1,6 @@
-import { Box, Group, Stack, Text } from "@mantine/core";
+import { Box, Group, Stack } from "@mantine/core";
+
+import { BodyText, BodyTextBold } from "@/components/typography";
 
 export interface SwatchProps {
   /** What the colour is called, such as "primary.5". */
@@ -21,10 +23,8 @@ export default function Swatch({ name, colour, use }: SwatchProps) {
         aria-hidden
       />
       <Stack gap={0}>
-        <Text fw={700}>{name}</Text>
-        <Text size="sm" c="dimmed">
-          {use ? `${colour}, ${use}` : colour}
-        </Text>
+        <BodyTextBold>{name}</BodyTextBold>
+        <BodyText c="dimmed">{use ? `${colour}, ${use}` : colour}</BodyText>
       </Stack>
     </Group>
   );
