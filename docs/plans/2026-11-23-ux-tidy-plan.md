@@ -256,7 +256,7 @@ Found while building, 23 November 2026:
 
 ## Phase 4: each space has a kind, Dev, Personal or Clinical
 
-- [ ] **Add `Space.kind`**, `backend/app/spaces/models.py`: a
+- [x] **Add `Space.kind`**, `backend/app/spaces/models.py`: a
       `TextChoices` of `dev`, `personal` and `clinical`, labelled "Dev",
       "Personal" and "Clinical", in that order, which is Home's order
       until a person sets their own. Keep `is_clinical` as it is, since
@@ -266,7 +266,7 @@ Found while building, 23 November 2026:
       the kind `clinical` and every other one `dev`. It deletes nothing,
       and undoing it drops the column.
 
-- [ ] **Choose the kind when a space is made.** `create_space` in
+- [x] **Choose the kind when a space is made.** `create_space` in
       `backend/app/spaces/services.py` takes `kind` and sets
       `is_clinical` from it, and the audit detail records it. `POST
 /api/spaces` takes `kind`, defaulting to `dev`, and still accepts
@@ -276,10 +276,27 @@ Found while building, 23 November 2026:
       warning kept. A kind is fixed once the space is made, as the
       clinical flag is.
 
-- [ ] **Tests and stories:** the migration's mapping, the constraint
+- [x] **Tests and stories:** the migration's mapping, the constraint
       refusing a clinical space of another kind, each kind made through
       the route, and the old `is_clinical` still working. The "New space"
       page test and story for the three kinds.
+
+Found while building, 23 November 2026:
+
+- **The "New space" page had no clinical switch**, only a name, so
+  every space it made was Dev in all but name. It now uses a new
+  `NewSpaceForm`, in `components/spaces/`, built from `Form`,
+  `TextField` and `RadioField`, with a line under the choice saying what
+  the kind is for. Clinical's line says Juttu holds no patient details
+  yet, so none should be typed.
+- **Choosing Clinical now really makes a clinical space** from the page.
+  Nothing in Juttu reads `is_clinical` yet beyond the spaces app, and
+  patient fields stay off everywhere, so it changes nothing else.
+- **The migration's test runs inside the test's own transaction.** The
+  audit table refuses the `TRUNCATE` a test with real transactions needs
+  to clear up, and Postgres can change tables inside a transaction.
+- **`create_space` takes `kind` in place of `is_clinical`**, so its ten
+  callers, all in tests but one, pass `kind=SpaceKind.DEV`.
 
 ## Phase 5: channel icons, and turning people's circles off
 

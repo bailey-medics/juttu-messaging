@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from app.accounts.models import User
 from app.organisations.competencies import Competency
 from app.organisations.services import holds, the_organisation
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import (
     SpaceRefused,
     add_to_space,
@@ -32,10 +32,32 @@ from app.spaces.services import (
 
 
 class NewSpaceSerializer(serializers.Serializer[dict[str, Any]]):
-    """A new space's name, and whether it is clinical (no, unless said)."""
+    """A new space's name and kind, Dev unless said.
+
+    ``is_clinical`` is still taken from an older form: ``true`` means
+    Clinical. Sent with a kind that disagrees, it is refused.
+    """
 
     name = serializers.CharField(max_length=100, trim_whitespace=True)
-    is_clinical = serializers.BooleanField(default=False)
+    kind = serializers.ChoiceField(choices=SpaceKind.choices, required=False)
+    is_clinical = serializers.BooleanField(required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        is_clinical = attrs.pop("is_clinical", None)
+        kind = attrs.get("kind")
+
+        if kind is None:
+            kind = SpaceKind.CLINICAL if is_clinical else SpaceKind.DEV
+        elif is_clinical is not None and is_clinical != (
+            kind == SpaceKind.CLINICAL
+        ):
+            raise serializers.ValidationError(
+                "A space is clinical exactly when its kind is Clinical."
+            )
+
+        attrs["kind"] = SpaceKind(kind)
+
+        return attrs
 
 
 class AddToSpaceSerializer(serializers.Serializer[dict[str, Any]]):
@@ -58,6 +80,7 @@ def space_body(space: Space) -> dict[str, object]:
         "id": space.pk,
         "name": space.name,
         "is_clinical": space.is_clinical,
+        "kind": space.kind,
     }
 
 
@@ -98,7 +121,7 @@ class SpacesView(APIView):
         space = create_space(
             the_organisation(),
             serializer.validated_data["name"],
-            is_clinical=serializer.validated_data["is_clinical"],
+            kind=serializer.validated_data["kind"],
             by=user,
         )
 

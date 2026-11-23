@@ -10,7 +10,7 @@ from app.organisations.services import (
     make_first_admin,
     the_organisation,
 )
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import add_to_space, create_space, is_in
 
 pytestmark = pytest.mark.django_db
@@ -37,7 +37,7 @@ def alex() -> User:
 @pytest.fixture
 def release(admin: User) -> Space:
     return create_space(
-        the_organisation(), "Release", is_clinical=False, by=admin
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=admin
     )
 
 
@@ -83,7 +83,7 @@ def test_only_somebody_who_manages_spaces_can_make_one(alex: User) -> None:
 def test_a_member_lists_only_their_own_spaces(
     admin: User, alex: User, release: Space
 ) -> None:
-    create_space(the_organisation(), "Social", is_clinical=False, by=admin)
+    create_space(the_organisation(), "Social", kind=SpaceKind.DEV, by=admin)
     add_to_space(release, alex, by=admin)
 
     response = signed_in(alex).get("/api/spaces")

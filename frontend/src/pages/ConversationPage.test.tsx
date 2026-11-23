@@ -14,7 +14,7 @@ const hello = {
   reply_count: 0,
 };
 
-const release = { id: 7, name: "Release", is_clinical: false };
+const release = { id: 7, name: "Release", is_clinical: false, kind: "dev" };
 
 function spaceRoutes(conversations: unknown[]) {
   return {

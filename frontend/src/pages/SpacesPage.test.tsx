@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { renderAt, SIGNED_IN, stubFetchRoutes } from "@/test/render";
 
-const release = { id: 7, name: "Release", is_clinical: false };
+const release = { id: 7, name: "Release", is_clinical: false, kind: "dev" };
 const member = { ...SIGNED_IN, user: { ...SIGNED_IN.user, is_admin: false } };
 
 function space(extra: Record<string, { body: unknown; status?: number }> = {}) {
@@ -64,6 +64,28 @@ describe("the spaces pages", () => {
       await screen.findByRole("heading", { level: 1, name: "Release" }),
     ).toBeInTheDocument();
     expect(await screen.findByText("Release made")).toBeInTheDocument();
+  });
+
+  it("makes a space of the kind chosen", async () => {
+    stubFetchRoutes({
+      ...space(),
+      "/api/spaces": { body: { ...release, kind: "personal" }, status: 201 },
+    });
+    renderAt("/spaces/new");
+
+    await userEvent.type(await screen.findByLabelText(/Space name/), "Release");
+    await userEvent.click(screen.getByRole("radio", { name: "Personal" }));
+    await userEvent.click(screen.getByRole("button", { name: "Make space" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Release" }),
+    ).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/spaces",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ name: "Release", kind: "personal" }),
+      }),
+    );
   });
 
   it("shows 'Page not found' for a space the person is not in", async () => {

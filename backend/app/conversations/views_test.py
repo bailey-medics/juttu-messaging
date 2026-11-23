@@ -17,7 +17,7 @@ from app.organisations.services import (
     make_first_admin,
     the_organisation,
 )
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import add_to_space, create_space
 
 if TYPE_CHECKING:
@@ -56,7 +56,7 @@ def priya() -> User:
 @pytest.fixture
 def release(sam: User, alex: User, priya: User) -> Space:
     space = create_space(
-        the_organisation(), "Release", is_clinical=False, by=sam
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(space, alex, by=sam)
     add_to_space(space, priya, by=sam)
@@ -556,7 +556,7 @@ def test_home_lists_every_conversation_across_spaces_newest_first(
     sam: User, alex: User, release: Space, general: Conversation
 ) -> None:
     design = create_space(
-        the_organisation(), "Design", is_clinical=False, by=sam
+        the_organisation(), "Design", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(design, alex, by=sam)
     ideas = start_channel(design, "ideas", by=sam)
