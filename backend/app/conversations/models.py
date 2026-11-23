@@ -125,9 +125,11 @@ class Message(models.Model):
 class ReadPoint(models.Model):
     """How far one person has read in one conversation.
 
-    The newest message they have seen, by its id, which only grows. Unlike
-    a message this row changes, as reading moves on; it says what a person
-    has seen, never what anybody said.
+    The newest message they have seen, and the newest living card, each by
+    its id, which only grows. A card counts once, when it is made: a card
+    changing in place, such as a run going from "Running" to "Passed", is
+    not new to anybody. Unlike a message this row changes, as reading moves
+    on; it says what a person has seen, never what anybody said.
     """
 
     conversation = models.ForeignKey(
@@ -139,6 +141,7 @@ class ReadPoint(models.Model):
         related_name="read_points",
     )
     last_read_message_id = models.BigIntegerField(default=0)
+    last_read_card_id = models.BigIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

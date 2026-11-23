@@ -8,6 +8,8 @@ from django.test import Client
 
 from app.accounts.models import User
 from app.audit.models import AuditEvent
+from app.cards.models import Card
+from app.cards.services import receive
 from app.conversations.models import PROTECTION_NONE, Conversation, Message
 from app.conversations.services import post, start_channel, start_direct
 from app.organisations.services import (
@@ -444,6 +446,103 @@ def test_nobody_marks_a_conversation_they_cannot_read(
     assert response.status_code == 404
 
 
+def run_card(conversation: Conversation, run: str, line: str) -> Card:
+    """A living card, as the GitHub watcher sends one, made or changed."""
+    event = receive(
+        conversation,
+        "outside",
+        {
+            "sender": 1,
+            "key": run,
+            "title": f"Run {run}",
+            "line": line,
+            "needs_somebody": False,
+        },
+    )
+
+    return event.card
+
+
+def mark(client: Client, conversation: Conversation, **seen: int) -> int:
+    response = client.post(
+        f"/api/conversations/{conversation.pk}/read",
+        seen,
+        content_type="application/json",
+    )
+
+    return response.status_code
+
+
+def test_a_new_card_counts_as_unread_once_however_it_changes(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    run_card(general, "41", "Running")
+    run_card(general, "41", "Passed")
+    run_card(general, "42", "Running")
+
+    assert unread_of(signed_in(priya), release)[general.pk] == 2
+
+
+def test_cards_and_messages_add_up_until_both_are_marked(
+    alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    message = post(general, "Deploying now.", by=alex)
+    card = run_card(general, "41", "Running")
+    client = signed_in(priya)
+
+    assert unread_of(client, release)[general.pk] == 2
+
+    assert mark(client, general, card_id=card.pk) == 204
+    assert unread_of(client, release)[general.pk] == 1
+
+    assert mark(client, general, message_id=message.pk, card_id=card.pk) == 204
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_a_seen_card_changing_is_not_unread_again(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    card = run_card(general, "41", "Running")
+    client = signed_in(priya)
+    mark(client, general, card_id=card.pk)
+
+    run_card(general, "41", "Passed")
+
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_the_card_read_point_never_moves_back(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    first = run_card(general, "41", "Running")
+    second = run_card(general, "42", "Running")
+    client = signed_in(priya)
+
+    for card in (second, first):
+        mark(client, general, card_id=card.pk)
+
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_a_card_from_another_conversation_moves_nothing(
+    sam: User, priya: User, release: Space, general: Conversation
+) -> None:
+    other = start_channel(release, "ci", by=sam)
+    run_card(general, "41", "Running")
+    elsewhere = run_card(other, "99", "Running")
+    client = signed_in(priya)
+
+    mark(client, general, card_id=elsewhere.pk)
+
+    assert unread_of(client, release)[general.pk] == 1
+
+
+def test_marking_read_needs_a_message_or_a_card(
+    priya: User, general: Conversation
+) -> None:
+    assert mark(signed_in(priya), general) == 400
+
+
 def home_list(user: User) -> list[dict[str, object]]:
     response = signed_in(user).get("/api/conversations")
     assert response.status_code == 200
@@ -504,3 +603,26 @@ def test_home_lists_a_conversation_once_however_it_is_reached(
 
 def test_home_needs_somebody_signed_in(client: Client) -> None:
     assert client.get("/api/conversations").status_code == 403
+
+
+def test_home_puts_a_conversation_with_a_new_card_first(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    ci = start_channel(release, "ci", by=sam)
+    post(general, "Morning.", by=sam)
+
+    run_card(ci, "41", "Running")
+
+    assert [c["id"] for c in home_list(alex)][:2] == [ci.pk, general.pk]
+
+
+def test_a_card_changing_does_not_move_its_conversation_up(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    ci = start_channel(release, "ci", by=sam)
+    run_card(ci, "41", "Running")
+    post(general, "Morning.", by=sam)
+
+    run_card(ci, "41", "Passed")
+
+    assert [c["id"] for c in home_list(alex)][:2] == [general.pk, ci.pk]

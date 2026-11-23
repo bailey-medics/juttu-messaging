@@ -12,7 +12,7 @@ import HealthStatus, { type HealthState } from "@/components/health-status/Healt
 import { NotificationsCard } from "@/components/notifications";
 import DataTable from "@/components/tables/DataTable";
 import { BodyText, Heading, PageHeader } from "@/components/typography";
-import { useLiveMessages } from "@/live/LiveContext";
+import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
 import { browserPush, enablePush, pushState, type PushState } from "@/pwa/push";
 
 import { apiFailure } from "./apiFailure";
@@ -48,9 +48,10 @@ export default function HomePage() {
     void loadConversations();
   }, [loadConversations]);
 
-  // Any new message changes an unread count and the order, and may be the
-  // first in a direct conversation just started.
+  // Any new message or card changes an unread count and the order, and a
+  // message may be the first in a direct conversation just started.
   useLiveMessages(() => void loadConversations());
+  useLiveCards(() => void loadConversations());
 
   function open(conversation: HomeConversation) {
     void navigate(`/conversations/${conversation.id}`, {

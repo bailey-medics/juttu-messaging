@@ -27,7 +27,7 @@ import { AddToSpaceForm, NameForm } from "@/components/spaces";
 import DataTable from "@/components/tables/DataTable";
 import { usePageMessage } from "@/components/page-message";
 import { Heading, PageHeader } from "@/components/typography";
-import { useLiveMessages } from "@/live/LiveContext";
+import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
 
 import { apiFailure } from "./apiFailure";
 
@@ -79,15 +79,19 @@ export default function SpacePage() {
     void load();
   }, [load]);
 
-  // A new message anywhere in this space changes its unread counts, and
-  // may be the first in a direct conversation just started.
-  useLiveMessages(({ space: from }) => {
+  // A new message or card anywhere in this space changes its unread
+  // counts, and a message may be the first in a direct conversation just
+  // started.
+  function reloadIfHere(from: number) {
     if (from === id) {
       listConversations(id)
         .then(setConversations)
         .catch(() => {});
     }
-  });
+  }
+
+  useLiveMessages(({ space: from }) => reloadIfHere(from));
+  useLiveCards(({ space: from }) => reloadIfHere(from));
 
   useEffect(() => {
     if (isAdmin) {

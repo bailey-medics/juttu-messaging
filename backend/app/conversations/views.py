@@ -303,9 +303,19 @@ class RepliesView(APIView):
 
 
 class ReadSerializer(serializers.Serializer[dict[str, Any]]):
-    """The newest message the person has seen."""
+    """The newest message and the newest card the person has seen: either,
+    or both."""
 
-    message_id = serializers.IntegerField(min_value=1)
+    message_id = serializers.IntegerField(min_value=1, required=False)
+    card_id = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if "message_id" not in attrs and "card_id" not in attrs:
+            raise serializers.ValidationError(
+                "Say the newest message or card seen."
+            )
+
+        return attrs
 
 
 class MarkReadView(APIView):
@@ -319,7 +329,14 @@ class MarkReadView(APIView):
         serializer = ReadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        mark_read(user, conversation, serializer.validated_data["message_id"])
+        seen = serializer.validated_data
+
+        mark_read(
+            user,
+            conversation,
+            message_id=seen.get("message_id"),
+            card_id=seen.get("card_id"),
+        )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

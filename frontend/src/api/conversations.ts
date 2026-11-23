@@ -161,7 +161,22 @@ export async function listReplies(messageId: number): Promise<ChatMessage[]> {
   );
 }
 
-/** Say the person has seen everything up to message *messageId*. */
-export async function markRead(conversationId: number, messageId: number): Promise<void> {
-  await apiRequest("POST", `/conversations/${conversationId}/read`, { message_id: messageId });
+/** The newest message and the newest card the person has seen: either, or both. */
+export interface Seen {
+  messageId?: number;
+  cardId?: number;
+}
+
+/** Say the person has seen everything up to these. */
+export async function markRead(conversationId: number, seen: Seen): Promise<void> {
+  const body: Record<string, number> = {};
+
+  if (seen.messageId !== undefined) {
+    body.message_id = seen.messageId;
+  }
+  if (seen.cardId !== undefined) {
+    body.card_id = seen.cardId;
+  }
+
+  await apiRequest("POST", `/conversations/${conversationId}/read`, body);
 }

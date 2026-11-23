@@ -232,5 +232,34 @@ describe("HomePage", () => {
         ).toBe(before.length + 1),
       );
     });
+
+    it("shows a new card's unread count without a refresh", async () => {
+      stubEventSource();
+      stubFetchRoutes(routes([{ ...general, unread_count: 0 }]));
+      renderAt("/");
+      await screen.findByText("general");
+
+      stubFetchRoutes(routes([{ ...general, unread_count: 1 }]));
+      latestStream().emit(
+        "card",
+        {
+          conversation: 11,
+          space: 7,
+          card: {
+            id: 5,
+            kind: "outside",
+            title: "Run 4512",
+            state: { line: "Running" },
+            needs_attention: false,
+            created_at: "2026-11-21T20:31:00Z",
+            updated_at: "2026-11-21T20:31:00Z",
+            events: [{ id: 1, summary: "Running", received_at: "2026-11-21T20:31:00Z" }],
+          },
+        },
+        "0.1",
+      );
+
+      expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
+    });
   });
 });

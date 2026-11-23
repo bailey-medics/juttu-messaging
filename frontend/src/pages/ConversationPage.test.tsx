@@ -315,6 +315,39 @@ describe("the conversation page", () => {
 
       expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
     });
+
+    it("refreshes a space's unread counts when a card arrives in it", async () => {
+      stubEventSource();
+      stubFetchRoutes(
+        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 0 }]),
+      );
+      renderAt("/spaces/7");
+      await screen.findByText("general");
+
+      stubFetchRoutes(
+        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 1 }]),
+      );
+      latestStream().emit(
+        "card",
+        {
+          conversation: 11,
+          space: 7,
+          card: {
+            id: 5,
+            kind: "outside",
+            title: "Run 4512",
+            state: { line: "Running" },
+            needs_attention: false,
+            created_at: "2026-11-21T10:05:00Z",
+            updated_at: "2026-11-21T10:05:00Z",
+            events: [{ id: 1, summary: "Running", received_at: "2026-11-21T10:05:00Z" }],
+          },
+        },
+        "0.1",
+      );
+
+      expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
+    });
   });
 
   describe("cards", () => {
@@ -386,6 +419,35 @@ describe("the conversation page", () => {
       expect(await screen.findByText("Failed on lint")).toBeInTheDocument();
       expect(screen.getByText("Needs you")).toBeInTheDocument();
       expect(screen.getAllByText("Build 41 on main")).toHaveLength(1);
+    });
+
+    it("marks the cards read up to the newest on opening", async () => {
+      openWithCards([failing, { ...failing, id: 8, title: "Build 42" }]);
+
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          "/api/conversations/11/read",
+          expect.objectContaining({ method: "POST", body: JSON.stringify({ card_id: 8 }) }),
+        ),
+      );
+    });
+
+    it("marks a new card read as it arrives live", async () => {
+      openWithCards([]);
+      await screen.findByText("Later.");
+
+      latestStream().emit(
+        "card",
+        { conversation: 11, space: 7, card: { ...failing, id: 6, title: "Build 42" } },
+        "0.2",
+      );
+
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          "/api/conversations/11/read",
+          expect.objectContaining({ body: JSON.stringify({ card_id: 6 }) }),
+        ),
+      );
     });
 
     it("adds a new card that arrives live, but not one from elsewhere", async () => {

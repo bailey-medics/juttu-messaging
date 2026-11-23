@@ -35,7 +35,20 @@ function markSeen(conversationId: number, seen: ChatMessage[]) {
   const newest = Math.max(0, ...seen.map((m) => m.id));
 
   if (newest > 0) {
-    markRead(conversationId, newest).catch(() => {});
+    markRead(conversationId, { messageId: newest }).catch(() => {});
+  }
+}
+
+/**
+ * Say the person has seen these cards, by the newest of them. A card
+ * counts as unread once, when it is made, so a card changing needs no
+ * marking: the newest card id has not moved.
+ */
+function markCardsSeen(conversationId: number, seen: LivingCard[]) {
+  const newest = Math.max(0, ...seen.map((c) => c.id));
+
+  if (newest > 0) {
+    markRead(conversationId, { cardId: newest }).catch(() => {});
   }
 }
 
@@ -140,7 +153,10 @@ export default function ConversationPage() {
       markSeen(id, found);
       // Cards only add to the page, so one that fails to load is left out.
       listCards(id)
-        .then(setCards)
+        .then((found) => {
+          setCards(found);
+          markCardsSeen(id, found);
+        })
         .catch(() => setCards([]));
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
@@ -176,6 +192,7 @@ export default function ConversationPage() {
   useLiveCards(({ conversation, card }) => {
     if (conversation === id) {
       setCards((current) => withCard(current, card));
+      markCardsSeen(id, [card]);
     }
   });
 
