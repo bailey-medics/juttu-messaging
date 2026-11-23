@@ -8,6 +8,7 @@ import {
   type ShownPerson,
 } from "@/api/conversations";
 
+import { getSpaceOrder } from "@/api/spaces";
 import { IconAlertCircle, IconMessage } from "@/components/icons/appIcons";
 import StateMessage from "@/components/message-cards/StateMessage";
 import { MessagesList, type MessageThread } from "@/components/messaging";
@@ -22,8 +23,9 @@ import { groupBySpace } from "./homeGroups";
 /**
  * The first page, titled "Conversations": every conversation the person
  * may read, under its space's name, as Quill Medical lists patient
- * conversations. Spaces come Dev, then Personal, then Clinical, and each
- * space's conversations most recently active first. Each row shows the
+ * conversations. Spaces come in the person's own order, set on the
+ * Settings page, or else Dev, then Personal, then Clinical; each space's
+ * conversations most recently active first. Each row shows the
  * other people's initials, or the conversation's own icon, then its newest
  * message or card change. Notifications are set on the Settings page.
  */
@@ -31,6 +33,16 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<HomeConversation[] | null>(null);
   const [conversationsFailed, setConversationsFailed] = useState<string | null>(null);
+
+  // The person's own order of their spaces. Until it loads, or if it
+  // cannot, spaces come in kind order.
+  const [spaceOrder, setSpaceOrderIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    getSpaceOrder()
+      .then((spaces) => setSpaceOrderIds(spaces.map((space) => space.id)))
+      .catch(() => setSpaceOrderIds([]));
+  }, []);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -109,7 +121,7 @@ export default function HomePage() {
           colour="info"
         />
       ) : (
-        groupBySpace(conversations).map((group) => (
+        groupBySpace(conversations, spaceOrder).map((group) => (
           <Stack key={group.space.id} gap="sm">
             <Heading>{group.space.name}</Heading>
             <MessagesList

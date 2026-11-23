@@ -88,6 +88,20 @@ export async function createSpace(name: string, kind: SpaceKind): Promise<Space>
   return body;
 }
 
+/** The caller's spaces, in their own order for Home. */
+export async function getSpaceOrder(): Promise<Space[]> {
+  return listOf(await apiRequest("GET", "/me/space-order"), "spaces", isSpace);
+}
+
+/** Keep *spaceIds* as the caller's order of their spaces, first to last. */
+export async function setSpaceOrder(spaceIds: number[]): Promise<Space[]> {
+  return listOf(
+    await apiRequest("PUT", "/me/space-order", { space_ids: spaceIds }),
+    "spaces",
+    isSpace,
+  );
+}
+
 /** One space the caller is in. */
 export async function getSpace(id: number): Promise<Space> {
   const body = await apiRequest("GET", `/spaces/${id}`);

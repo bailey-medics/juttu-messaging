@@ -56,4 +56,18 @@ describe("groupBySpace", () => {
       5, 3,
     ]);
   });
+
+  it("follows the person's own order, with any other space after", () => {
+    const groups = groupBySpace(
+      [
+        conversation(1, 10, "Release", "dev"),
+        conversation(2, 20, "Ward", "clinical"),
+        conversation(3, 30, "Allotment", "personal"),
+        conversation(4, 40, "Design", "dev"),
+      ],
+      [20, 30],
+    );
+
+    expect(groups.map((g) => g.space.name)).toEqual(["Ward", "Allotment", "Design", "Release"]);
+  });
 });

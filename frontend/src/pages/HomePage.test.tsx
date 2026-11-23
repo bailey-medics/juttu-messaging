@@ -75,6 +75,32 @@ describe("HomePage", () => {
       expect(screen.getByLabelText("3 unread")).toBeInTheDocument();
     });
 
+    it("follows the person's own order of spaces", async () => {
+      const design = { ...withAlex, space: { id: 9, name: "Design", kind: "dev" } };
+      stubFetchRoutes({
+        ...routes([general, design]),
+        "/api/me/space-order": {
+          body: {
+            spaces: [
+              { id: 9, name: "Design", is_clinical: false, kind: "dev" },
+              { id: 7, name: "Release", is_clinical: false, kind: "dev" },
+            ],
+          },
+        },
+      });
+
+      renderWithRouter(<HomePage />);
+      await screen.findByRole("heading", { name: "Release" });
+
+      await waitFor(() => {
+        const first = screen.getByRole("heading", { name: "Design" });
+        const second = screen.getByRole("heading", { name: "Release" });
+        expect(
+          first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      });
+    });
+
     it("previews each conversation's newest item", async () => {
       stubFetchRoutes(
         routes([

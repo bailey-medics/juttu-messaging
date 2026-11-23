@@ -144,6 +144,46 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("radio", { name: /Direct messages and mentions/ })).toBeChecked();
   });
 
+  describe("the order of spaces", () => {
+    const release = { id: 1, name: "Release", is_clinical: false, kind: "dev" };
+    const ward = { id: 3, name: "Ward", is_clinical: true, kind: "clinical" };
+
+    it("moves a space and saves the new order at once", async () => {
+      stubFetchRoutes({
+        "/api/me/space-order": { body: { spaces: [release, ward] } },
+        "PUT /api/me/space-order": { body: { spaces: [ward, release] } },
+      });
+      renderSettings();
+
+      await userEvent.click(await screen.findByRole("button", { name: "Move Ward up" }));
+
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/me/space-order",
+        expect.objectContaining({ method: "PUT", body: JSON.stringify({ space_ids: [3, 1] }) }),
+      );
+      expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+        "Ward",
+        "Release",
+      ]);
+    });
+
+    it("puts the order back when a move does not save", async () => {
+      stubFetchRoutes({
+        "/api/me/space-order": { body: { spaces: [release, ward] } },
+        "PUT /api/me/space-order": { body: { detail: "Unavailable." }, status: 503 },
+      });
+      renderSettings();
+
+      await userEvent.click(await screen.findByRole("button", { name: "Move Ward up" }));
+
+      expect(await screen.findByText("That move did not save. Try again.")).toBeInTheDocument();
+      expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+        "Release",
+        "Ward",
+      ]);
+    });
+  });
+
   describe("installing Juttu", () => {
     it("opens the browser's own install when it has offered one", async () => {
       stubFetchJson({ status: "ok" });

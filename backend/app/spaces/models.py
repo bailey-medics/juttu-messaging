@@ -97,3 +97,28 @@ class SpaceMember(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} in {self.space}"
+
+
+class SpaceOrder(models.Model):
+    """Where one person wants one space on their Home, by position.
+
+    Each person's own: it changes only their Home. A space they have no
+    row for comes after the rest, in kind order then A to Z.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="space_orders",
+    )
+    space = models.ForeignKey(
+        Space, on_delete=models.PROTECT, related_name="orders"
+    )
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "space"], name="spaces_order_one_per_space"
+            ),
+        ]

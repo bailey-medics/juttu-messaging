@@ -21,12 +21,15 @@ from app.organisations.competencies import Competency
 from app.organisations.services import holds, the_organisation
 from app.spaces.models import Space, SpaceKind
 from app.spaces.services import (
+    SpaceOrderRefused,
     SpaceRefused,
     add_to_space,
     create_space,
     is_in,
     members_of,
     remove_from_space,
+    set_space_order,
+    space_order_for,
     spaces_of,
 )
 
@@ -195,3 +198,42 @@ class RemoveSpaceMemberView(APIView):
             return refused(error)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SpaceOrderSerializer(serializers.Serializer[dict[str, Any]]):
+    """The whole of a person's order: their space ids, first to last."""
+
+    space_ids = serializers.ListField(
+        child=serializers.IntegerField(), allow_empty=True
+    )
+
+
+class SpaceOrderView(APIView):
+    """The caller's own order of their spaces, for Home.
+
+    ``GET`` answers their spaces in it, and ``PUT`` replaces it. Each person
+    reads and changes only their own.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        spaces = space_order_for(caller(request))
+
+        return Response({"spaces": [space_body(s) for s in spaces]})
+
+    def put(self, request: Request) -> Response:
+        user = caller(request)
+        serializer = SpaceOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            spaces = set_space_order(
+                user, serializer.validated_data["space_ids"]
+            )
+        except SpaceOrderRefused as error:
+            return Response(
+                {"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({"spaces": [space_body(s) for s in spaces]})

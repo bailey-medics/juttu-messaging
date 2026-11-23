@@ -455,7 +455,7 @@ Found while building, 23 November 2026:
 
 ## Phase 8: each person's own order of spaces
 
-- [ ] **Keep each person's order**: a `SpaceOrder` model in the spaces
+- [x] **Keep each person's order**: a `SpaceOrder` model in the spaces
       app, one row per person and space with a position. `GET
 /api/me/space-order` answers the person's spaces in their order,
       with any space they have no position for after the rest in the
@@ -463,14 +463,26 @@ Found while building, 23 November 2026:
       ids, and refuses a space the person is not in. Each person may only
       read and change their own.
 
-- [ ] **A "Space order" card on Settings**: the person's spaces in their
+- [x] **A "Space order" card on Settings**: the person's spaces in their
       order, each with "Move up" and "Move down" buttons, and the first
       and last buttons turned off. Each move saves at once, and a failed
       save puts the list back and says so. Home follows the order.
 
-- [ ] **Tests and stories:** a person's order kept and used on Home, a
+- [x] **Tests and stories:** a person's order kept and used on Home, a
       new space joining at the end, somebody else's space refused, and
       the buttons at the ends turned off. A story for the card.
+
+Found while building, 23 November 2026:
+
+- **Home asks for the order beside the conversations**, from `GET
+/api/me/space-order`, and passes it to `groupBySpace`. Until it loads,
+  or if it cannot, spaces come in kind order, so a failure never hides a
+  conversation.
+- **A space named twice is refused too**, as well as one the person is
+  not in.
+- **The card is `SpaceOrderCard`**, in `components/spaces/`, built from
+  `BaseCard`, `IconButton` and the typography components, as a numbered
+  list so a screen reader says each space's place.
 
 ## Phase 9: an Admin heading, with Senders beneath it
 
