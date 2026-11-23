@@ -23,8 +23,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
 
 /**
  * The entries only an organisation admin sees, after `NAV_ITEMS`. "Add
- * member" shows beneath "Members", and "Register sender" beneath
- * "Senders", only while that page is open.
+ * member" shows beneath "Members" while that page is open. "Admin" is a
+ * heading, as in Quill Medical, with Senders beneath it while any admin
+ * page is open, and "Register sender" beneath Senders while that is.
  */
 export const ADMIN_NAV_ITEMS: readonly NavItem[] = [
   {
@@ -34,9 +35,19 @@ export const ADMIN_NAV_ITEMS: readonly NavItem[] = [
     children: [{ label: "Add member", href: "/members/new" }],
   },
   {
-    label: "Senders",
-    href: "/senders",
-    icon: "settings",
-    children: [{ label: "Register sender", href: "/senders/new" }],
+    label: "Admin",
+    href: "/admin",
+    icon: "adjustments",
+    // Admin is pressed to reach what is under it, so on a narrow screen
+    // the drawer stays open to offer those pages, as Quill sets it.
+    keepsDrawerOpen: true,
+    children: [
+      {
+        label: "Senders",
+        href: "/senders",
+        icon: "webhook",
+        children: [{ label: "Register sender", href: "/senders/new" }],
+      },
+    ],
   },
 ];

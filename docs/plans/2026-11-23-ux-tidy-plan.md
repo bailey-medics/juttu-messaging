@@ -486,7 +486,7 @@ Found while building, 23 November 2026:
 
 ## Phase 9: an Admin heading, with Senders beneath it
 
-- [ ] **Add "Admin" to the navigation, as Quill has it**, items 3 and 4,
+- [x] **Add "Admin" to the navigation, as Quill has it**, items 3 and 4,
       in `navItems.ts`: label "Admin", `href` "/admin", icon
       "adjustments" (Quill's, `IconAdjustmentsHorizontal`, already in
       `appIcons.ts`), `keepsDrawerOpen: true`, as Quill sets it so a
@@ -495,19 +495,28 @@ Found while building, 23 November 2026:
       "Register sender". Members stays where it is, at the top level of
       `ADMIN_NAV_ITEMS`, before Admin.
 
-- [ ] **Add the "webhook" icon to `NavIcon`**,
+- [x] **Add the "webhook" icon to `NavIcon`**,
       `frontend/src/components/icons/NavIcon.tsx`: a new `IconName`,
       `IconWebhook` in `appIcons.ts` and `iconCatalogue`, and its story.
 
-- [ ] **Add a placeholder Admin page at `/admin`**, under
+- [x] **Add a placeholder Admin page at `/admin`**, under
       `RequireAdmin`, `frontend/src/pages/AdminPage.tsx`: a `PageHeader`
       "Admin" and one line, "Admin tools are listed under Admin in the
       menu." Senders keeps its address, `/senders` (see Decisions).
 
-- [ ] **Tests and stories:** navigation tests for Admin and Senders
+- [x] **Tests and stories:** navigation tests for Admin and Senders
       shown to an admin only, and opened on `/senders` and
       `/senders/new`. An Admin page test, and "No access" for a member. A
       story for the navigation with Admin open.
+
+Found while building, 23 November 2026:
+
+- **Senders shows only while an admin page is open**, as Quill's admin
+  pages do: from Home the menu shows "Admin", and Senders appears
+  beneath it once Admin or Senders is open. A test that found Senders
+  from Home now finds Admin there instead.
+- **`docs/dev-box.md` sends people to Admin, then Senders**, to register
+  a sender.
 
 ## Phase 10: the Juttu wordmark in Finlandica Headline
 

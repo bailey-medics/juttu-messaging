@@ -40,16 +40,27 @@ describe("the senders pages", () => {
     expect(fetch).not.toHaveBeenCalledWith("/api/inlet/senders", expect.anything());
   });
 
-  it("puts Senders in the side navigation for an admin", async () => {
+  it("puts Senders under Admin in the side navigation, while an admin page is open", async () => {
+    asAdmin();
+    renderAt("/senders");
+
+    const nav = within(await screen.findByRole("complementary"));
+
+    expect(await nav.findByRole("link", { name: /Admin/ })).toHaveAttribute("href", "/admin");
+    expect(await nav.findByRole("link", { name: /Senders/ })).toHaveAttribute(
+      "href",
+      "/senders",
+    );
+  });
+
+  it("shows Admin, not Senders, in the side navigation from Home", async () => {
     asAdmin();
     renderAt("/");
 
     const nav = within(await screen.findByRole("complementary"));
 
-    expect(await nav.findByRole("link", { name: /Senders/ })).toHaveAttribute(
-      "href",
-      "/senders",
-    );
+    expect(await nav.findByRole("link", { name: /Admin/ })).toBeInTheDocument();
+    expect(nav.queryByRole("link", { name: /Senders/ })).not.toBeInTheDocument();
   });
 
   it("registers a sender and shows its secret once, then goes back", async () => {

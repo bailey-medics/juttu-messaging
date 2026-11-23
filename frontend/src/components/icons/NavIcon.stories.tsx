@@ -24,6 +24,7 @@ const iconNames = [
   "building-community",
   "feedback",
   "safety",
+  "webhook",
 ] as const;
 
 const sizes = ["xs", "sm", "md", "lg", "xl"] as const;

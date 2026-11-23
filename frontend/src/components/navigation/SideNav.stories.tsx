@@ -17,3 +17,12 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const DarkMode: Story = { globals: { colorScheme: "dark" } };
+
+/**
+ * An organisation admin on the Senders page: "Admin" is open, with Senders
+ * beneath it, as in Quill Medical.
+ */
+export const AdminOpen: Story = {
+  args: { showAdmin: true, showIcons: true },
+  parameters: { routerPath: "/senders" },
+};

@@ -73,7 +73,8 @@ These steps are done once, on the dev box, by a person.
    subscription. Until the keys are set, push notifications are off.
 
 7. Let each deploy keep a card up to date in Juttu, once:
-   1. Sign in to the copy as an organisation admin, and open **Senders**.
+   1. Sign in to the copy as an organisation admin, open **Admin** in the
+      menu, then **Senders** beneath it.
    2. Tap **Register sender**, name it "Deploys", and choose the channel its
       cards should appear in.
    3. Copy the secret it shows, which it shows only once, and add it to
@@ -99,7 +100,7 @@ These steps are done once, on the dev box, by a person.
       JUTTU_GITHUB_TOKEN=<the token>
       ```
 
-   3. On the box copy's **Senders** page, register a sender called
+   3. On the box copy's **Senders** page, under **Admin**, register a sender called
       "GitHub runs", choose its channel, and add its secret too:
 
       ```sh
