@@ -520,7 +520,7 @@ Found while building, 23 November 2026:
 
 ## Phase 10: the Juttu wordmark in Finlandica Headline
 
-- [ ] **Draw the wordmark**, `frontend/public/wordmark-white.svg`, item
+- [x] **Draw the wordmark**, `frontend/public/wordmark-white.svg`, item
       5: "Juttu" in Finlandica Headline at weight 700, white, each
       letter's outline a path so the file needs no font. Make it as
       Turva's was, in `turva-port-quill`'s
@@ -533,7 +533,7 @@ Found while building, 23 November 2026:
       the box from the cap height to a little below the baseline, as
       Turva's is.
 
-- [ ] **Show it in the ribbon at 40% bigger than the name is now**,
+- [x] **Show it in the ribbon at 40% bigger than the name is now**,
       `frontend/src/components/ribbon/TopRibbon.tsx`. The name is now
       text at Mantine's `lg` size, 18 pixels. Size the image so its
       capital J stands 1.4 times as tall as the text's does now, measured
@@ -543,8 +543,27 @@ Found while building, 23 November 2026:
       the comment that says Juttu's name is set in text until it has a
       wordmark.
 
-- [ ] **Tests and stories:** `TopRibbon.test.tsx` finds the link home by
+- [x] **Tests and stories:** `TopRibbon.test.tsx` finds the link home by
       the image's alt text. Update the ribbon stories.
+
+Found while building, 23 November 2026:
+
+- **The name was 24px, not 18px.** Juttu's `lg` font size is 1.5rem.
+  The name was set in Atkinson Hyperlegible Next, whose capitals are
+  0.668 of its size, so its J stood 16.0px tall. 40% bigger is 22.4px.
+  The drawing's box is 770 units tall around a 700-unit capital, so the
+  image is 1.543rem, about 24.7px, which fits the 60px ribbon.
+- **HarfBuzz cannot read a WOFF2 file**, so the font was first saved as
+  plain TrueType with fontTools. Drawn straight from the WOFF2, every
+  letter came out as a box.
+- **The letters sit as Turva's do**: the box runs from 26 units above
+  the cap height to 44 below the baseline, widened where a letter
+  reaches further.
+- **Three tests read the header's text for "Juttu"**, which an image
+  does not have. They now find the image by its alt text, "Juttu", in
+  the header. The components rule that made `TopRibbon`'s name an
+  exception to using the typography components now says it is the
+  wordmark image.
 
 ## Decisions
 

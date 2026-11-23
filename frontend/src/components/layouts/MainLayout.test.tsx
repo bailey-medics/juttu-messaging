@@ -29,7 +29,9 @@ describe("MainLayout", () => {
       </MainLayout>,
     );
 
-    expect(screen.getByRole("banner")).toHaveTextContent("Juttu");
+    expect(
+      within(screen.getByRole("banner")).getByRole("img", { name: "Juttu" }),
+    ).toBeInTheDocument();
     const rail = screen.getByRole("complementary");
     expect(within(rail).getByRole("navigation", { name: "Primary" })).toHaveTextContent("Home");
     expect(within(screen.getByRole("main")).getByText("The page")).toBeInTheDocument();

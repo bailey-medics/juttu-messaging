@@ -28,7 +28,9 @@ describe("routes", () => {
   it("shows every page inside the root layout's header", async () => {
     renderSignedInAt("/");
 
-    expect(await screen.findByRole("banner")).toHaveTextContent("Juttu");
+    expect(
+      within(await screen.findByRole("banner")).getByRole("img", { name: "Juttu" }),
+    ).toBeInTheDocument();
   });
 
   it("puts Quill's top ribbon in the header, with Juttu's name linking home", async () => {
@@ -73,7 +75,9 @@ describe("routes", () => {
 
     renderWithTheme(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole("banner")).toHaveTextContent("Juttu");
+    expect(
+      within(await screen.findByRole("banner")).getByRole("img", { name: "Juttu" }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("error-boundary-fallback")).toBeInTheDocument();
   });
 

@@ -19,6 +19,7 @@
     "Gunicorn",
     "HarfBuzz",
     "httpx",
+    "Hyperlegible",
     "Juttu",
     "makemigrations",
     "mypy",
