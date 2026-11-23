@@ -5,8 +5,8 @@ import { NAV_ITEMS } from "@/components/navigation/navItems";
 import { renderWithRouter } from "@/test/test-utils";
 
 describe("SideNavContent", () => {
-  it("starts with the home page, the one page Juttu has", () => {
-    expect(NAV_ITEMS.map((item) => item.href)).toEqual(["/"]);
+  it("starts with the home page, then the spaces", () => {
+    expect(NAV_ITEMS.map((item) => item.href)).toEqual(["/", "/spaces"]);
   });
 
   it("draws a link for every entry", () => {

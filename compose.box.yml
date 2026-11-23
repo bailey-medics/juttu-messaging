@@ -50,17 +50,48 @@ services:
       # s/box works this out from JUTTU_BOX_ADDRESS on every call, so no
       # address is written here.
       JUTTU_ALLOWED_HOSTS: ${JUTTU_BOX_ALLOWED_HOSTS:?run this through s/box}
+      # The HTTPS address phones open, so Django's CSRF check accepts a
+      # sign-in from it. Empty until JUTTU_BOX_ADDRESS is set.
+      JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through s/box}
+      # The Web Push signing keys, made by s/box push-keys. Push
+      # notifications stay off until they are set.
+      JUTTU_VAPID_PUBLIC_KEY: ${JUTTU_BOX_VAPID_PUBLIC_KEY:-}
+      JUTTU_VAPID_PRIVATE_KEY: ${JUTTU_BOX_VAPID_PRIVATE_KEY:-}
+      JUTTU_VAPID_CONTACT: ${JUTTU_BOX_VAPID_CONTACT:-}
     # Bring the database up to the latest migration, then serve with
-    # Gunicorn, as the prod image does.
+    # Gunicorn's threaded workers, as the prod image does.
     command:
       - sh
       - -c
       - >-
         python manage.py migrate &&
-        exec gunicorn config.wsgi --workers 2 --bind 0.0.0.0:8000
-        --forwarded-allow-ips '*'
+        exec gunicorn config.wsgi --workers 2 --worker-class gthread
+        --threads 16 --bind 0.0.0.0:8000 --forwarded-allow-ips '*'
     depends_on:
       db:
+        condition: service_healthy
+
+  # Watches the repository's GitHub Actions runs and sends each change to
+  # the backend's inlet as a card. It only makes outgoing connections. With
+  # no token or no secret in local/box.env, it says so once and waits.
+  github-watcher:
+    image: juttu-box-backend:${JUTTU_BOX_TAG:-latest}
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+      target: prod
+    restart: unless-stopped
+    environment:
+      JUTTU_GITHUB_TOKEN: ${JUTTU_GITHUB_TOKEN:-}
+      JUTTU_INLET_SECRET: ${JUTTU_BOX_GITHUB_SECRET:-}
+      JUTTU_INLET_URL: http://backend:8000/api/inlet/events
+    command: ["python", "-m", "app.watcher.github_runs"]
+    # The backend image's health check asks for its web server, which the
+    # watcher does not run, so it would always read as unhealthy.
+    healthcheck:
+      disable: true
+    depends_on:
+      backend:
         condition: service_healthy
 
   web:

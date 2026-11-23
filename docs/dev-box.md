@@ -47,6 +47,73 @@ These steps are done once, on the dev box, by a person.
    `https://<the box's private network name>:8290/api/health`. It answers
    `{"status":"ok"}`.
 
+5. Make the first account, once, typing its username and a password of
+   at least fifteen characters:
+
+   ```sh
+   just box-first-account
+   ```
+
+   Nothing is seeded and there is no default password. The account is an
+   admin of the Turva organisation. It refuses once any account exists:
+   an organisation admin adds every later account.
+
+6. Make the Web Push signing keys, once, so phones can be sent
+   notifications. Give it the address push services may write to about
+   Juttu's pushes, which Apple's requires:
+
+   ```sh
+   just box-push-keys mailto:<the team's address>
+   ```
+
+   It adds `JUTTU_BOX_VAPID_PUBLIC_KEY`, `JUTTU_BOX_VAPID_PRIVATE_KEY` and
+   `JUTTU_BOX_VAPID_CONTACT` to `local/box.env`, then asks you to deploy
+   again. It keeps keys that
+   are already there, because a new pair would end every phone's
+   subscription. Until the keys are set, push notifications are off.
+
+7. Let each deploy keep a card up to date in Juttu, once:
+   1. Sign in to the copy as an organisation admin, and open **Senders**.
+   2. Tap **Register sender**, name it "Deploys", and choose the channel its
+      cards should appear in.
+   3. Copy the secret it shows, which it shows only once, and add it to
+      `local/box.env` as one line:
+
+      ```sh
+      JUTTU_BOX_INLET_SECRET=<the secret>
+      ```
+
+   From the next deploy on, the channel shows one card per deploy:
+   "Deploying", then "Deployed" or "Failed at" the step that broke. Both of
+   those notify everybody in the channel who has not turned notifications
+   off. Until the secret is set, a deploy says so and sends no card. A card
+   that cannot be sent never stops a deploy.
+
+8. Let the box watch the repository's GitHub Actions runs, once:
+   1. On GitHub, make a fine-grained personal access token for
+      `bailey-medics/juttu-messaging` only, with **Actions: read** and
+      nothing else.
+   2. Add it to `local/box.env` as one line:
+
+      ```sh
+      JUTTU_GITHUB_TOKEN=<the token>
+      ```
+
+   3. On the box copy's **Senders** page, register a sender called
+      "GitHub runs", choose its channel, and add its secret too:
+
+      ```sh
+      JUTTU_BOX_GITHUB_SECRET=<the secret>
+      ```
+
+   4. Deploy again, so the watcher reads them.
+
+   About once a minute the watcher asks GitHub for the latest runs. It
+   shows each run as a card that reads "Running", then "Passed", "Failed"
+   or "Cancelled", and every finished run notifies. It only makes outgoing
+   connections. The runs already there when it starts are not sent, so a
+   restart never repeats a notification.
+
 ## Deploy the latest main
 
 ```sh

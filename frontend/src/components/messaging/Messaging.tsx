@@ -16,7 +16,7 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import ProfilePic from "@/components/profile-pic";
 import BodyText from "@/components/typography/BodyText";
 import BodyTextInline from "@/components/typography/BodyTextInline";
@@ -55,6 +55,11 @@ export type Message = {
   avatar?: string;
   gradientIndex?: number;
   actions?: MessageAction[];
+  /**
+   * Something drawn in the message's place, across the conversation, such
+   * as a living card. A message with one shows no bubble or sender.
+   */
+  card?: ReactNode;
 };
 
 type Props = {
@@ -151,6 +156,14 @@ export default function Messaging({
           ) : (
             <>
               {messages.map((m) => {
+                if (m.card !== undefined) {
+                  return (
+                    <div key={m.id} style={{ marginBottom: 8 }}>
+                      {m.card}
+                    </div>
+                  );
+                }
+
                 const mine = m.senderId === currentUserId;
                 const displayName =
                   m.senderName ||

@@ -47,6 +47,11 @@ anything. `CLAUDE.md` only points here.
   so a view nobody thought about is closed. The public ones, such as the
   health check and sign-in, are public on purpose and say so with
   `permission_classes = [AllowAny]`.
+- **Every change to data writes an audit entry**, through `record` in
+  `backend/app/audit/record.py`, and the change's tests check for it. The
+  audit table is append-only: a Postgres trigger refuses every `UPDATE`,
+  `DELETE` and `TRUNCATE` on it. An entry never holds a password, a token
+  or a message's text.
 - **Messages are append-only.** Nothing is edited in place; a correction is
   a new message that amends the old one.
 - **Ported from Quill Medical, not written fresh**, where Quill already has
@@ -133,6 +138,7 @@ just box-deploy   # deploy the latest main to the copy on the dev box
 ./s/test      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
 just migrate "<message>"   # write a migration for a model change
+just first-account   # make the first account on the dev stack, once
 ./s/frontend  # the frontend gate: types, lint, format, tests, both builds
 just storybook   # Storybook, on port 6106
 ```

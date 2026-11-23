@@ -3,9 +3,15 @@
  * Quill Medical's, keeping the limits the ported form fields use.
  *
  * Quill's backend enforces the same numbers, refusing a longer value with a
- * 422. Juttu's backend has no accounts yet; when the vision plan's Phase 8
- * adds them, it enforces these too. Change one and change the other.
+ * 422. Juttu's backend enforces the username's, in `SignInSerializer` and the
+ * `User` model. Change one and change the other.
  */
+
+/** A person's name. The backend's `User.name` takes 200 characters. */
+export const MAX_NAME = 200;
+
+/** A username. The backend's `User.username` takes 150 characters. */
+export const MAX_USERNAME = 150;
 
 /** An email address. */
 export const MAX_EMAIL = 255;

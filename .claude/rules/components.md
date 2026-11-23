@@ -38,6 +38,10 @@ the components it brings, such as cards, icons, buttons and the spinner.
   rest) and its `SubmitButton`. `Form` carries the saving, saved and
   failed states, and `FormStatus` reports them. Never use Mantine's inputs
   directly.
+- **Every table is a `DataTable`**, from `components/tables/`, or
+  `DataTableControlled` where it has search, filters or pages. It turns
+  into `DataCard`s where its container is too narrow for its columns, so
+  never hide a column to make it fit.
 - **Never use `clearable` on a `SelectField`.** If a field is optional, say
   so in its placeholder.
 - **A conversation is not clinical unless its space is.** Leave
@@ -72,6 +76,10 @@ the components it brings, such as cards, icons, buttons and the spinner.
     stack full width on a phone.
   - Wrap a button on its own in `<Group justify="flex-end">`, so it sits
     on the right.
+  - A table's own action, such as an "Add" button that acts on that
+    table, goes in `DataTableControlled`'s `action` prop, which puts it
+    in the row with search and filter, before them. The row wraps on a
+    narrow screen and stays right-aligned.
   - A page's header action, such as an `AddButton`, goes in
     `PageHeader`'s `action` prop, never in a hand-built
     `<Group justify="space-between">`. Pass `actionAlign="center"` for

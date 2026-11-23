@@ -6,11 +6,23 @@
 #   s/box status          what is running, and which commit it is
 #   s/box logs [service]  follow the logs
 #   s/box down            stop it, keeping its database
+#   s/box first-account   make the first account, asking for its username
+#                         and password; refused once any account exists
+#   s/box push-keys <contact>
+#                         make the Web Push signing keys, once, and add them
+#                         to local/box.env with the contact push services
+#                         may write to (mailto:<address>, or an https://
+#                         origin); keys already there are kept
 #
 # It builds from an export of the commit into local/box-build/, never from
 # this working tree, so what runs is exactly what was merged. Its settings
 # live in local/box.env, which git ignores; the first deploy makes that file
 # with a random database password and a random Django secret key.
+#
+# Each deploy keeps a card up to date in Juttu itself, through the inlet,
+# once JUTTU_BOX_INLET_SECRET is in local/box.env: "Deploying" when it
+# starts, then "Deployed" or "Failed at <step>", both of which notify. A
+# card that cannot be sent never stops a deploy.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +31,7 @@ env_file="${local_dir}/box.env"
 build_dir="${local_dir}/box-build"
 
 usage() {
-	echo "Usage: s/box deploy [ref] | status | logs [service] | down" >&2
+	echo "Usage: s/box deploy [ref] | status | logs [service] | down | first-account | push-keys <contact>" >&2
 	exit 2
 }
 
@@ -80,6 +92,19 @@ allowed_hosts() {
 	fi
 }
 
+# The origin phones open the copy from, for Django's CSRF check: the
+# private network's proxy ends HTTPS before Caddy, so Django cannot tell
+# the page was HTTPS. Empty until JUTTU_BOX_ADDRESS is set.
+trusted_origins() {
+	local address
+
+	address="$(setting JUTTU_BOX_ADDRESS)"
+
+	if [ -n "${address}" ]; then
+		echo "https://${address}"
+	fi
+}
+
 # Read one setting from local/box.env, without running the file.
 setting() {
 	local name="$1"
@@ -95,7 +120,95 @@ box_compose() {
 	fi
 
 	JUTTU_BOX_ALLOWED_HOSTS="$(allowed_hosts)" \
+		JUTTU_BOX_TRUSTED_ORIGINS="$(trusted_origins)" \
 		docker compose -p juttu-box --env-file "${env_file}" -f "${compose_file}" "$@"
+}
+
+# Make the Web Push signing keys in the built backend, and add them to
+# local/box.env. Run once: keys already there are kept, because a new pair
+# would end every phone's subscription.
+push_keys() {
+	local contact="$1"
+	local keys
+
+	# What the backend accepts: a mailto: address, or an https:// origin
+	# with no path, as py_vapid checks.
+	if ! [[ "${contact}" =~ ^(mailto:[^@[:space:]]+@[A-Za-z0-9_.-]+\.[A-Za-z0-9_-]+|https://[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+)$ ]]; then
+		echo "The contact is a mailto: address or an https:// origin with no path." >&2
+		return 2
+	fi
+
+	if [ -n "$(setting JUTTU_BOX_VAPID_PRIVATE_KEY)" ]; then
+		echo "${env_file} already has push keys; they are kept."
+		return 0
+	fi
+
+	keys="$(box_compose run --rm --no-deps -T backend \
+		python manage.py generate_push_keys --prefix JUTTU_BOX_VAPID_)"
+
+	if ! printf '%s\n' "${keys}" | grep -qE '^JUTTU_BOX_VAPID_PUBLIC_KEY=[A-Za-z0-9_-]+$' ||
+		! printf '%s\n' "${keys}" | grep -qE '^JUTTU_BOX_VAPID_PRIVATE_KEY=[A-Za-z0-9_-]+$'; then
+		echo "The backend did not print a pair of push keys; nothing was added." >&2
+		return 1
+	fi
+
+	umask 077
+	{
+		echo
+		echo "# The Web Push signing keys, made by s/box push-keys. A new pair"
+		echo "# would end every phone's subscription, so keep these."
+		printf '%s\n' "${keys}" | grep -E '^JUTTU_BOX_VAPID_(PUBLIC|PRIVATE)_KEY='
+		echo "JUTTU_BOX_VAPID_CONTACT=${contact}"
+	} >>"${env_file}"
+
+	echo "Added push keys to ${env_file}. Deploy again so the backend reads them."
+}
+
+# The deploy card's key, title and the step the deploy is on, for the trap
+# that reports a failure. Empty until the deploy knows its commit.
+card_key=""
+card_title=""
+card_step=""
+
+# Send one event about this deploy's card to the copy that is running now.
+# The secret goes to curl on its standard input, so it is never in the
+# list of running processes. Never fails: a card is not worth a deploy.
+send_card() {
+	local line="$1"
+	local needs_somebody="$2"
+	local secret
+	local port
+	local body
+
+	secret="$(setting JUTTU_BOX_INLET_SECRET)"
+	if [ -z "${secret}" ] || [ -z "${card_key}" ]; then
+		return 0
+	fi
+
+	port="$(setting JUTTU_BOX_PORT)"
+	body="$(printf '{"key": "%s", "title": "%s", "line": "%s", "needs_somebody": %s}' \
+		"${card_key}" "${card_title}" "${line}" "${needs_somebody}")"
+
+	if ! printf 'Authorization: Bearer %s\n' "${secret}" |
+		curl --fail --silent --show-error --max-time 10 \
+			--header @- --header "Content-Type: application/json" \
+			--data-binary "${body}" \
+			"http://127.0.0.1:${port:-8290}/api/inlet/events" >/dev/null; then
+		echo "The deploy card was not updated: Juttu did not take the event." >&2
+	fi
+
+	return 0
+}
+
+# Run on every exit from a deploy: a deploy that stopped early says where.
+report_failure() {
+	local code=$?
+
+	if [ "${code}" -ne 0 ]; then
+		send_card "Failed at ${card_step}" true
+	fi
+
+	return "${code}"
 }
 
 deploy() {
@@ -104,12 +217,22 @@ deploy() {
 
 	ensure_env_file
 
+	if [ -z "$(setting JUTTU_BOX_INLET_SECRET)" ]; then
+		echo "No JUTTU_BOX_INLET_SECRET in ${env_file}, so this deploy sends no card."
+	fi
+
 	git -C "${root}" fetch --quiet origin main
 	commit="$(git -C "${root}" rev-parse --verify --quiet "${ref}^{commit}")" || {
 		echo "No commit called ${ref}." >&2
 		exit 1
 	}
 	tag="$(git -C "${root}" rev-parse --short=12 "${commit}")"
+
+	card_key="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${tag}"
+	card_title="Deploy ${tag:0:7}"
+	card_step="exporting"
+	send_card "Deploying" false
+	trap report_failure EXIT
 
 	echo "==> exporting ${ref} (${tag}) into local/box-build"
 	rm -rf "${build_dir}"
@@ -121,9 +244,13 @@ deploy() {
 		exit 1
 	fi
 
+	card_step="building and starting"
 	echo "==> building and starting"
 	JUTTU_BOX_TAG="${tag}" box_compose up --detach --build --wait --remove-orphans
 	echo "${tag}" >"${local_dir}/box-deployed"
+
+	trap - EXIT
+	send_card "Deployed" true
 
 	port="$(setting JUTTU_BOX_PORT)"
 	address="$(setting JUTTU_BOX_ADDRESS)"
@@ -166,6 +293,16 @@ main() {
 			[ "$#" -eq 1 ] || usage
 			ensure_env_file
 			box_compose down
+			;;
+		first-account)
+			[ "$#" -eq 1 ] || usage
+			ensure_env_file
+			box_compose exec backend python manage.py create_first_account
+			;;
+		push-keys)
+			[ "$#" -eq 2 ] || usage
+			ensure_env_file
+			push_keys "$2"
 			;;
 		*)
 			usage

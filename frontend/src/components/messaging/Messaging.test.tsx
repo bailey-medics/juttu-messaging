@@ -499,4 +499,22 @@ describe("Messaging", () => {
       expect(buttons[0]).toHaveTextContent("Send");
     });
   });
+
+  describe("a card in a message's place", () => {
+    it("draws the card, with no bubble or sender", () => {
+      renderWithMantine(
+        <Messaging
+          currentUserId="me"
+          messages={[
+            { id: "1", senderId: "alex", senderName: "Alex Morgan", text: "Hello" },
+            { id: "card-1", senderId: "", senderName: "Nobody", text: "", card: <p>A card</p> },
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("A card")).toBeInTheDocument();
+      expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
+      expect(screen.queryByText("Nobody")).not.toBeInTheDocument();
+    });
+  });
 });

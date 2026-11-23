@@ -57,6 +57,11 @@ unit-tests-backend *args:
     @./s/test backend {{args}}
 
 
+# Make the first account on the dev stack, asking for its username and password
+first-account:
+    @./s/first-account
+
+
 alias m := migrate
 # Write a migration for this worktree's model changes (throwaway database)
 migrate message:
@@ -84,3 +89,13 @@ box-deploy:
 # What the long-running copy on the dev box is running
 box-status:
     @./s/box status
+
+
+# Make the first account on the copy on the dev box
+box-first-account:
+    @./s/box first-account
+
+# Make the Web Push signing keys for the copy on the dev box, once, with
+# the contact push services may write to: mailto:<address> or an https:// origin
+box-push-keys contact:
+    @./s/box push-keys "{{ contact }}"

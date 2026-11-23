@@ -13,7 +13,10 @@
 }
 
 :80 {
-	encode zstd gzip
+	# The live stream is left uncompressed, so each event goes out the
+	# moment it is written rather than waiting to fill a compressed block.
+	@compressible not path /api/events
+	encode @compressible zstd gzip
 
 	header {
 		X-Content-Type-Options nosniff
