@@ -137,16 +137,17 @@ The phone must be on the private network first, with its app signed in.
 ### Android, in Chrome
 
 1. Open `https://<the box's private network name>:8290` in Chrome.
-2. Tap **Install Juttu**, at the top right of the page. If it is not there,
-   open Chrome's menu (the three dots) and tap **Add to home screen**, then
-   **Install**.
+2. Open **Settings** in the menu, and tap **Install Juttu**. If Chrome has
+   not offered an install yet, Juttu shows the steps for Chrome's own menu
+   instead: the three dots, then **Add to home screen**, then **Install**.
 3. Juttu's speech-bubble icon appears on the home screen. It opens without
    Chrome's address bar.
 
 ### iPhone, in Safari
 
-Safari never offers the **Install Juttu** button, so Juttu is added from
-the share menu.
+Safari never offers an install of its own, so Juttu is added from the
+share menu. **Install Juttu** on the **Settings** page shows these steps
+too.
 
 1. Open `https://<the box's private network name>:8290` in Safari.
 2. Tap the share button (a square with an arrow pointing up).

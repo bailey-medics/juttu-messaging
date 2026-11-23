@@ -5,33 +5,25 @@ import { useNavigate } from "react-router";
 import { listMyConversations, type HomeConversation } from "@/api/conversations";
 
 import { checkHealth } from "@/api/health";
-import { getNotifyLevel, setNotifyLevel, type NotifyLevel } from "@/api/push";
 import { UnreadBadge } from "@/components/badge";
 import BaseCard from "@/components/base-card/BaseCard";
 import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
-import { NotificationsCard } from "@/components/notifications";
 import DataTable from "@/components/tables/DataTable";
 import { BodyText, Heading, PageHeader } from "@/components/typography";
 import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
-import { browserPush, enablePush, pushState, type PushState } from "@/pwa/push";
 
 import { apiFailure } from "./apiFailure";
 
 /**
  * The first page: every conversation the person may read, most recently
- * active first, then whether the backend is up and whether this device
- * shows notifications.
+ * active first, then whether the backend is up. Notifications are set on
+ * the Settings page.
  */
 export default function HomePage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<HomeConversation[] | null>(null);
   const [conversationsFailed, setConversationsFailed] = useState<string | null>(null);
   const [state, setState] = useState<HealthState>("checking");
-  const [push, setPush] = useState<PushState | "checking">("checking");
-  const [enabling, setEnabling] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [level, setLevel] = useState<NotifyLevel | null>(null);
-  const [levelFailed, setLevelFailed] = useState(false);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -57,41 +49,6 @@ export default function HomePage() {
     void navigate(`/conversations/${conversation.id}`, {
       state: { title: conversation.title },
     });
-  }
-
-  useEffect(() => {
-    pushState(browserPush)
-      .then(setPush)
-      .catch(() => setPush("unsupported"));
-    getNotifyLevel()
-      .then(setLevel)
-      .catch(() => setLevel(null));
-  }, []);
-
-  async function changeLevel(chosen: NotifyLevel) {
-    const before = level;
-    setLevel(chosen);
-    setLevelFailed(false);
-
-    try {
-      setLevel(await setNotifyLevel(chosen));
-    } catch {
-      setLevel(before);
-      setLevelFailed(true);
-    }
-  }
-
-  async function enable() {
-    setEnabling(true);
-    setFailed(false);
-
-    try {
-      setPush(await enablePush(browserPush));
-    } catch {
-      setFailed(true);
-    } finally {
-      setEnabling(false);
-    }
   }
 
   useEffect(() => {
@@ -128,15 +85,6 @@ export default function HomePage() {
       <BaseCard>
         <HealthStatus state={state} />
       </BaseCard>
-      <NotificationsCard
-        state={push}
-        busy={enabling}
-        failed={failed}
-        onEnable={() => void enable()}
-        level={level}
-        onLevelChange={(chosen) => void changeLevel(chosen)}
-        levelFailed={levelFailed}
-      />
     </Stack>
   );
 }

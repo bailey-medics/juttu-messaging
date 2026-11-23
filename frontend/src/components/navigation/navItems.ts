@@ -16,6 +16,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: "message",
     children: [{ label: "New space", href: "/spaces/new" }],
   },
+  // After Spaces, as Quill Medical places it. The page has no child link:
+  // it has no pages under it yet.
+  { label: "Settings", href: "/settings", icon: "settings" },
 ];
 
 /**

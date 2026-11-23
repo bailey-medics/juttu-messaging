@@ -5,8 +5,8 @@ import { NAV_ITEMS } from "@/components/navigation/navItems";
 import { renderWithRouter } from "@/test/test-utils";
 
 describe("SideNavContent", () => {
-  it("starts with the home page, then the spaces", () => {
-    expect(NAV_ITEMS.map((item) => item.href)).toEqual(["/", "/spaces"]);
+  it("starts with the home page, then the spaces, then settings", () => {
+    expect(NAV_ITEMS.map((item) => item.href)).toEqual(["/", "/spaces", "/settings"]);
   });
 
   it("draws a link for every entry", () => {

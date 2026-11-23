@@ -14,6 +14,7 @@ import NewSpacePage from "@/pages/NewSpacePage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import RegisterSenderPage from "@/pages/RegisterSenderPage";
 import SendersPage from "@/pages/SendersPage";
+import SettingsPage from "@/pages/SettingsPage";
 import SignInPage from "@/pages/SignInPage";
 import SpacePage from "@/pages/SpacePage";
 import SpacesPage from "@/pages/SpacesPage";
@@ -59,6 +60,7 @@ export const routes: RouteObject[] = [
           },
           { path: "spaces/:spaceId", element: <SpacePage /> },
           { path: "conversations/:conversationId", element: <ConversationPage /> },
+          { path: "settings", element: <SettingsPage /> },
           {
             path: "members",
             element: (
