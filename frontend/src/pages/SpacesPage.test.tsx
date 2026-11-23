@@ -21,6 +21,7 @@ function space(extra: Record<string, { body: unknown; status?: number }> = {}) {
             icon: "rocket",
             icon_colour: 0,
             shows_people: true,
+            icon_url: null,
           },
         ],
       },

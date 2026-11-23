@@ -349,16 +349,16 @@ Found while building, 23 November 2026:
 
 ## Phase 6: uploading a channel's own icon
 
-- [ ] **Add Pillow**, the Python imaging library, to
+- [x] **Add Pillow**, the Python imaging library, to
       `backend/pyproject.toml`, with the lock file, and its type stubs
       if mypy needs them.
 
-- [ ] **Keep the image in the database**: a `ConversationIcon` model
+- [x] **Keep the image in the database**: a `ConversationIcon` model
       holding one PNG of at most 256 by 256 pixels as a `BinaryField`,
       with the conversation, who uploaded it and when. One per
       conversation, so a new upload replaces the old.
 
-- [ ] **`PUT /api/conversations/{id}/icon` takes one image**, for an
+- [x] **`PUT /api/conversations/{id}/icon` takes one image**, for an
       organisation admin only, and `DELETE` removes it. Juttu refuses a
       file over 1 MB before reading it, opens it with Pillow, refuses
       anything that is not PNG, JPEG or WebP whatever its name says,
@@ -369,15 +369,31 @@ Found while building, 23 November 2026:
       and the image's version in the address, so a new upload shows at
       once.
 
-- [ ] **Upload and remove from the ellipsis menu**: "Upload icon" opens
+- [x] **Upload and remove from the ellipsis menu**: "Upload icon" opens
       a file picker for images, and "Remove icon" asks to confirm.
       Conversation bodies gain `icon_url`, or `null`, and
       `ConversationIcon` draws it in place of the random icon.
 
-- [ ] **Tests:** a PNG, JPEG and WebP each stored as a 256 pixel PNG, a
+- [x] **Tests:** a PNG, JPEG and WebP each stored as a 256 pixel PNG, a
       file over 1 MB, a text file named `.png`, a member refused, the
       image refused to somebody outside the space, and removing it
       bringing the random icon back.
+
+Found while building, 23 November 2026:
+
+- **The model is `ConversationIconImage`**, since `ConversationIcon` is
+  already the name of the icon choices from Phase 5.
+- **Each conversation keeps `icon_version`**, the upload's time in
+  microseconds, or nothing. A list of conversations builds each icon's
+  address from it without loading any image, and a new upload never
+  reuses an old address a phone may have cached.
+- **Pillow is 12.3.0**, pinned in `backend/pyproject.toml`, the lock file
+  and the mypy hook. It ships its own types, so no stubs were needed.
+- **The menu moved into a `ChannelMenu` component**, in
+  `components/messaging/`, with the file picker and the confirmation, so
+  the conversation page keeps no menu of its own.
+- **`apiRequest` takes `PUT`, `DELETE` and a form**, which it sends as it
+  is, for the browser to type with its boundary.
 
 ## Phase 7: the conversation list, as Quill shows patient conversations
 

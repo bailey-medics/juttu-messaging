@@ -123,6 +123,8 @@ repos:
           - cryptography==50.0.2
           - py-vapid==1.9.6
           - pywebpush==2.5.0
+          # Channel icons: Pillow reads and redraws an upload.
+          - pillow==12.3.0
           - pydantic==2.14.3
           - pydantic-settings==2.16.3
           - pytest==9.2.0

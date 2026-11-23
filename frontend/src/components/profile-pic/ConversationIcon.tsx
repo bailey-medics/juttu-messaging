@@ -1,8 +1,9 @@
 /**
  * A conversation's own icon, in a circle the size of a `ProfilePic`: the
  * friendly Tabler icon picked for it at random, on one of the profile
- * pictures' gradients. Home shows it in place of people's circles, for a
- * conversation with too many people or with its circles turned off.
+ * pictures' gradients, or the image an admin uploaded in its place. Home
+ * shows it in place of people's circles, for a conversation with too many
+ * people or with its circles turned off.
  */
 
 import { Avatar } from "@mantine/core";
@@ -63,6 +64,8 @@ export interface ConversationIconProps {
   label: string;
   /** sm (32px), md (48px) or lg (64px), as a `ProfilePic`. */
   size?: ConversationIconSize;
+  /** An uploaded image, drawn in place of the icon, or null for none. */
+  src?: string | null;
 }
 
 export default function ConversationIcon({
@@ -70,11 +73,20 @@ export default function ConversationIcon({
   colour,
   label,
   size = "md",
+  src = null,
 }: ConversationIconProps): ReactElement {
   // A colour out of range falls back to the first gradient, as the list
   // is never empty.
   const gradient = AVATAR_GRADIENTS[colour] ?? AVATAR_GRADIENTS[0];
   const { circle, icon: iconSize } = SIZES[size];
+
+  if (src !== null) {
+    return (
+      <AppTooltip label={label}>
+        <Avatar radius="xl" size={circle} src={src} alt={label} />
+      </AppTooltip>
+    );
+  }
 
   return (
     <AppTooltip label={label}>

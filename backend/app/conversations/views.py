@@ -9,9 +9,10 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.request import Request
@@ -22,6 +23,13 @@ from app.accounts.models import User
 from app.cards.bodies import card_body
 from app.cards.models import CardEvent
 from app.conversations import live
+from app.conversations.icons import (
+    MAX_UPLOAD_BYTES,
+    IconRefused,
+    icon_image,
+    remove_icon_image,
+    set_icon_image,
+)
 from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
     MAX_MESSAGE_LENGTH,
@@ -120,7 +128,16 @@ def conversation_body(
         "icon": conversation.icon,
         "icon_colour": conversation.icon_colour,
         "shows_people": conversation.shows_people,
+        "icon_url": icon_url(conversation),
     }
+
+
+def icon_url(conversation: Conversation) -> str | None:
+    """Where its uploaded icon is, with its version, or None for none."""
+    if conversation.icon_version is None:
+        return None
+
+    return f"/api/conversations/{conversation.pk}/icon?v={conversation.icon_version}"
 
 
 def message_body(message: Message) -> dict[str, object]:
@@ -401,6 +418,77 @@ class ShowsPeopleView(APIView):
             return Response(
                 {"detail": str(refused)}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        return Response(conversation_body(conversation, user))
+
+
+def require_organisation_admin(user: User) -> None:
+    if not is_organisation_admin(user, the_organisation()):
+        raise PermissionDenied(
+            "Only an organisation admin can change a conversation's icon."
+        )
+
+
+class IconView(APIView):
+    """A conversation's uploaded icon.
+
+    ``GET`` answers the PNG to anybody who may read the conversation.
+    ``PUT`` takes one image, as the form field ``image``, and ``DELETE``
+    removes it, for an organisation admin. A conversation the caller cannot
+    read answers 404, as everywhere else.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def get(self, request: Request, conversation_id: int) -> HttpResponse:
+        conversation = readable_conversation(caller(request), conversation_id)
+        image = icon_image(conversation)
+
+        if image is None:
+            raise Http404
+
+        response = HttpResponse(image, content_type="image/png")
+        # The address carries the icon's version, so a cached copy is
+        # never out of date. Private: only people who may read it get it.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+
+        return response
+
+    def put(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        require_organisation_admin(user)
+        upload = request.FILES.get("image")
+
+        if upload is None:
+            return Response(
+                {"detail": "Send the image as the form field image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Refused before it is read, so a big file never fills memory.
+        if upload.size is None or upload.size > MAX_UPLOAD_BYTES:
+            return Response(
+                {"detail": "The image must be 1 MB or smaller."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            set_icon_image(conversation, upload.read(), by=user)
+        except IconRefused as refused:
+            return Response(
+                {"detail": str(refused)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(conversation_body(conversation, user))
+
+    def delete(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        require_organisation_admin(user)
+
+        remove_icon_image(conversation, by=user)
 
         return Response(conversation_body(conversation, user))
 

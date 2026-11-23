@@ -27,6 +27,9 @@ dependencies = [
     # Web Push: signs and encrypts each notification to a phone, as Quill
     # Medical sends them.
     "pywebpush>=2.5.0,<3.0.0",
+    # Pillow reads an uploaded channel icon, checks it really is an image,
+    # and redraws it as a small PNG, which also drops anything hidden in it.
+    "pillow>=12.3.0,<13.0.0",
 ]
 
 [tool.poetry]

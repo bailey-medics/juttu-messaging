@@ -25,4 +25,20 @@ describe("ConversationIcon", () => {
 
     expect(screen.getByRole("img", { name: "general" })).toBeInTheDocument();
   });
+
+  it("draws an uploaded image in place of the icon", () => {
+    renderWithMantine(
+      <ConversationIcon
+        icon="sun"
+        colour={0}
+        label="general"
+        src="/api/conversations/11/icon?v=1"
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "general" })).toHaveAttribute(
+      "src",
+      "/api/conversations/11/icon?v=1",
+    );
+  });
 });

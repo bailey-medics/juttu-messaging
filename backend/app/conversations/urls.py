@@ -7,6 +7,7 @@ from app.conversations.views import (
     ConversationsView,
     ConversationView,
     EventsView,
+    IconView,
     MarkReadView,
     MessagesView,
     RepliesView,
@@ -41,6 +42,11 @@ urlpatterns: list[URLPattern] = [
         "conversations/<int:conversation_id>",
         ConversationView.as_view(),
         name="conversation",
+    ),
+    path(
+        "conversations/<int:conversation_id>/icon",
+        IconView.as_view(),
+        name="conversation-icon",
     ),
     path(
         "conversations/<int:conversation_id>/shows-people",

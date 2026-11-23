@@ -41,6 +41,8 @@ export interface ConversationSummary {
   icon_colour: number;
   /** Whether Home may show its people's circles. */
   shows_people: boolean;
+  /** Where an uploaded icon is, which replaces the random one, or null. */
+  icon_url: string | null;
 }
 
 /** A conversation as Home lists it, across every space. */
@@ -72,7 +74,8 @@ export function isConversationSummary(value: unknown): value is ConversationSumm
     typeof value.unread_count === "number" &&
     isConversationIconName(value.icon) &&
     typeof value.icon_colour === "number" &&
-    typeof value.shows_people === "boolean"
+    typeof value.shows_people === "boolean" &&
+    (value.icon_url === null || typeof value.icon_url === "string")
   );
 }
 
@@ -144,6 +147,31 @@ export async function setShowsPeople(
   }
 
   return body;
+}
+
+/** A conversation, from an answer that should be one. */
+function conversationFrom(body: unknown): ConversationSummary {
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
+}
+
+/** Make *image* a conversation's icon, in place of its random one. Admins only. */
+export async function uploadConversationIcon(
+  id: number,
+  image: File,
+): Promise<ConversationSummary> {
+  const form = new FormData();
+  form.append("image", image);
+
+  return conversationFrom(await apiRequest("PUT", `/conversations/${id}/icon`, form));
+}
+
+/** Take a conversation's uploaded icon away, so its random one shows. Admins only. */
+export async function removeConversationIcon(id: number): Promise<ConversationSummary> {
+  return conversationFrom(await apiRequest("DELETE", `/conversations/${id}/icon`));
 }
 
 /** The channels in a space, and the caller's own direct conversations. */

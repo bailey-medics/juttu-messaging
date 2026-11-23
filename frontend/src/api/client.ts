@@ -91,17 +91,19 @@ async function jsonOrNull(response: Response): Promise<unknown> {
  * that the backend is down, and `API_SUCCESS_EVENT` for any other answer.
  */
 export async function apiRequest(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<unknown> {
   const headers: Record<string, string> = { Accept: "application/json" };
+  // A file goes as a form, whose type the browser sets with its boundary.
+  const isForm = body instanceof FormData;
 
   if (method !== "GET") {
     headers["X-CSRFToken"] = csrfToken();
   }
 
-  if (body !== undefined) {
+  if (body !== undefined && !isForm) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -112,7 +114,7 @@ export async function apiRequest(
       method,
       headers,
       credentials: "same-origin",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || body instanceof FormData ? body : JSON.stringify(body),
     });
   } catch (failure) {
     announce(NETWORK_ERROR_EVENT);

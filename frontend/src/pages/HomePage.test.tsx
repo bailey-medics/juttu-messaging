@@ -31,6 +31,7 @@ describe("HomePage", () => {
       icon: "rocket",
       icon_colour: 0,
       shows_people: true,
+      icon_url: null,
       space: { id: 7, name: "Release" },
       last_active_at: "2026-11-21T20:30:00Z",
     };
@@ -42,6 +43,7 @@ describe("HomePage", () => {
       icon: "rocket",
       icon_colour: 0,
       shows_people: true,
+      icon_url: null,
       space: { id: 9, name: "Design" },
       last_active_at: "2026-11-21T18:05:00Z",
     };

@@ -77,6 +77,7 @@ describe("the conversation page", () => {
           icon: "rocket",
           icon_colour: 0,
           shows_people: true,
+          icon_url: null,
         },
       ]),
       "/api/conversations/11/messages": { body: { messages: [hello] } },
@@ -102,6 +103,7 @@ describe("the conversation page", () => {
           icon: "rocket",
           icon_colour: 0,
           shows_people: true,
+          icon_url: null,
         },
         status: 201,
       },
@@ -136,6 +138,7 @@ describe("the conversation page", () => {
           icon: "rocket",
           icon_colour: 0,
           shows_people: true,
+          icon_url: null,
         },
       ]),
       "/api/conversations/12/messages": { body: { messages: [] } },
@@ -239,6 +242,7 @@ describe("the conversation page", () => {
           icon: "rocket",
           icon_colour: 0,
           shows_people: true,
+          icon_url: null,
         },
       ]),
     );
@@ -350,6 +354,7 @@ describe("the conversation page", () => {
             icon: "rocket",
             icon_colour: 0,
             shows_people: true,
+            icon_url: null,
           },
         ]),
       );
@@ -366,6 +371,7 @@ describe("the conversation page", () => {
             icon: "rocket",
             icon_colour: 0,
             shows_people: true,
+            icon_url: null,
           },
         ]),
       );
@@ -386,6 +392,7 @@ describe("the conversation page", () => {
             icon: "rocket",
             icon_colour: 0,
             shows_people: true,
+            icon_url: null,
           },
         ]),
       );
@@ -402,6 +409,7 @@ describe("the conversation page", () => {
             icon: "rocket",
             icon_colour: 0,
             shows_people: true,
+            icon_url: null,
           },
         ]),
       );
@@ -553,6 +561,7 @@ describe("the conversation page", () => {
       icon: "rocket",
       icon_colour: 0,
       shows_people: true,
+      icon_url: null,
     };
 
     function openChannel(me: unknown, conversation: unknown = general) {
@@ -564,6 +573,10 @@ describe("the conversation page", () => {
         "POST /api/conversations/11/shows-people": {
           body: { ...general, shows_people: false },
         },
+        "PUT /api/conversations/11/icon": {
+          body: { ...general, icon_url: "/api/conversations/11/icon?v=1" },
+        },
+        "DELETE /api/conversations/11/icon": { body: general },
       });
       renderAt("/conversations/11");
     }
@@ -586,6 +599,32 @@ describe("the conversation page", () => {
           body: JSON.stringify({ shows_people: false }),
         }),
       );
+    });
+
+    it("lets an admin upload the channel's own icon", async () => {
+      openChannel(SIGNED_IN);
+      const image = new File(["png"], "icon.png", { type: "image/png" });
+
+      await screen.findByRole("button", { name: "Channel actions" });
+      await userEvent.upload(screen.getByLabelText("Channel icon image"), image);
+
+      expect(await screen.findByText("Icon uploaded")).toBeInTheDocument();
+      const sent = vi
+        .mocked(fetch)
+        .mock.calls.find(
+          ([url, init]) => url === "/api/conversations/11/icon" && init?.method === "PUT",
+        );
+      expect(sent?.[1]?.body).toBeInstanceOf(FormData);
+    });
+
+    it("lets an admin remove an uploaded icon, once confirmed", async () => {
+      openChannel(SIGNED_IN, { ...general, icon_url: "/api/conversations/11/icon?v=1" });
+
+      await userEvent.click(await screen.findByRole("button", { name: "Channel actions" }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Remove icon" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Remove icon" }));
+
+      expect(await screen.findByText("Icon removed")).toBeInTheDocument();
     });
 
     it("offers a member no menu", async () => {

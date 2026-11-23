@@ -86,6 +86,11 @@ class Conversation(models.Model):
     )
     icon_colour = models.PositiveSmallIntegerField(default=random_icon_colour)
     shows_people = models.BooleanField(default=True)
+    # When its uploaded icon was uploaded, in microseconds, which goes in the
+    # icon's address: a new upload gets a new address, so a phone never
+    # shows an old one from its cache. None while it has none, so a list of
+    # conversations never has to load an image to know.
+    icon_version = models.PositiveBigIntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.name or f"direct {self.pk}"
@@ -199,3 +204,21 @@ class ReadPoint(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} read {self.conversation_id} to {self.last_read_message_id}"
+
+
+class ConversationIconImage(models.Model):
+    """An image an organisation admin uploaded as a conversation's icon.
+
+    Kept in the database, so the box copy needs nothing new and it is
+    backed up with everything else. Always a PNG of at most 256 by 256
+    pixels, redrawn by Juttu from the upload, never the file as sent.
+    """
+
+    conversation = models.OneToOneField(
+        Conversation, on_delete=models.PROTECT, related_name="icon_image"
+    )
+    image = models.BinaryField()
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    uploaded_at = models.DateTimeField(default=timezone.now)

@@ -10,16 +10,16 @@ import {
   listReplies,
   markRead,
   sendMessage,
+  removeConversationIcon,
   setShowsPeople,
+  uploadConversationIcon,
   type ChatMessage,
   type ConversationSummary,
 } from "@/api/conversations";
 import { useAuth } from "@/auth/AuthContext";
 import { LivingCardView } from "@/components/cards";
-import EllipsisMenu from "@/components/ellipsis-menu/EllipsisMenu";
-import { IconEye, IconEyeOff } from "@/components/icons/appIcons";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
-import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
+import { ChannelMenu, Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
 import { PageHeader } from "@/components/typography";
 import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
@@ -283,25 +283,34 @@ export default function ConversationPage() {
     }
   }
 
+  async function uploadIcon(image: File) {
+    try {
+      setSummary(await uploadConversationIcon(id, image));
+      showMessage({ variant: "success", title: "Icon uploaded" });
+    } catch (failure) {
+      showMessage({ variant: "error", title: `Not uploaded. ${apiFailure(failure)}` });
+    }
+  }
+
+  async function removeIcon() {
+    try {
+      setSummary(await removeConversationIcon(id));
+      showMessage({ variant: "success", title: "Icon removed" });
+    } catch (failure) {
+      showMessage({ variant: "error", title: apiFailure(failure) });
+    }
+  }
+
   // An organisation admin's menu, on a channel: a direct conversation
   // always shows its people.
   const menu =
     summary !== null && summary.kind === "channel" ? (
-      <EllipsisMenu
-        aria-label="Channel actions"
-        items={[
-          summary.shows_people
-            ? {
-                label: "Hide people's circles",
-                icon: <IconEyeOff />,
-                onClick: () => void toggleShowsPeople(summary),
-              }
-            : {
-                label: "Show people's circles",
-                icon: <IconEye />,
-                onClick: () => void toggleShowsPeople(summary),
-              },
-        ]}
+      <ChannelMenu
+        showsPeople={summary.shows_people}
+        hasUploadedIcon={summary.icon_url !== null}
+        onToggleShowsPeople={() => void toggleShowsPeople(summary)}
+        onUploadIcon={(image) => void uploadIcon(image)}
+        onRemoveIcon={removeIcon}
       />
     ) : undefined;
 

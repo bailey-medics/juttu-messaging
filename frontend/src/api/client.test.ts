@@ -64,3 +64,27 @@ describe("apiRequest's connectivity events", () => {
     expect(heard).toEqual([API_SUCCESS_EVENT]);
   });
 });
+
+describe("apiRequest's bodies", () => {
+  it("sends a form as it is, for the browser to type with its boundary", async () => {
+    answer(async () => Response.json({}));
+    const form = new FormData();
+    form.append("image", new File(["png"], "icon.png", { type: "image/png" }));
+
+    await apiRequest("PUT", "/conversations/11/icon", form);
+
+    const init = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(init?.body).toBe(form);
+    expect(init?.headers).not.toHaveProperty("Content-Type");
+  });
+
+  it("sends anything else as JSON", async () => {
+    answer(async () => Response.json({}));
+
+    await apiRequest("POST", "/conversations/11/read", { message_id: 4 });
+
+    const init = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(init?.body).toBe(JSON.stringify({ message_id: 4 }));
+    expect(init?.headers).toHaveProperty("Content-Type", "application/json");
+  });
+});

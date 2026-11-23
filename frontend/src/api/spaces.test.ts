@@ -54,6 +54,7 @@ describe("the spaces and conversations clients", () => {
           icon: "rocket",
           icon_colour: 0,
           shows_people: true,
+          icon_url: null,
         },
       ],
     });
@@ -66,6 +67,7 @@ describe("the spaces and conversations clients", () => {
         icon: "rocket",
         icon_colour: 0,
         shows_people: true,
+        icon_url: null,
       },
     ]);
   });
