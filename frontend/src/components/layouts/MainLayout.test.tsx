@@ -1,7 +1,9 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { API_SUCCESS_EVENT, NETWORK_ERROR_EVENT } from "@/api/client";
 import MainLayout from "@/components/layouts/MainLayout";
+import { ConnectivityProvider } from "@/connectivity";
 import { renderWithRouter } from "@/test/test-utils";
 
 /** Make every media query match, as on a narrow screen, or none. */
@@ -84,5 +86,59 @@ describe("MainLayout", () => {
     await userEvent.click(burger);
 
     expect(await screen.findByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+  });
+
+  describe("the connection", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("shows the offline strip when the backend is lost, then says it is back", async () => {
+      screenIsNarrow(false);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderWithRouter(
+        <ConnectivityProvider>
+          <MainLayout>
+            <p>The page</p>
+          </MainLayout>
+        </ConnectivityProvider>,
+      );
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent(API_SUCCESS_EVENT));
+        window.dispatchEvent(new CustomEvent(NETWORK_ERROR_EVENT));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+
+      expect(screen.getByText(/^Offline - last synced at/)).toBeInTheDocument();
+      expect(await screen.findByText("You are offline")).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent(API_SUCCESS_EVENT));
+      });
+
+      expect(screen.getByText("Reconnected")).toBeInTheDocument();
+      expect(screen.queryByText(/^Offline/)).not.toBeInTheDocument();
+    });
+
+    it("shows no strip while the backend answers", () => {
+      screenIsNarrow(false);
+      renderWithRouter(
+        <ConnectivityProvider>
+          <MainLayout>
+            <p>The page</p>
+          </MainLayout>
+        </ConnectivityProvider>,
+      );
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent(API_SUCCESS_EVENT));
+      });
+
+      expect(screen.queryByText(/^Offline/)).not.toBeInTheDocument();
+      expect(screen.queryByText("Reconnected")).not.toBeInTheDocument();
+    });
   });
 });

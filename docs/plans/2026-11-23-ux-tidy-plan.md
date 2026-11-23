@@ -191,7 +191,7 @@ Found while building, 23 November 2026:
 
 ## Phase 2: the connection status, as Quill has it
 
-- [ ] **Port Quill's connectivity**, `frontend/src/lib/connectivity/`
+- [x] **Port Quill's connectivity**, `frontend/src/lib/connectivity/`
       in Quill: `ConnectivityContext.tsx` and `NavigationBlocker.tsx`,
       with their tests. The context listens for the browser's `online`
       and `offline` events and for two window events the API client
@@ -200,13 +200,13 @@ Found while building, 23 November 2026:
       `frontend/src/api/health.ts` already has a `checkHealth`; use it
       rather than Quill's copy.
 
-- [ ] **Make Juttu's API client send those events**,
+- [x] **Make Juttu's API client send those events**,
       `frontend/src/api/client.ts`: `app:network-error` when a request
       cannot reach the backend, and `app:api-success` when one answers,
       as Quill's `lib/api.ts` does. A refused request, such as a 403, is
       an answer, not a lost connection.
 
-- [ ] **Show the strips and the modal**, in `MainLayout.tsx`, as Quill's
+- [x] **Show the strips and the modal**, in `MainLayout.tsx`, as Quill's
       `MainLayout` does: Juttu's `StatusStrip`, already ported, in its
       "offline" variant with the last sync time and its "reconnected"
       variant, and Juttu's `OfflineModal`, already ported, when somebody
@@ -214,10 +214,21 @@ Found while building, 23 November 2026:
       `NavigationBlocker` in `RootLayout.tsx`, as Quill does. The
       reconnected strip clears on the next page change.
 
-- [ ] **Tests and stories:** the ported context and blocker tests, a
+- [x] **Tests and stories:** the ported context and blocker tests, a
       client test for each event, and a `MainLayout` test that shows the
       offline strip, then the reconnected one. A `MainLayout` story while
       offline.
+
+Found while building, 23 November 2026:
+
+- **Juttu's connectivity lives in `frontend/src/connectivity/`**, since
+  Juttu has no `lib/` folder.
+- **Outside a provider, `useConnectivity` reads as online** instead of
+  throwing, as Juttu's live context does. So `MainLayout`, rendered on
+  its own in its tests and stories, needs no provider.
+- **A proxy's 502, 503, 504 or 530 without JSON counts as lost**, as in
+  Quill. The box copy's Caddy answers 502 when the backend is down, and
+  `fetch` does not throw for that.
 
 ## Phase 3: Home is just "Conversations"
 
