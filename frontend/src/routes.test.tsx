@@ -20,7 +20,9 @@ describe("routes", () => {
   it("shows the home page at /", async () => {
     renderSignedInAt("/");
 
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Conversations" }),
+    ).toBeInTheDocument();
   });
 
   it("shows every page inside the root layout's header", async () => {
@@ -127,7 +129,9 @@ describe("signing in and out", () => {
   it("sends somebody already signed in from the sign-in page to home", async () => {
     renderSignedInAt("/sign-in");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Conversations" }),
+    ).toBeInTheDocument();
   });
 
   it("signs out from the side navigation, back to the sign-in page", async () => {

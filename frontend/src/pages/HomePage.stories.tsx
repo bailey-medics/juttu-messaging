@@ -35,24 +35,14 @@ function json(body: unknown, status = 200): Response {
 }
 
 /**
- * Storybook has no backend, so each story answers the page's requests
- * itself: the conversations list and the health check. It puts the real
- * `fetch` back afterwards.
+ * Storybook has no backend, so each story answers the page's request for
+ * the conversations itself, or never answers it. It puts the real `fetch`
+ * back afterwards.
  */
-function answer(
-  health: () => Promise<Response>,
-  conversations: HomeConversation[] = CONVERSATIONS,
-) {
+function answer(conversations: () => Promise<Response>) {
   return () => {
     const realFetch = globalThis.fetch;
-    globalThis.fetch = async (input: RequestInfo | URL) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (url.endsWith("/api/conversations")) {
-        return json({ conversations });
-      }
-
-      return health();
-    };
+    globalThis.fetch = async () => conversations();
 
     return () => {
       globalThis.fetch = realFetch;
@@ -69,18 +59,20 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const BackendUp: Story = {
-  beforeEach: answer(async () => json({ status: "ok" })),
+/** Every conversation the person may read, most recently active first. */
+export const Conversations: Story = {
+  beforeEach: answer(async () => json({ conversations: CONVERSATIONS })),
 };
 
 export const NoConversationsYet: Story = {
-  beforeEach: answer(async () => json({ status: "ok" }), []),
+  beforeEach: answer(async () => json({ conversations: [] })),
 };
 
-export const BackendDown: Story = {
+/** The list could not be loaded. */
+export const CouldNotLoad: Story = {
   beforeEach: answer(async () => new Response("", { status: 502 })),
 };
 
-export const Checking: Story = {
+export const Loading: Story = {
   beforeEach: answer(() => new Promise<Response>(() => {})),
 };

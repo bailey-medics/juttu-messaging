@@ -4,26 +4,22 @@ import { useNavigate } from "react-router";
 
 import { listMyConversations, type HomeConversation } from "@/api/conversations";
 
-import { checkHealth } from "@/api/health";
 import { UnreadBadge } from "@/components/badge";
-import BaseCard from "@/components/base-card/BaseCard";
-import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
 import DataTable from "@/components/tables/DataTable";
-import { BodyText, Heading, PageHeader } from "@/components/typography";
+import { PageHeader } from "@/components/typography";
 import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
 
 import { apiFailure } from "./apiFailure";
 
 /**
- * The first page: every conversation the person may read, most recently
- * active first, then whether the backend is up. Notifications are set on
- * the Settings page.
+ * The first page, titled "Conversations": every conversation the person
+ * may read, most recently active first. Notifications are set on the
+ * Settings page, and a lost connection shows in the layout's strip.
  */
 export default function HomePage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<HomeConversation[] | null>(null);
   const [conversationsFailed, setConversationsFailed] = useState<string | null>(null);
-  const [state, setState] = useState<HealthState>("checking");
 
   const loadConversations = useCallback(async () => {
     try {
@@ -51,23 +47,9 @@ export default function HomePage() {
     });
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    checkHealth(controller.signal)
-      .then((up) => setState(up ? "up" : "down"))
-      .catch(() => {
-        // Aborted because the page went away: nothing to show.
-      });
-
-    return () => controller.abort();
-  }, []);
-
   return (
     <Stack gap="lg">
-      <PageHeader title="Home" />
-      <BodyText>A quiet place for a team, its pipeline and its agents to talk.</BodyText>
-      <Heading>Your conversations</Heading>
+      <PageHeader title="Conversations" />
       <DataTable
         data={conversations ?? []}
         columns={[
@@ -82,9 +64,6 @@ export default function HomePage() {
         error={conversationsFailed}
         emptyMessage="No conversations yet. Once an admin adds you to a space, its channels show here."
       />
-      <BaseCard>
-        <HealthStatus state={state} />
-      </BaseCard>
     </Stack>
   );
 }

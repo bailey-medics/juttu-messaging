@@ -14,8 +14,8 @@ const meta = {
   args: {
     children: (
       <>
-        <PageHeader title="Home" />
-        <BodyText>A quiet place for a team, its pipeline and its agents to talk.</BodyText>
+        <PageHeader title="Conversations" />
+        <BodyText>The page sits here, beside the side navigation.</BodyText>
       </>
     ),
   },

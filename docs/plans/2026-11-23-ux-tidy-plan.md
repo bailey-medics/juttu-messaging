@@ -232,7 +232,7 @@ Found while building, 23 November 2026:
 
 ## Phase 3: Home is just "Conversations"
 
-- [ ] **Tidy `frontend/src/pages/HomePage.tsx`**, items 1, 7, 8 and 9.
+- [x] **Tidy `frontend/src/pages/HomePage.tsx`**, items 1, 7, 8 and 9.
       Remove the "Backend up" card, and with it the `checkHealth` effect,
       now that Phase 2 shows the connection everywhere. Delete
       `components/health-status/`, with its stories and tests. Remove the
@@ -242,9 +242,17 @@ Found while building, 23 November 2026:
       The table stays for this phase, so this pull request is only
       removals.
 
-- [ ] **Tests and stories:** update `HomePage.test.tsx` and
+- [x] **Tests and stories:** update `HomePage.test.tsx` and
       `HomePage.stories.tsx` for the new title, and for the card and
       heading being gone.
+
+Found while building, 23 November 2026:
+
+- **Two tests in `routes.test.tsx` looked for Home by its old wording**:
+  the "Backend up" card, and the heading "Home". They now look for the
+  heading "Conversations".
+- **`MainLayout`'s stories showed the tagline as sample content.** They
+  now show a plain sentence instead.
 
 ## Phase 4: each space has a kind, Dev, Personal or Clinical
 

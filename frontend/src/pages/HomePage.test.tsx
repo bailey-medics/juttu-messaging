@@ -4,36 +4,22 @@ import userEvent from "@testing-library/user-event";
 import { API_UNREACHABLE } from "@/pages/apiFailure";
 import HomePage from "@/pages/HomePage";
 import { latestStream, stubEventSource } from "@/test/eventSource";
-import { renderAt, SIGNED_IN, stubFetchJson, stubFetchRoutes } from "@/test/render";
+import { renderAt, SIGNED_IN, stubFetchRoutes } from "@/test/render";
 import { renderWithRouter } from "@/test/test-utils";
 
 describe("HomePage", () => {
-  it("says the backend is up when the health check answers", async () => {
-    stubFetchJson({ status: "ok" });
+  it("is titled Conversations, with nothing above the list", async () => {
+    stubFetchRoutes({ "/api/conversations": { body: { conversations: [] } } });
 
     renderWithRouter(<HomePage />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
-  });
-
-  it("says the backend is down when the health check fails", async () => {
-    stubFetchJson({ detail: "unavailable" }, 502);
-
-    renderWithRouter(<HomePage />);
-
-    expect(await screen.findByText("Backend down")).toBeInTheDocument();
-  });
-
-  it("shows that it is checking before the answer comes", () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<Response>(() => {})),
-    );
-
-    renderWithRouter(<HomePage />);
-
-    expect(screen.getByText("Checking")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Conversations" }),
+    ).toBeInTheDocument();
+    expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
+    expect(screen.queryByText(/A quiet place/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Backend up")).not.toBeInTheDocument();
+    expect(await screen.findByText(/No conversations yet/)).toBeInTheDocument();
   });
 
   describe("your conversations", () => {

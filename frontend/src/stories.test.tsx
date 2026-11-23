@@ -51,11 +51,11 @@ it.each(everyStory)("%s renders", async (_name, Story) => {
 });
 
 describe("HomePage stories", () => {
-  it("BackendUp shows the backend as up", async () => {
-    const { BackendUp } = composeStories(homePageStories);
+  it("Conversations lists the conversations", async () => {
+    const { Conversations } = composeStories(homePageStories);
 
-    await BackendUp.run();
+    await Conversations.run();
 
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
+    expect(await screen.findByText("general")).toBeInTheDocument();
   });
 });
