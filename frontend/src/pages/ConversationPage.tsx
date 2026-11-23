@@ -5,14 +5,19 @@ import { useLocation, useParams } from "react-router";
 import { listCards, type LivingCard } from "@/api/cards";
 import { ApiError, isRecord } from "@/api/client";
 import {
+  getConversation,
   listMessages,
   listReplies,
   markRead,
   sendMessage,
+  setShowsPeople,
   type ChatMessage,
+  type ConversationSummary,
 } from "@/api/conversations";
 import { useAuth } from "@/auth/AuthContext";
 import { LivingCardView } from "@/components/cards";
+import EllipsisMenu from "@/components/ellipsis-menu/EllipsisMenu";
+import { IconEye, IconEyeOff } from "@/components/icons/appIcons";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
 import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
@@ -140,11 +145,13 @@ export default function ConversationPage() {
   const [threadId, setThreadId] = useState<number | null>(null);
   const [replies, setReplies] = useState<ChatMessage[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(false);
+  const [summary, setSummary] = useState<ConversationSummary | null>(null);
   // Replies already counted in their message's "N replies", so one that
   // arrives both live and as the answer to sending it counts once.
   const counted = useRef(new Set<number>());
 
   const currentUserId = state.status === "authenticated" ? String(state.user.id) : "";
+  const isAdmin = state.status === "authenticated" && state.user.is_admin;
 
   const load = useCallback(async () => {
     try {
@@ -174,6 +181,18 @@ export default function ConversationPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     void load();
   }, [load]);
+
+  // What the conversation is, for its menu. Only an admin has a menu, so
+  // nobody else asks.
+  useEffect(() => {
+    if (!isAdmin || !Number.isInteger(id)) {
+      return;
+    }
+
+    getConversation(id)
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [id, isAdmin]);
 
   const countReply = useCallback((sent: ChatMessage) => {
     if (sent.thread === null || counted.current.has(sent.id)) {
@@ -249,6 +268,43 @@ export default function ConversationPage() {
 
   const root = messages.find((m) => m.id === threadId);
 
+  async function toggleShowsPeople(current: ConversationSummary) {
+    try {
+      const changed = await setShowsPeople(id, !current.shows_people);
+      setSummary(changed);
+      showMessage({
+        variant: "success",
+        title: changed.shows_people
+          ? "Home shows this channel's people"
+          : "Home shows this channel's icon instead of its people",
+      });
+    } catch (failure) {
+      showMessage({ variant: "error", title: apiFailure(failure) });
+    }
+  }
+
+  // An organisation admin's menu, on a channel: a direct conversation
+  // always shows its people.
+  const menu =
+    summary !== null && summary.kind === "channel" ? (
+      <EllipsisMenu
+        aria-label="Channel actions"
+        items={[
+          summary.shows_people
+            ? {
+                label: "Hide people's circles",
+                icon: <IconEyeOff />,
+                onClick: () => void toggleShowsPeople(summary),
+              }
+            : {
+                label: "Show people's circles",
+                icon: <IconEye />,
+                onClick: () => void toggleShowsPeople(summary),
+              },
+        ]}
+      />
+    ) : undefined;
+
   async function send(text: string) {
     try {
       const sent = await sendMessage(id, text);
@@ -260,7 +316,7 @@ export default function ConversationPage() {
 
   return (
     <Stack gap="md" h="100%">
-      <PageHeader title={titleFrom(location.state)} />
+      <PageHeader title={titleFrom(location.state)} action={menu} />
       {/* The thread sits beside the conversation on a wide screen, and
           beneath it on a phone. */}
       <SimpleGrid cols={{ base: 1, md: threadId === null ? 1 : 2 }} spacing="md">

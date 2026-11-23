@@ -186,6 +186,36 @@ def mark_read(
         point.save(update_fields=[*moved, "updated_at"])
 
 
+class ShowsPeopleRefused(Exception):
+    """A direct conversation always shows its people."""
+
+
+@transaction.atomic
+def set_shows_people(
+    conversation: Conversation, shows_people: bool, *, by: User
+) -> None:
+    """Show or hide a channel's people on Home, for everybody, audited.
+
+    The caller has already checked *by* is an organisation admin.
+
+    Raises:
+        ShowsPeopleRefused: For a direct conversation.
+    """
+    if conversation.kind != ConversationKind.CHANNEL:
+        raise ShowsPeopleRefused(
+            "A direct conversation always shows its people."
+        )
+
+    conversation.shows_people = shows_people
+    conversation.save(update_fields=["shows_people"])
+
+    record(
+        AuditAction.CONVERSATION_SHOWS_PEOPLE_CHANGED,
+        actor=by,
+        detail={"conversation": conversation.pk, "shows_people": shows_people},
+    )
+
+
 def can_read(user: User, conversation: Conversation) -> bool:
     """Whether *user* may read, and post in, *conversation* now."""
     if not is_in(user, conversation.space):

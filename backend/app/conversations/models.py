@@ -1,5 +1,7 @@
 """A conversation, who is in a direct one, and its messages."""
 
+import secrets
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -24,8 +26,46 @@ class ConversationKind(models.TextChoices):
     DIRECT = "direct", "Direct"
 
 
+class ConversationIcon(models.TextChoices):
+    """The friendly Tabler icons a conversation may be given, by name. The
+    frontend draws each; a name not here is never sent."""
+
+    ANCHOR = "anchor", "Anchor"
+    BOLT = "bolt", "Bolt"
+    CLOUD = "cloud", "Cloud"
+    COFFEE = "coffee", "Coffee"
+    COMPASS = "compass", "Compass"
+    FLAME = "flame", "Flame"
+    LEAF = "leaf", "Leaf"
+    MUSIC = "music", "Music"
+    PLANET = "planet", "Planet"
+    ROCKET = "rocket", "Rocket"
+    STAR = "star", "Star"
+    SUN = "sun", "Sun"
+
+
+#: How many gradients the frontend's profile pictures have, in
+#: ``frontend/src/components/profile-pic/gradients.ts``.
+ICON_COLOURS = 30
+
+
+def random_icon() -> str:
+    """One of the icons, picked at random, for a new conversation."""
+    return secrets.choice(ConversationIcon.values)
+
+
+def random_icon_colour() -> int:
+    """One of the gradients, by its index, picked at random."""
+    return secrets.randbelow(ICON_COLOURS)
+
+
 class Conversation(models.Model):
-    """A channel, or a direct conversation between named people, in a space."""
+    """A channel, or a direct conversation between named people, in a space.
+
+    Each has an icon and a colour, picked at random when it is made and
+    kept, which Home shows in place of people's circles. ``shows_people``
+    lets an organisation admin turn a channel's circles off.
+    """
 
     space = models.ForeignKey(
         Space, on_delete=models.PROTECT, related_name="conversations"
@@ -41,6 +81,11 @@ class Conversation(models.Model):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    icon = models.CharField(
+        max_length=16, choices=ConversationIcon.choices, default=random_icon
+    )
+    icon_colour = models.PositiveSmallIntegerField(default=random_icon_colour)
+    shows_people = models.BooleanField(default=True)
 
     def __str__(self) -> str:
         return self.name or f"direct {self.pk}"

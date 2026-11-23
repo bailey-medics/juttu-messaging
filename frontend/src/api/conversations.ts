@@ -6,13 +6,41 @@
 import { ApiError, apiRequest, isRecord } from "@/api/client";
 import { listOf } from "@/api/spaces";
 
+/** The friendly icons a conversation may be given, by name. */
+export const CONVERSATION_ICONS = [
+  "anchor",
+  "bolt",
+  "cloud",
+  "coffee",
+  "compass",
+  "flame",
+  "leaf",
+  "music",
+  "planet",
+  "rocket",
+  "star",
+  "sun",
+] as const;
+
+export type ConversationIconName = (typeof CONVERSATION_ICONS)[number];
+
+export function isConversationIconName(value: unknown): value is ConversationIconName {
+  return CONVERSATION_ICONS.some((name) => name === value);
+}
+
 export interface ConversationSummary {
   id: number;
   kind: "channel" | "direct";
   /** A channel's name, or the other people in a direct conversation. */
   title: string;
-  /** Messages from others the person has not read yet. */
+  /** Messages and new cards the person has not read yet. */
   unread_count: number;
+  /** The icon picked for it at random, and kept. */
+  icon: ConversationIconName;
+  /** Which of the profile pictures' gradients the icon sits on. */
+  icon_colour: number;
+  /** Whether Home may show its people's circles. */
+  shows_people: boolean;
 }
 
 /** A conversation as Home lists it, across every space. */
@@ -41,7 +69,10 @@ export function isConversationSummary(value: unknown): value is ConversationSumm
     typeof value.id === "number" &&
     (value.kind === "channel" || value.kind === "direct") &&
     typeof value.title === "string" &&
-    typeof value.unread_count === "number"
+    typeof value.unread_count === "number" &&
+    isConversationIconName(value.icon) &&
+    typeof value.icon_colour === "number" &&
+    typeof value.shows_people === "boolean"
   );
 }
 
@@ -86,6 +117,33 @@ export async function listMyConversations(): Promise<HomeConversation[]> {
   const body = await apiRequest("GET", "/conversations");
 
   return listOf(body, "conversations", isHomeConversation);
+}
+
+/** One conversation the caller may read. */
+export async function getConversation(id: number): Promise<ConversationSummary> {
+  const body = await apiRequest("GET", `/conversations/${id}`);
+
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
+}
+
+/** Show or hide a channel's people's circles on Home, for everybody. Admins only. */
+export async function setShowsPeople(
+  id: number,
+  showsPeople: boolean,
+): Promise<ConversationSummary> {
+  const body = await apiRequest("POST", `/conversations/${id}/shows-people`, {
+    shows_people: showsPeople,
+  });
+
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
 }
 
 /** The channels in a space, and the caller's own direct conversations. */

@@ -26,6 +26,7 @@ from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
     MAX_MESSAGE_LENGTH,
     ConversationRefused,
+    ShowsPeopleRefused,
     all_conversations_for,
     can_read,
     conversations_for,
@@ -33,12 +34,17 @@ from app.conversations.services import (
     messages_in,
     post,
     replies_to,
+    set_shows_people,
     start_channel,
     start_direct,
     unread_counts,
 )
 from app.organisations.competencies import Competency
-from app.organisations.services import holds
+from app.organisations.services import (
+    holds,
+    is_organisation_admin,
+    the_organisation,
+)
 from app.spaces.models import Space
 from app.spaces.services import is_in
 
@@ -111,6 +117,9 @@ def conversation_body(
         "kind": conversation.kind,
         "title": title,
         "unread_count": unread,
+        "icon": conversation.icon,
+        "icon_colour": conversation.icon_colour,
+        "shows_people": conversation.shows_people,
     }
 
 
@@ -339,6 +348,61 @@ class MarkReadView(APIView):
         )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ConversationView(APIView):
+    """``GET`` one conversation the caller may read: its title, kind, icon
+    and whether it shows its people. One they cannot read answers 404."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        unread = unread_counts(user, [conversation.pk]).get(conversation.pk, 0)
+
+        return Response(conversation_body(conversation, user, unread))
+
+
+class ShowsPeopleSerializer(serializers.Serializer[dict[str, Any]]):
+    """Whether a channel shows its people's circles on Home."""
+
+    shows_people = serializers.BooleanField()
+
+
+class ShowsPeopleView(APIView):
+    """``POST`` shows or hides a channel's people on Home, for everybody.
+
+    Only an organisation admin may, in a conversation they can read; a
+    conversation they cannot read answers 404, as everywhere else.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+
+        if not is_organisation_admin(user, the_organisation()):
+            raise PermissionDenied(
+                "Only an organisation admin can change what a channel shows."
+            )
+
+        serializer = ShowsPeopleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            set_shows_people(
+                conversation,
+                serializer.validated_data["shows_people"],
+                by=user,
+            )
+        except ShowsPeopleRefused as refused:
+            return Response(
+                {"detail": str(refused)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(conversation_body(conversation, user))
 
 
 class EventStreamRenderer(BaseRenderer):

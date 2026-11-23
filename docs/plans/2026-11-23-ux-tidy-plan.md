@@ -300,7 +300,7 @@ Found while building, 23 November 2026:
 
 ## Phase 5: channel icons, and turning people's circles off
 
-- [ ] **Give every conversation a random icon, kept**,
+- [x] **Give every conversation a random icon, kept**,
       `backend/app/conversations/models.py`: `Conversation.icon`, the
       name of one of a short list of friendly Tabler icons, and
       `Conversation.icon_colour`, one of the gradients that
@@ -310,27 +310,42 @@ Found while building, 23 November 2026:
       only be sent names it draws. The migration gives each existing
       conversation its own random pair.
 
-- [ ] **Let an organisation admin turn a channel's circles off**:
+- [x] **Let an organisation admin turn a channel's circles off**:
       `Conversation.shows_people`, true by default, set by `POST
 /api/conversations/{id}/shows-people` with `{"shows_people":
 false}`. Only an organisation admin may, and it is audited as
       `CONVERSATION_SHOWS_PEOPLE_CHANGED`. A direct conversation always
       shows its people, so the route refuses one with 400.
 
-- [ ] **An ellipsis menu on the conversation page**, for organisation
+- [x] **An ellipsis menu on the conversation page**, for organisation
       admins only, using Juttu's `components/ellipsis-menu`, with "Hide
       people's circles" or "Show people's circles". Phase 6 adds the icon
       items to the same menu.
 
-- [ ] **A `ConversationIcon` component**,
+- [x] **A `ConversationIcon` component**,
       `frontend/src/components/profile-pic/ConversationIcon.tsx`, with
       stories and tests: the Tabler icon on its gradient, in a circle the
       size of a `ProfilePic`. It draws an uploaded image instead once
       Phase 6 sends one.
 
-- [ ] **Tests:** the random pair is kept and valid, the migration fills
+- [x] **Tests:** the random pair is kept and valid, the migration fills
       every row, only an admin may change `shows_people`, a direct
       conversation is refused, and the menu shows for an admin only.
+
+Found while building, 23 November 2026:
+
+- **The conversation page had no way to read one conversation**, so its
+  menu could not know whether the circles were on. A new `GET
+/api/conversations/{id}` answers one conversation the caller may read,
+  and 404 otherwise, as everywhere else.
+- **The twelve icons are anchor, bolt, cloud, coffee, compass, flame,
+  leaf, music, planet, rocket, star and sun**, added to `appIcons.ts`.
+  The backend picks with `secrets`, which Bandit accepts, and the
+  migration gives each existing conversation its own pair, since a
+  column's callable default fills every existing row with one value.
+- **The menu shows for an admin only, on a channel only.** A direct
+  conversation always shows its people, and the route answers 400 for
+  one.
 
 ## Phase 6: uploading a channel's own icon
 

@@ -28,6 +28,9 @@ describe("HomePage", () => {
       kind: "channel",
       title: "general",
       unread_count: 3,
+      icon: "rocket",
+      icon_colour: 0,
+      shows_people: true,
       space: { id: 7, name: "Release" },
       last_active_at: "2026-11-21T20:30:00Z",
     };
@@ -36,6 +39,9 @@ describe("HomePage", () => {
       kind: "direct",
       title: "Alex Morgan",
       unread_count: 0,
+      icon: "rocket",
+      icon_colour: 0,
+      shows_people: true,
       space: { id: 9, name: "Design" },
       last_active_at: "2026-11-21T18:05:00Z",
     };
