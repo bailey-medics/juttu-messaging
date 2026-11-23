@@ -1,10 +1,13 @@
 """Conversations and messages: who may read and post, and that nothing changes."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager as ContextManager
 from typing import TYPE_CHECKING
 
 import pytest
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, connection, transaction
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 
 from app.accounts.models import User
 from app.audit.models import AuditEvent
@@ -565,11 +568,19 @@ def test_home_lists_every_conversation_across_spaces_newest_first(
     found = home_list(alex)
 
     assert [c["id"] for c in found] == [general.pk, ideas.pk]
-    assert found[0]["space"] == {"id": release.pk, "name": "Release"}
+    assert found[0]["space"] == {
+        "id": release.pk,
+        "name": "Release",
+        "kind": "dev",
+    }
     assert found[0]["title"] == "general"
     assert found[0]["kind"] == "channel"
     assert found[0]["unread_count"] == 1
-    assert found[1]["space"] == {"id": design.pk, "name": "Design"}
+    assert found[1]["space"] == {
+        "id": design.pk,
+        "name": "Design",
+        "kind": "dev",
+    }
 
 
 def test_home_leaves_out_a_direct_conversation_somebody_is_not_in(
@@ -626,3 +637,117 @@ def test_a_card_changing_does_not_move_its_conversation_up(
     run_card(ci, "41", "Passed")
 
     assert [c["id"] for c in home_list(alex)][:2] == [general.pk, ci.pk]
+
+
+def home_entry(user: User, conversation: Conversation) -> dict[str, object]:
+    return next(c for c in home_list(user) if c["id"] == conversation.pk)
+
+
+def test_home_previews_the_newest_message(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    post(general, "Morning.", by=sam)
+    post(general, "Deploying now.", by=sam)
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Deploying now."
+
+
+def test_home_previews_a_newer_card_change_by_its_title_and_line(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    post(general, "Morning.", by=sam)
+    run_card(general, "41", "Running")
+    run_card(general, "41", "Passed")
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Run 41: Passed"
+
+
+def test_home_previews_a_correction_as_corrected(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    wrong = post(general, "Deploy at 3.", by=sam)
+    post(general, "Deploy at 4.", by=sam, amends=wrong)
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Deploy at 4."
+
+
+def test_home_previews_nothing_for_a_quiet_conversation(
+    alex: User, general: Conversation
+) -> None:
+    assert home_entry(alex, general)["last_item"] is None
+
+
+def test_a_channel_shows_up_to_four_others(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    for name in ("dana", "eli"):
+        add_to_space(release, person(name), by=sam)
+
+    people = home_entry(alex, general)["people"]
+
+    assert isinstance(people, list)
+    assert sorted(p["name"] for p in people) == ["dana", "eli", "priya", "sam"]
+
+
+def test_a_channel_with_five_others_shows_its_icon(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    for name in ("dana", "eli", "fran"):
+        add_to_space(release, person(name), by=sam)
+
+    assert home_entry(alex, general)["people"] == []
+
+
+def test_a_channel_with_its_circles_off_shows_its_icon(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    general.shows_people = False
+    general.save(update_fields=["shows_people"])
+
+    assert home_entry(alex, general)["people"] == []
+
+
+def test_a_direct_conversation_shows_the_others(
+    sam: User, alex: User, release: Space
+) -> None:
+    direct = start_direct(release, [alex], by=sam)
+
+    people = home_entry(alex, direct)["people"]
+
+    assert people == [{"id": sam.pk, "name": sam.display_name}]
+
+
+def test_home_takes_the_same_queries_however_many_conversations(
+    sam: User,
+    alex: User,
+    priya: User,
+    release: Space,
+    general: Conversation,
+    django_assert_num_queries: Callable[[int], ContextManager[object]],
+) -> None:
+    # One of each kind to start with: Django skips a prefetch's second
+    # query when the first found nothing, such as no direct conversations.
+    post(general, "One.", by=sam)
+    start_direct(release, [alex], by=sam)
+    client = signed_in(alex)
+
+    with CaptureQueriesContext(connection) as few:
+        client.get("/api/conversations")
+
+    for name in ("ops", "design", "random"):
+        channel = start_channel(release, name, by=sam)
+        post(channel, "Hello.", by=sam)
+        run_card(channel, name, "Running")
+    start_direct(release, [alex, priya], by=sam)
+
+    with django_assert_num_queries(len(few.captured_queries)):
+        client.get("/api/conversations")

@@ -7,13 +7,21 @@ Quill Medical's messaging.
 """
 
 from django.db import transaction
-from django.db.models import Count, F, OuterRef, Q, QuerySet, Subquery
+from django.db.models import (
+    Count,
+    F,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Subquery,
+)
 from django.db.models.functions import Coalesce, Greatest
 
 from app.accounts.models import User
 from app.audit.models import AuditAction
 from app.audit.record import record
-from app.cards.models import Card
+from app.cards.models import Card, CardEvent
 from app.conversations.live import announce, hold_post_lock
 from app.conversations.models import (
     Conversation,
@@ -23,7 +31,7 @@ from app.conversations.models import (
     ReadPoint,
 )
 from app.push.services import notify_about
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceMember
 from app.spaces.services import is_in
 
 #: The longest message, in characters. Far longer than any chat message,
@@ -76,6 +84,15 @@ def all_conversations_for(user: User) -> QuerySet[Conversation]:
         .order_by("-pk")
         .values("created_at")[:1]
     )
+    # The newest message, whatever it is: a correction is a new message,
+    # so the newest is already the corrected text.
+    newest_message_row = Message.objects.filter(
+        conversation=OuterRef("pk")
+    ).order_by("-pk")
+    # The newest change to any of its cards, with the card's title.
+    newest_card_event = CardEvent.objects.filter(
+        card__conversation=OuterRef("pk")
+    ).order_by("-pk")
     readable = Conversation.objects.filter(
         Q(space__memberships__user=user)
         & Q(space__memberships__left_at__isnull=True)
@@ -85,7 +102,34 @@ def all_conversations_for(user: User) -> QuerySet[Conversation]:
     return (
         Conversation.objects.filter(pk__in=readable)
         .select_related("space")
-        .prefetch_related("participants__user")
+        .prefetch_related(
+            "participants__user",
+            # Everybody in each space today, for a channel's circles.
+            Prefetch(
+                "space__memberships",
+                queryset=SpaceMember.objects.filter(
+                    left_at__isnull=True, user__is_active=True
+                )
+                .select_related("user")
+                .order_by("user__username"),
+                to_attr="current_members",
+            ),
+        )
+        .annotate(
+            newest_message_body=Subquery(
+                newest_message_row.values("body")[:1]
+            ),
+            newest_message_at=Subquery(
+                newest_message_row.values("created_at")[:1]
+            ),
+            newest_card_title=Subquery(
+                newest_card_event.values("card__title")[:1]
+            ),
+            newest_card_line=Subquery(newest_card_event.values("summary")[:1]),
+            newest_card_at=Subquery(
+                newest_card_event.values("received_at")[:1]
+            ),
+        )
         # Postgres's GREATEST passes over a NULL, which is what a
         # conversation with no messages or no cards has.
         .annotate(

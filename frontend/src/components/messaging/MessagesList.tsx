@@ -17,6 +17,7 @@ import BaseCard from "@/components/base-card/BaseCard";
 import StateMessage from "@/components/message-cards/StateMessage";
 import { IconMessage } from "@/components/icons/appIcons";
 import { Group, Skeleton, Stack, UnstyledButton } from "@mantine/core";
+import type { ReactNode } from "react";
 
 export type MessageThread = {
   /** Unique thread identifier */
@@ -31,6 +32,11 @@ export type MessageThread = {
   lastMessageTime: string;
   /** Number of unread messages */
   unreadCount: number;
+  /**
+   * Drawn in place of the profile icons when given, such as a
+   * conversation's own icon when it does not show its people.
+   */
+  icon?: ReactNode;
 };
 
 type Props = {
@@ -104,7 +110,9 @@ export default function MessagesList({ threads, onThreadClick, isLoading }: Prop
         >
           <BaseCard>
             <Group wrap="nowrap" align="flex-start">
-              {thread.profiles.length > 1 ? (
+              {thread.icon !== undefined ? (
+                thread.icon
+              ) : thread.profiles.length > 1 ? (
                 <StackedProfilePics participants={thread.profiles} size={iconSize} />
               ) : (
                 <ProfilePic

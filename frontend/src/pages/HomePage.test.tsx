@@ -32,8 +32,10 @@ describe("HomePage", () => {
       icon_colour: 0,
       shows_people: true,
       icon_url: null,
-      space: { id: 7, name: "Release" },
+      space: { id: 7, name: "Release", kind: "dev" },
       last_active_at: "2026-11-21T20:30:00Z",
+      last_item: null,
+      people: [],
     };
     const withAlex = {
       id: 12,
@@ -44,8 +46,10 @@ describe("HomePage", () => {
       icon_colour: 0,
       shows_people: true,
       icon_url: null,
-      space: { id: 9, name: "Design" },
+      space: { id: 9, name: "Design", kind: "dev" },
       last_active_at: "2026-11-21T18:05:00Z",
+      last_item: null,
+      people: [],
     };
 
     function routes(conversations: unknown[]) {
@@ -56,19 +60,44 @@ describe("HomePage", () => {
       };
     }
 
-    it("lists every conversation with its space and unread count, in order", async () => {
-      stubFetchRoutes(routes([general, withAlex]));
+    it("lists each space's conversations under its name, Dev spaces first", async () => {
+      stubFetchRoutes(
+        routes([{ ...withAlex, space: { id: 9, name: "Design", kind: "personal" } }, general]),
+      );
 
       renderWithRouter(<HomePage />);
-      await screen.findAllByText("Alex Morgan");
 
-      const rows = screen.getAllByRole("row");
-      expect(rows.map((row) => row.textContent)).toEqual([
-        expect.stringContaining("Name"),
-        expect.stringMatching(/general.*Release.*Channel/),
-        expect.stringMatching(/Alex Morgan.*Design.*Direct/),
-      ]);
-      expect(screen.getAllByLabelText("3 unread")[0]).toBeInTheDocument();
+      const design = await screen.findByRole("heading", { name: "Design" });
+      const release = screen.getByRole("heading", { name: "Release" });
+      expect(
+        release.compareDocumentPosition(design) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(screen.getByLabelText("3 unread")).toBeInTheDocument();
+    });
+
+    it("previews each conversation's newest item", async () => {
+      stubFetchRoutes(
+        routes([
+          { ...general, last_item: { text: "Run 4512: Passed", at: "2026-11-21T20:30:00Z" } },
+          withAlex,
+        ]),
+      );
+
+      renderWithRouter(<HomePage />);
+
+      expect(await screen.findByText("Run 4512: Passed")).toBeInTheDocument();
+      expect(screen.getByText("No messages yet")).toBeInTheDocument();
+    });
+
+    it("draws the others' initials, or the conversation's own icon", async () => {
+      stubFetchRoutes(
+        routes([general, { ...withAlex, people: [{ id: 2, name: "Alex Morgan" }] }]),
+      );
+
+      renderWithRouter(<HomePage />);
+
+      expect(await screen.findByText("AM")).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "general" })).toBeInTheDocument();
     });
 
     it("says how to get a conversation when there are none", async () => {
@@ -76,10 +105,9 @@ describe("HomePage", () => {
 
       renderWithRouter(<HomePage />);
 
+      expect(await screen.findByText("No conversations yet")).toBeInTheDocument();
       expect(
-        await screen.findByText(
-          "No conversations yet. Once an admin adds you to a space, its channels show here.",
-        ),
+        screen.getByText("Once an admin adds you to a space, its channels show here."),
       ).toBeInTheDocument();
     });
 

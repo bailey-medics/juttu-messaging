@@ -7,6 +7,7 @@ as one that does not exist would.
 
 import json
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 
 from django.http import Http404, HttpResponse, StreamingHttpResponse
@@ -168,11 +169,71 @@ def refused(error: ConversationRefused) -> Response:
     return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+#: The most people a conversation shows as circles on Home, besides the
+#: person looking. With more, it shows its icon instead.
+MAX_PEOPLE_SHOWN = 4
+
+
+def last_item(conversation: Conversation) -> dict[str, str] | None:
+    """The newer of the newest message and the newest card change, as Home
+    previews it, or None for a conversation with neither.
+
+    Reads what ``all_conversations_for`` annotated, so it costs no query.
+    """
+    message_at: datetime | None = getattr(
+        conversation, "newest_message_at", None
+    )
+    card_at: datetime | None = getattr(conversation, "newest_card_at", None)
+
+    if card_at is not None and (message_at is None or card_at > message_at):
+        title = getattr(conversation, "newest_card_title", "")
+        line = getattr(conversation, "newest_card_line", "")
+
+        return {"text": f"{title}: {line}", "at": card_at.isoformat()}
+
+    if message_at is not None:
+        body = getattr(conversation, "newest_message_body", "")
+
+        return {"text": body, "at": message_at.isoformat()}
+
+    return None
+
+
+def people_shown(
+    conversation: Conversation, user: User
+) -> list[dict[str, object]]:
+    """The others Home draws as circles, or none, when it shows the icon.
+
+    A channel's people are everybody in its space today, from what
+    ``all_conversations_for`` prefetched; a direct one's are its
+    participants. Either way, more than ``MAX_PEOPLE_SHOWN`` besides the
+    person looking shows the icon, and so does a channel with its circles
+    turned off.
+    """
+    if conversation.kind == ConversationKind.CHANNEL:
+        if not conversation.shows_people:
+            return []
+
+        members = getattr(conversation.space, "current_members", [])
+        others = [m.user for m in members if m.user_id != user.pk]
+    else:
+        others = [
+            p.user
+            for p in conversation.participants.all()
+            if p.user_id != user.pk
+        ]
+
+    if len(others) > MAX_PEOPLE_SHOWN:
+        return []
+
+    return [{"id": u.pk, "name": u.display_name} for u in others]
+
+
 def home_conversation_body(
     conversation: Conversation, user: User, unread: int
 ) -> dict[str, object]:
-    """A conversation as Home lists it: with its space, and when it was last
-    active, since the list spans every space."""
+    """A conversation as Home lists it: with its space and the space's kind,
+    when it was last active, its newest item, and the people it shows."""
     last_active_at = getattr(
         conversation, "last_active_at", conversation.created_at
     )
@@ -182,8 +243,11 @@ def home_conversation_body(
         "space": {
             "id": conversation.space_id,
             "name": conversation.space.name,
+            "kind": conversation.space.kind,
         },
         "last_active_at": last_active_at.isoformat(),
+        "last_item": last_item(conversation),
+        "people": people_shown(conversation, user),
     }
 
 

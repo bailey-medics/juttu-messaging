@@ -4,7 +4,7 @@
  */
 
 import { ApiError, apiRequest, isRecord } from "@/api/client";
-import { listOf } from "@/api/spaces";
+import { isSpaceKind, listOf, type SpaceKind } from "@/api/spaces";
 
 /** The friendly icons a conversation may be given, by name. */
 export const CONVERSATION_ICONS = [
@@ -46,10 +46,34 @@ export interface ConversationSummary {
 }
 
 /** A conversation as Home lists it, across every space. */
+/** Somebody Home draws as a round icon with their initials. */
+export interface ShownPerson {
+  id: number;
+  name: string;
+}
+
+/** The newest message or card change, as Home previews it. */
+export interface LastItem {
+  text: string;
+  at: string;
+}
+
 export interface HomeConversation extends ConversationSummary {
-  space: { id: number; name: string };
-  /** When its newest message was sent, or when it was started. */
+  space: { id: number; name: string; kind: SpaceKind };
+  /** When its newest message or card was made, or when it was started. */
   last_active_at: string;
+  /** The newest message or card change, or null for neither. */
+  last_item: LastItem | null;
+  /** The others drawn as circles, or none, when it shows its icon instead. */
+  people: ShownPerson[];
+}
+
+function isShownPerson(value: unknown): value is ShownPerson {
+  return isRecord(value) && typeof value.id === "number" && typeof value.name === "string";
+}
+
+function isLastItem(value: unknown): value is LastItem {
+  return isRecord(value) && typeof value.text === "string" && typeof value.at === "string";
 }
 
 export interface ChatMessage {
@@ -90,7 +114,11 @@ export function isHomeConversation(value: unknown): value is HomeConversation {
     isRecord(record.space) &&
     typeof record.space.id === "number" &&
     typeof record.space.name === "string" &&
-    typeof record.last_active_at === "string"
+    isSpaceKind(record.space.kind) &&
+    typeof record.last_active_at === "string" &&
+    (record.last_item === null || isLastItem(record.last_item)) &&
+    Array.isArray(record.people) &&
+    record.people.every(isShownPerson)
   );
 }
 

@@ -56,6 +56,6 @@ describe("HomePage stories", () => {
 
     await Conversations.run();
 
-    expect(await screen.findByText("general")).toBeInTheDocument();
+    expect(await screen.findByText("dev-CI")).toBeInTheDocument();
   });
 });

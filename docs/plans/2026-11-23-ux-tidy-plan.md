@@ -397,7 +397,7 @@ Found while building, 23 November 2026:
 
 ## Phase 7: the conversation list, as Quill shows patient conversations
 
-- [ ] **Send what the list needs from `GET /api/conversations`**,
+- [x] **Send what the list needs from `GET /api/conversations`**,
       `home_conversation_body` in `backend/app/conversations/views.py`.
       Add `last_item`, the newer of the newest message and the newest
       card change, or `null` for neither: its text (a message's body, or
@@ -414,7 +414,7 @@ Found while building, 23 November 2026:
       fixed number of queries however many conversations there are, and
       prove it with `django_assert_num_queries`.
 
-- [ ] **Show the list with Juttu's `MessagesList`**,
+- [x] **Show the list with Juttu's `MessagesList`**,
       `frontend/src/components/messaging/MessagesList.tsx`, already
       ported from Quill and not yet used, grouped under one heading for
       each space. Spaces come in kind order, Dev, then Personal, then
@@ -427,12 +427,31 @@ Found while building, 23 November 2026:
       everywhere. A click opens the conversation, and the live reload,
       unread badges, empty and error states stay.
 
-- [ ] **Tests and stories:** backend tests for `last_item` (a message, a
+- [x] **Tests and stories:** backend tests for `last_item` (a message, a
       card change, a correction, none) and for `people` at 4 and at 5
       others, with `shows_people` off, and for a direct conversation.
       `HomePage.test.tsx` covers the grouping and order, both kinds of
       icon, a click, unread counts, the empty list and an error. Update
       `HomePage.stories.tsx` and the demo data.
+
+Found while building, 23 November 2026:
+
+- **A channel's people are everybody in its space today**, read from one
+  prefetch of each space's current members, so the people cost no query
+  per conversation. `icon_url` came with Phase 6, so it needed nothing
+  here.
+- **The query test measures from one of each kind of conversation.**
+  Django skips a prefetch's second query when the first finds nothing,
+  such as no direct conversations, so a count taken from channels alone
+  is one short.
+- **Grouping is its own function, `groupBySpace`**, in
+  `frontend/src/pages/homeGroups.ts`, with its tests, so Phase 8 can
+  give it a person's own order.
+- **A conversation with nothing in it says "No messages yet"**, and its
+  time is when it was started.
+- **Two Home tests changed because the layout changed**: the table's
+  rows became the grouped list, and the empty text became a title and a
+  description.
 
 ## Phase 8: each person's own order of spaces
 
