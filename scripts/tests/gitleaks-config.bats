@@ -3,7 +3,7 @@
 # rules. A gitleaks config replaces those rules unless it extends them, and
 # with no rules every scan passes, silently. These tests read the file and
 # fail when the block that keeps the rules is gone or switched off. Run with:
-# bats s/tests
+# bats scripts/tests
 
 setup() {
 	config="${BATS_TEST_DIRNAME}/../../.gitleaks.toml"

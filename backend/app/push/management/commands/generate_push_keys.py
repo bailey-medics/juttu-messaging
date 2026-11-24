@@ -1,6 +1,6 @@
 """Make a Web Push signing key pair, as environment settings.
 
-``s/box push-keys`` runs this in the box's backend and adds what it prints
+``scripts/box.sh push-keys`` runs this in the box's backend and adds what it prints
 to ``local/box.env``. The keys are printed and never stored here.
 """
 

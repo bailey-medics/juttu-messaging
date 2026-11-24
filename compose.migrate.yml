@@ -10,8 +10,8 @@
 # this worktree's migrations, compared against this worktree's models,
 # then thrown away.
 #
-# s/migrate names the compose project after the worktree, so several can
-# run at once.
+# scripts/migrate.sh names the compose project after the worktree, so several
+# can run at once.
 
 services:
   migrate:
@@ -28,8 +28,8 @@ services:
       DB_NAME: juttu
       DB_USER: juttu
       DB_PASSWORD: migrate_only
-    # As the host user on Linux, where s/migrate sets HOST_UID, so a new
-    # revision can be written into a worktree the host user owns.
+    # As the host user on Linux, where scripts/migrate.sh sets HOST_UID, so a
+    # new revision can be written into a worktree the host user owns.
     user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
     working_dir: /app
     volumes:

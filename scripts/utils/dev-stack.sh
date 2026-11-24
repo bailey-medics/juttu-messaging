@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The one way the scripts in s/ reach the development stack.
+# The one way the scripts in scripts/ reach the development stack.
 #
 # Usage: source it, then `dev_stack <docker compose arguments>`, such as
 #   dev_stack up --detach --wait

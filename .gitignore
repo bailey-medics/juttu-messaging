@@ -15,7 +15,7 @@ __pycache__/
 # This machine's own settings, such as a changed port. See .env.example.
 .env
 
-# Terraform's providers and plans, made by s/terraform. Its state lives in
-# local/terraform/, ignored above.
+# Terraform's providers and plans, made by scripts/terraform.sh. Its state lives
+# in local/terraform/, ignored above.
 .terraform/
 *.tfplan

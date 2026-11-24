@@ -1,19 +1,19 @@
 # Throwaway unit-test containers for any worktree. Ported from Quill
 # Medical.
 #
-# `just unit-tests-backend` (and s/test) runs `docker compose run --rm`
+# `just unit-tests-backend` (and scripts/test.sh) runs `docker compose run --rm`
 # against this file, so each run is a fresh container built from the dev
 # image with THIS worktree mounted at /app, beside a Postgres of its own.
 # It needs no dev stack.
 #
 # The tests run on Postgres, never SQLite, so they exercise the database
 # Juttu runs on. That Postgres keeps its data in memory, so nothing
-# survives a run, and s/test removes it afterwards. The two containers
+# survives a run, and scripts/test.sh removes it afterwards. The two containers
 # share an internal network, so the tests reach nothing outside the run.
 #
-# The compose project name comes from the worktree's folder (see s/test),
-# which keeps each worktree's containers and database apart from every
-# other's.
+# The compose project name comes from the worktree's folder (see
+# scripts/test.sh), which keeps each worktree's containers and database apart
+# from every other's.
 
 services:
   backend:
@@ -30,8 +30,8 @@ services:
       DB_NAME: juttu
       DB_USER: juttu
       DB_PASSWORD: test_only
-    # As the host user on Linux, where s/test sets HOST_UID, so pytest's
-    # cache can be written into the worktree. Otherwise the image's own
+    # As the host user on Linux, where scripts/test.sh sets HOST_UID, so
+    # pytest's cache can be written into the worktree. Otherwise the image's own
     # appuser.
     user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
     working_dir: /app

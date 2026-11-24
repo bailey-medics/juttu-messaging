@@ -119,7 +119,7 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = not env.dev_mode
 # Pages a request may come from beyond its own host: the dev box's address,
-# which s/box passes in. See Settings.csrf_trusted_origins.
+# which scripts/box.sh passes in. See Settings.csrf_trusted_origins.
 CSRF_TRUSTED_ORIGINS = env.csrf_trusted_origins
 
 # The Web Push signing keys and contact, or None while push notifications

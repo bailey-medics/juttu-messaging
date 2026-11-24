@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # Switch on this clone's tracked git hook, in .githooks/.
 #
-# Usage: s/install-hooks (or `just setup`). Once per clone: the setting is
-# shared by every worktree. The path is relative on purpose, so git
-# resolves it against the worktree that is committing, and each worktree
-# runs its own branch's hook. Not `pre-commit install`, whose untracked
-# hook nobody reviews, and which refuses to run once core.hooksPath is set.
+# Usage: scripts/install-hooks.sh (or `just setup`). Once per clone: the setting
+# is shared by every worktree. The path is relative on purpose, so git resolves
+# it against the worktree that is committing, and each worktree runs its own
+# branch's hook. Not `pre-commit install`, whose untracked hook nobody reviews,
+# and which refuses to run once core.hooksPath is set.
 #
 # It changes local git configuration only, never installs packages, and
 # never replaces a hooks path somebody else set.
 set -euo pipefail
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
-	echo "Usage: s/install-hooks (switch on this clone's tracked git hook)"
+	echo "Usage: scripts/install-hooks.sh (switch on this clone's tracked git hook)"
 	exit 0
 fi
 
 if [ "$#" -ne 0 ]; then
-	echo "Usage: s/install-hooks (no arguments); no configuration changed." >&2
+	echo "Usage: scripts/install-hooks.sh (no arguments); no configuration changed." >&2
 	exit 2
 fi
 

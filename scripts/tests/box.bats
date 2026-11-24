@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Tests for s/box, which deploys the long-running copy on the dev box. Each
-# test makes a throwaway origin and checkout, and a stand-in docker records
-# what s/box asked of it, so nothing is built or started.
+# Tests for scripts/box.sh, which deploys the long-running copy on the dev box.
+# Each test makes a throwaway origin and checkout, and a stand-in docker records
+# what scripts/box.sh asked of it, so nothing is built or started.
 bats_require_minimum_version 1.5.0
 
 setup() {
@@ -21,8 +21,8 @@ setup() {
 	git -C "${repo}" commit -q -m main
 	git -C "${repo}" push -q origin main
 
-	mkdir -p "${repo}/s"
-	cp "${BATS_TEST_DIRNAME}/../box" "${repo}/s/box"
+	mkdir -p "${repo}/scripts"
+	cp "${BATS_TEST_DIRNAME}/../box.sh" "${repo}/scripts/box.sh"
 
 	cat >"${bin}/docker" <<STUB
 #!/usr/bin/env bash
@@ -59,7 +59,7 @@ card_events() {
 }
 
 box() {
-	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/box" "$@"
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/scripts/box.sh" "$@"
 }
 
 calls() {

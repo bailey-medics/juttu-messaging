@@ -22,16 +22,16 @@ anything. `CLAUDE.md` only points here.
 
 ## Layout
 
-| Path          | What it is                                                                  |
-| ------------- | --------------------------------------------------------------------------- |
-| `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py`  |
-| `frontend/`   | The React, Mantine and Vite app, with Storybook                             |
-| `caddy/dev/`  | Caddy in front of the dev stack: one origin for app and API                 |
-| `docs/plans/` | Plan documents: what is being built, and the decisions made                 |
-| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them               |
-| `s/tests/`    | bats tests for the scripts and the git hook                                 |
-| `terraform/`  | The repository's own GitHub settings, in Terraform. See `docs/terraform.md` |
-| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone             |
+| Path             | What it is                                                                  |
+| ---------------- | --------------------------------------------------------------------------- |
+| `backend/`       | The Django app, with DRF. Each test sits beside its module, as `*_test.py`  |
+| `frontend/`      | The React, Mantine and Vite app, with Storybook                             |
+| `caddy/dev/`     | Caddy in front of the dev stack: one origin for app and API                 |
+| `docs/plans/`    | Plan documents: what is being built, and the decisions made                 |
+| `scripts/`       | Scripts, one for each repeated job. The `justfile` wraps them               |
+| `scripts/tests/` | bats tests for the scripts and the git hook                                 |
+| `terraform/`     | The repository's own GitHub settings, in Terraform. See `docs/terraform.md` |
+| `.githooks/`     | The tracked git hook. `just setup` switches it on, once a clone             |
 
 ## Core invariants
 
@@ -68,7 +68,7 @@ anything. `CLAUDE.md` only points here.
   is `juttu`, so no container or volume shares another stack's name.
 - **The dev stack listens on this machine only**, unless `JUTTU_BIND`
   says otherwise.
-- **The copy on the dev box runs only what is on `main`.** `s/box deploy`
+- **The copy on the dev box runs only what is on `main`.** `scripts/box.sh deploy`
   builds from a clean export of `origin/main`, never a working tree. It is
   reached only through the private network's HTTPS proxy, and its
   settings, the address among them, live in `local/box.env`.
@@ -80,7 +80,7 @@ anything. `CLAUDE.md` only points here.
   `backend/poetry.lock`. Bump them together.
 - **A migration is written with `just migrate`, never by hand against the
   dev stack's database.** It autogenerates against a throwaway Postgres
-  from this worktree's models, and refuses an empty result. `./s/test`
+  from this worktree's models, and refuses an empty result. `./scripts/test.sh`
   checks every migration applies, undoes and matches the models.
 - **A merged migration is never edited.** A change is a new migration.
 - **The backend container runs as an unprivileged user**, uid 10001.
@@ -132,30 +132,30 @@ onto Juttu's own components when those are ported from Quill Medical.
 
 ```sh
 just setup    # switch on the tracked git hook, once per clone
-./s/up        # start the dev stack: Juttu is at http://localhost:8180
-./s/down      # stop it, keeping the database
-./s/rebuild   # rebuild its images after a dependency change
+./scripts/up.sh        # start the dev stack: Juttu is at http://localhost:8180
+./scripts/down.sh      # stop it, keeping the database
+./scripts/rebuild.sh   # rebuild its images after a dependency change
 just worktree feature/<name>   # a sibling worktree, ready to work in
 just box-deploy   # deploy the latest main to the copy on the dev box
-./s/lint      # every check pre-commit enforces, over the whole repository
-./s/test      # every test suite: bats on the host, pytest in a container
+./scripts/lint.sh      # every check pre-commit enforces, over the whole repository
+./scripts/test.sh      # every test suite: bats on the host, pytest in a container
 just ub       # the backend tests only, with pytest's arguments
 just migrate "<message>"   # write a migration for a model change
 just first-account   # make the first account on the dev stack, once
-./s/frontend  # the frontend gate: types, lint, format, tests, both builds
+./scripts/frontend.sh  # the frontend gate: types, lint, format, tests, both builds
 just storybook   # Storybook, on port 6106
 just tf plan     # what Terraform would change in the GitHub settings
 ```
 
-Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of
+Each `just` recipe is a thin wrapper over a script in `scripts/`. Each phase of
 the skeleton plan adds its own commands here.
 
 ## Before every commit
 
 ```sh
-./s/lint
-./s/test
-./s/frontend  # when the change touches frontend/
+./scripts/lint.sh
+./scripts/test.sh
+./scripts/frontend.sh  # when the change touches frontend/
 ```
 
 Do not commit red. CI runs the same three on every pull request and every

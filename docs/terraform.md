@@ -13,13 +13,13 @@ just tf plan    # show what would change on GitHub, changing nothing
 just tf apply   # make the change, after showing it and asking
 ```
 
-`just tf` is `s/terraform`, which runs any Terraform command in
+`just tf` is `scripts/terraform.sh`, which runs any Terraform command in
 `terraform/github/`. The first run initialises the directory.
 
 It needs two things on the machine:
 
 1. **Terraform**, from HashiCorp, at version 1.5 or later.
-2. **A GitHub token.** `s/terraform` uses `GITHUB_TOKEN`, or the token
+2. **A GitHub token.** `scripts/terraform.sh` uses `GITHUB_TOKEN`, or the token
    `gh` is signed in with when that is unset. Planning only reads. Applying
    changes the repository's settings, so it needs a token that may do so:
    on a fine-grained token, Administration write on this repository.

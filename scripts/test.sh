@@ -2,23 +2,23 @@
 # Run the test suites.
 #
 # Usage:
-#   s/test                    every suite
-#   s/test s/tests            the bats tests only
-#   s/test backend [args]     the backend tests only, with pytest's args
-#   s/test migrations         the migration check only
-#   s/test frontend           the frontend's Vitest suite only
+#   scripts/test.sh                    every suite
+#   scripts/test.sh scripts/tests            the bats tests only
+#   scripts/test.sh backend [args]     the backend tests only, with pytest's args
+#   scripts/test.sh migrations         the migration check only
+#   scripts/test.sh frontend           the frontend's Vitest suite only
 #
 # The suites:
 #
-#   s/tests/   bats tests for the scripts in s/ and the git hook. They run
+#   scripts/tests/   bats tests for the scripts in scripts/ and the git hook. They run
 #              on the host and need bats; nothing they test reaches Docker
 #              or GitHub.
 #   backend/   pytest, in a throwaway container built from the backend's
 #              dev image with this worktree mounted, beside a throwaway
 #              Postgres, so it runs from any worktree without the dev
 #              stack. See compose.unit-tests.yml.
-#   frontend/  Vitest, on the host, through s/frontend.
-#   migrations s/migrate check: the migrations apply, undo and match the
+#   frontend/  Vitest, on the host, through scripts/frontend.sh.
+#   migrations scripts/migrate.sh check: the migrations apply, undo and match the
 #              models, on a throwaway Postgres. See compose.migrate.yml.
 #
 # Each later phase of the skeleton plan adds its own suite here.
@@ -33,12 +33,12 @@ run_bats() {
 		exit 1
 	fi
 
-	echo "==> bats s/tests"
-	bats s/tests
+	echo "==> bats scripts/tests"
+	bats scripts/tests
 }
 
 # shellcheck source=utils/project-name.sh
-source s/utils/project-name.sh
+source scripts/utils/project-name.sh
 
 run_backend() {
 	if ! command -v docker >/dev/null 2>&1; then
@@ -67,12 +67,12 @@ run_backend() {
 
 run_migrations() {
 	echo "==> migrations (on a throwaway Postgres)"
-	s/migrate check
+	scripts/migrate.sh check
 }
 
 run_frontend() {
 	echo "==> vitest frontend"
-	s/frontend test:ci
+	scripts/frontend.sh test:ci
 }
 
 case "${1:-}" in
@@ -82,7 +82,7 @@ case "${1:-}" in
 		run_migrations
 		run_frontend
 		;;
-	s/tests)
+	scripts/tests)
 		run_bats
 		;;
 	backend)
@@ -96,7 +96,7 @@ case "${1:-}" in
 		run_frontend
 		;;
 	*)
-		echo "Usage: s/test [s/tests | backend [pytest args] | migrations | frontend]" >&2
+		echo "Usage: scripts/test.sh [scripts/tests | backend [pytest args] | migrations | frontend]" >&2
 		exit 2
 		;;
 esac

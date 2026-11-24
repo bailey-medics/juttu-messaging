@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Run every check pre-commit enforces, over the whole repository.
 #
-# Usage: s/lint [pre-commit options], or `just lint`. Run it before
-# committing. Extra arguments go to pre-commit, so `s/lint cspell` runs one
-# hook.
+# Usage: scripts/lint.sh [pre-commit options], or `just lint`. Run it before
+# committing. Extra arguments go to pre-commit, so `scripts/lint.sh cspell` runs
+# one hook.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

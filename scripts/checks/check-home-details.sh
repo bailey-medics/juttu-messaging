@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Refuse details of a home or dev set-up in tracked files.
 #
-# The repository is public, so an address on a home network or a
-# tailnet, a tailnet's name or a device's MAC address would be published
-# with it, and stay readable in git history after it was deleted. The patterns here describe a
-# kind of detail, never anybody's own, so they are safe to commit and CI
-# runs them for every push.
+# The repository is public, so an address on a home network or a tailnet, a
+# tailnet's name or a device's MAC address would be published with it, and stay
+# readable in git history after it was deleted. The patterns here describe a
+# kind of detail, never anybody's own, so they are safe to commit and CI runs
+# them for every push.
 #
 # The literals only a list can know, such as a laptop's hostname, are in
 # local/home-details-denylist, which is never committed. It is read when
 # this runs outside CI, and made with a header explaining it the first
 # time. See "Core invariants" in AGENTS.md.
 #
-# Usage: s/checks/check-home-details [--all | FILE...]
+# Usage: scripts/checks/check-home-details.sh [--all | FILE...]
 #
 # A match is reported as path:line and the rule's name, never the text,
 # because CI logs are as public as the files.
@@ -49,7 +49,7 @@ rule_patterns=("$private_address" "$tailnet_name" "$tailnet_ipv6" "$mac_address"
 
 denylist_header='# Home details this machine refuses to commit, one per line.
 #
-# Read by s/checks/check-home-details, which pre-commit runs. Put here
+# Read by scripts/checks/check-home-details.sh, which pre-commit runs. Put here
 # what only a list can know: the hostnames of your own devices, your
 # router'"'"'s make or model, your Wi-Fi name. Matching ignores case. This
 # file is in local/, which is never committed, and the check never

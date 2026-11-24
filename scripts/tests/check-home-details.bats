@@ -1,21 +1,21 @@
 #!/usr/bin/env bats
-# Tests for s/checks/check-home-details, which refuses addresses, tailnet names
-# and other details of a home or dev set-up in tracked files.
+# Tests for scripts/checks/check-home-details.sh, which refuses addresses,
+# tailnet names and other details of a home or dev set-up in tracked files.
 #
 # Each test builds a throwaway repository and runs the script inside it,
-# so s/utils/local-path.sh makes its local/ there and nothing here
+# so scripts/utils/local-path.sh makes its local/ there and nothing here
 # touches the real one. Every address below is made up, and this file is
 # exempt from the check because its name ends .bats.
 
 setup() {
-	SCRIPT="${BATS_TEST_DIRNAME}/../checks/check-home-details"
+	SCRIPT="${BATS_TEST_DIRNAME}/../checks/check-home-details.sh"
 	REPO="${BATS_TEST_TMPDIR}/repo"
 
 	git init -q "$REPO"
 	git -C "$REPO" -c user.name=t -c user.email=t@example.com \
 		commit -q --allow-empty -m "start"
 
-	# The path as s/utils/local-path.sh prints it: macOS keeps its temporary
+	# The path as scripts/utils/local-path.sh prints it: macOS keeps its temporary
 	# directory behind a symlink.
 	DENYLIST="$(cd -P "$REPO" && pwd)/local/home-details-denylist"
 

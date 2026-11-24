@@ -17,7 +17,7 @@ max_line_length = 100
 trim_trailing_whitespace = false
 
 # Shell scripts use tabs.
-[{s/**,.githooks/*,*.sh,*.bats}]
+[{scripts/**,.githooks/*,*.sh,*.bats}]
 indent_style = tab
 
 [{justfile,*.just}]

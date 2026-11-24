@@ -127,8 +127,8 @@ then migrates the database and restarts the copy. The database is kept.
 
 ```sh
 just box-status    # which commit is running, and its containers
-./s/box logs       # follow the logs
-./s/box down       # stop it, keeping its database
+./scripts/box.sh logs       # follow the logs
+./scripts/box.sh down       # stop it, keeping its database
 ```
 
 ## Install Juttu on a phone
