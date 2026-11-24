@@ -1,11 +1,11 @@
 /**
- * The sign-in form: a username, a password and a "Sign in" button, in a
- * card. Ported from Quill Medical's `LoginForm`, without its two-factor
- * code, register link, forgotten password link and logo, none of which
- * Juttu has yet.
+ * The sign-in form: Juttu's icon, a username, a password and a "Sign in"
+ * button, in a card. Ported from Quill Medical's `LoginForm`, without its
+ * two-factor code, register link and forgotten password link, none of
+ * which Juttu has yet.
  */
 
-import { Stack } from "@mantine/core";
+import { Image, Stack } from "@mantine/core";
 
 import BaseCard from "@/components/base-card/BaseCard";
 import { PasswordField, TextField } from "@/components/form";
@@ -13,6 +13,9 @@ import { Form, FormStatusNarrow, SubmitButton, useFormContext } from "@/componen
 import type { FormSubmitResult } from "@/components/form/Form";
 import PageHeader from "@/components/page-header";
 import { MAX_PASSWORD, MAX_USERNAME } from "@/lib/fieldLimits";
+
+/** Juttu's icon, in `frontend/public/`: the bubble with no square behind it. */
+const SIGN_IN_ICON_SRC = "/juttu-icon-transparent.svg";
 
 export interface SignInFormData {
   username: string;
@@ -31,6 +34,8 @@ function SignInFields({ title }: { title: string }) {
 
   return (
     <Stack>
+      {/* Decoration: the heading beneath already names Juttu. */}
+      <Image src={SIGN_IN_ICON_SRC} alt="" w="4.5rem" h="4.5rem" mx="auto" />
       <PageHeader title={title} />
       <TextField
         label="Username"

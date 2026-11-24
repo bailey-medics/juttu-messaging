@@ -27,6 +27,19 @@ describe("SignInForm", () => {
     );
   });
 
+  it("shows Juttu's icon above the heading, hidden from screen readers", () => {
+    const { container } = renderWithRouter(
+      <SignInForm
+        onSubmit={submitWith({ state: "success", message: { title: "Signed in" } })}
+      />,
+    );
+
+    const icon = container.querySelector('img[src="/juttu-icon-transparent.svg"]');
+
+    expect(icon).toHaveAttribute("alt", "");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
   it("limits the username to what the backend takes", () => {
     renderWithRouter(
       <SignInForm
