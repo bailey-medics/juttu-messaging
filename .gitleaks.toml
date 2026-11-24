@@ -4,7 +4,7 @@
 #
 # A config file REPLACES the built-in rules unless it says to extend them,
 # and with no rules every scan passes. The [extend] block below is what
-# makes the scan a scan: never remove it. s/tests/gitleaks-config.bats
+# makes the scan a scan: never remove it. scripts/tests/gitleaks-config.bats
 # fails if it goes.
 #
 # Add an allowlist entry only for a value proven not to be a secret, as

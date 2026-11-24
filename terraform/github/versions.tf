@@ -1,6 +1,6 @@
 # Terraform and the GitHub provider this configuration is written for.
 # .terraform.lock.hcl pins the provider's exact build; bump the two together
-# with `s/terraform init -upgrade`.
+# with `scripts/terraform.sh init -upgrade`.
 
 terraform {
   required_version = ">= 1.5"

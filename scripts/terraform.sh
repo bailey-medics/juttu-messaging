@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Run Terraform on the repository's GitHub settings, in terraform/github/.
 #
-# Usage: s/terraform <command> [args]
+# Usage: scripts/terraform.sh <command> [args]
 #
-#   s/terraform plan      show what would change, changing nothing
-#   s/terraform apply     make the change, after showing it and asking
-#   s/terraform <command> any other Terraform command, with its arguments
+#   scripts/terraform.sh plan      show what would change, changing nothing
+#   scripts/terraform.sh apply     make the change, after showing it and asking
+#   scripts/terraform.sh <command> any other Terraform command, with its arguments
 #
 # The first run initialises the directory, so it is safe to run on a fresh
 # clone. The GitHub provider reads its token from GITHUB_TOKEN; when that is
@@ -44,7 +44,7 @@ main() {
 	local command="${1:-}"
 
 	if [ -z "${command}" ]; then
-		echo "No command given. Usage: s/terraform <command> [args], such as s/terraform plan" >&2
+		echo "No command given. Usage: scripts/terraform.sh <command> [args], such as scripts/terraform.sh plan" >&2
 		exit 2
 	fi
 

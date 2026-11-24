@@ -1,2 +1,2 @@
-# Follow source directives, so a sourced helper in s/utils is checked too.
+# Follow source directives, so a sourced helper in scripts/utils is checked too.
 external-sources=true

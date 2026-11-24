@@ -2,9 +2,9 @@
 # Django migrations, on a throwaway Postgres. Ported from Quill Medical.
 #
 # Usage:
-#   s/migrate new "<message>"   write a migration for this worktree's model
+#   scripts/migrate.sh new "<message>"   write a migration for this worktree's model
 #                               changes, and fail if there are none
-#   s/migrate check             prove the migrations apply from nothing,
+#   scripts/migrate.sh check             prove the migrations apply from nothing,
 #                               undo to nothing, apply again, and leave no
 #                               difference from the models
 #
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 usage() {
-	echo "Usage: s/migrate new \"<message>\" | s/migrate check" >&2
+	echo "Usage: scripts/migrate.sh new \"<message>\" | scripts/migrate.sh check" >&2
 	exit 2
 }
 
@@ -106,7 +106,7 @@ main() {
 	cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 	# shellcheck source=utils/project-name.sh
-	source s/utils/project-name.sh
+	source scripts/utils/project-name.sh
 
 	case "${1:-}" in
 		new)

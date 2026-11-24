@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
-# Tests for s/worktree. Each test makes a throwaway origin and checkout, and
-# puts stand-in poetry and npm on PATH, so nothing is installed.
+# Tests for scripts/worktree.sh. Each test makes a throwaway origin and
+# checkout, and puts stand-in poetry and npm on PATH, so nothing is installed.
 bats_require_minimum_version 1.5.0
 
 setup() {
@@ -15,8 +15,8 @@ setup() {
 	git init -q --bare -b main "${work}/origin.git"
 	git clone -q "${work}/origin.git" "${work}/juttu" 2>/dev/null
 	repo="${work}/juttu"
-	mkdir -p "${repo}/s" "${repo}/backend" "${repo}/frontend"
-	cp "${BATS_TEST_DIRNAME}/../worktree" "${repo}/s/worktree"
+	mkdir -p "${repo}/scripts" "${repo}/backend" "${repo}/frontend"
+	cp "${BATS_TEST_DIRNAME}/../worktree.sh" "${repo}/scripts/worktree.sh"
 	touch "${repo}/backend/.keep" "${repo}/frontend/.keep"
 	git -C "${repo}" add -A
 	git -C "${repo}" commit -q -m start
@@ -32,7 +32,7 @@ STUB
 }
 
 make_worktree() {
-	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/worktree" "$@"
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/scripts/worktree.sh" "$@"
 }
 
 @test "a new branch gets a sibling worktree cut from origin/main" {

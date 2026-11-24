@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # The long-running copy of Juttu on the dev box. See docs/dev-box.md.
 #
-#   s/box deploy [ref]    build and start <ref>, by default the latest
+#   scripts/box.sh deploy [ref]    build and start <ref>, by default the latest
 #                         origin/main, from a clean copy of it
-#   s/box status          what is running, and which commit it is
-#   s/box logs [service]  follow the logs
-#   s/box down            stop it, keeping its database
-#   s/box first-account   make the first account, asking for its username
+#   scripts/box.sh status          what is running, and which commit it is
+#   scripts/box.sh logs [service]  follow the logs
+#   scripts/box.sh down            stop it, keeping its database
+#   scripts/box.sh first-account   make the first account, asking for its username
 #                         and password; refused once any account exists
-#   s/box push-keys <contact>
+#   scripts/box.sh push-keys <contact>
 #                         make the Web Push signing keys, once, and add them
 #                         to local/box.env with the contact push services
 #                         may write to (mailto:<address>, or an https://
@@ -31,7 +31,7 @@ env_file="${local_dir}/box.env"
 build_dir="${local_dir}/box-build"
 
 usage() {
-	echo "Usage: s/box deploy [ref] | status | logs [service] | down | first-account | push-keys <contact>" >&2
+	echo "Usage: scripts/box.sh deploy [ref] | status | logs [service] | down | first-account | push-keys <contact>" >&2
 	exit 2
 }
 
@@ -48,7 +48,7 @@ ensure_env_file() {
 	if [ ! -f "${env_file}" ]; then
 		mkdir -p "${local_dir}"
 		{
-			echo "# Settings for the long-running copy on this dev box, read by s/box."
+			echo "# Settings for the long-running copy on this dev box, read by scripts/box.sh."
 			echo "# Never committed: local/ is ignored. See docs/dev-box.md."
 			echo
 			echo "# The box database's password, made at random by the first deploy."
@@ -155,7 +155,7 @@ push_keys() {
 	umask 077
 	{
 		echo
-		echo "# The Web Push signing keys, made by s/box push-keys. A new pair"
+		echo "# The Web Push signing keys, made by scripts/box.sh push-keys. A new pair"
 		echo "# would end every phone's subscription, so keep these."
 		printf '%s\n' "${keys}" | grep -E '^JUTTU_BOX_VAPID_(PUBLIC|PRIVATE)_KEY='
 		echo "JUTTU_BOX_VAPID_CONTACT=${contact}"

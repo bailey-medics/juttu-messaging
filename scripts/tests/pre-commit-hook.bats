@@ -104,5 +104,5 @@ STUB
 	run env PATH="${bin}:/usr/bin:/bin" "${repo}/.githooks/pre-commit"
 
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"./s/frontend install"* ]]
+	[[ "$output" == *"./scripts/frontend.sh install"* ]]
 }

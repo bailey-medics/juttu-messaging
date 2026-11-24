@@ -2,7 +2,7 @@ name: CI
 
 # One workflow for every pull request, and for every push to main, which
 # checks the merged result. It runs the same commands a developer runs:
-# s/lint, s/test and s/frontend.
+# scripts/lint.sh, scripts/test.sh and scripts/frontend.sh.
 on:
   push:
     branches: [main]
@@ -35,8 +35,8 @@ jobs:
       # interpreter that built it, and breaks when the runner's Python moves.
       #
       # pre-commit's own default home, outside the checkout. Inside it, the
-      # cache is a set of untracked files, which s/lint then checks as though
-      # they were part of the change.
+      # cache is a set of untracked files, which scripts/lint.sh then checks as
+      # though they were part of the change.
       - name: Cache the hooks' environments
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -53,7 +53,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Run every hook over every file
-        run: bash s/lint --color=always
+        run: bash scripts/lint.sh --color=always
 
   scripts:
     name: Script tests (bats)
@@ -64,7 +64,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # The scripts in s/ are tested with stand-ins for docker, poetry and
+      # The scripts in scripts/ are tested with stand-ins for docker, poetry and
       # npm, so this job needs no container. The justfile's tests ask just
       # for each recipe's commands.
       - name: Install bats
@@ -78,7 +78,7 @@ jobs:
           fallback: none
 
       - name: Run the bats tests
-        run: bash s/test s/tests
+        run: bash scripts/test.sh scripts/tests
 
   backend:
     name: Backend (tests, migrations, image)
@@ -89,14 +89,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # In the same throwaway container a developer's ./s/test uses.
+      # In the same throwaway container a developer's ./scripts/test.sh uses.
       - name: Run the backend tests
-        run: bash s/test backend
+        run: bash scripts/test.sh backend
 
       # On a throwaway Postgres: every migration applies, undoes and applies
       # again, and leaves no difference from the models.
       - name: Check the migrations
-        run: bash s/test migrations
+        run: bash scripts/test.sh migrations
 
       - name: Build the production image
         run: docker build --file backend/Dockerfile --target prod --tag juttu-backend:ci .
@@ -120,11 +120,11 @@ jobs:
       # `npm ci` installs exactly the committed lock, and fails if
       # package.json and the lock disagree.
       - name: Install the packages
-        run: bash s/frontend install
+        run: bash scripts/frontend.sh install
 
       # Types, lint, format, tests, the build and the Storybook build.
       - name: Run the frontend gate
-        run: bash s/frontend
+        run: bash scripts/frontend.sh
 
       - name: Build the development image
         run: docker build --tag juttu-frontend-dev:ci frontend

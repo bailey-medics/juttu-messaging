@@ -1,6 +1,6 @@
 # The checks every commit runs, through .githooks/pre-commit, and that
-# s/lint runs over the whole repository. Ported from Quill Medical and
-# Turva. CI's `hooks` job runs s/lint too.
+# scripts/lint.sh runs over the whole repository. Ported from Quill Medical and
+# Turva. CI's `hooks` job runs scripts/lint.sh too.
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -33,7 +33,7 @@ repos:
   # ShellCheck finds the mistakes that are easy to make in shell: an
   # unquoted variable, a failure nobody notices, a cd that may not happen.
   # It brings its own binary, so no machine needs one installed, and checks
-  # every file pre-commit tags as shell: the scripts in s/, .githooks/ and
+  # every file pre-commit tags as shell: the scripts in scripts/, .githooks/ and
   # the bats tests.
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
@@ -95,10 +95,11 @@ repos:
 
   # Strict type checking of the backend, with the settings in
   # backend/pyproject.toml's [tool.mypy]. The Django and DRF plugins load
-  # config.settings, so every package it imports is listed here too. The extra packages are the ones
-  # the backend imports, pinned to backend/poetry.lock so mypy checks
-  # against the versions the code runs on. Bump them with the lock, never
-  # one without the other: s/tests/mypy-pins.bats fails when they differ.
+  # config.settings, so every package it imports is listed here too. The extra
+  # packages are the ones the backend imports, pinned to backend/poetry.lock so
+  # mypy checks against the versions the code runs on. Bump them with the lock,
+  # never one without the other: scripts/tests/mypy-pins.bats fails when they
+  # differ.
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.4.1
     hooks:
@@ -145,7 +146,7 @@ repos:
   - repo: local
     hooks:
       # Terraform's own formatter, over the GitHub settings in terraform/.
-      # It needs terraform on the machine, as s/terraform does.
+      # It needs terraform on the machine, as scripts/terraform.sh does.
       - id: terraform-fmt
         name: terraform fmt
         entry: terraform fmt -check -diff
@@ -158,6 +159,6 @@ repos:
       # local/home-details-denylist, which is never committed.
       - id: check-home-details
         name: Check for home and dev set-up details
-        entry: s/checks/check-home-details
+        entry: scripts/checks/check-home-details.sh
         language: system
         types: [text]

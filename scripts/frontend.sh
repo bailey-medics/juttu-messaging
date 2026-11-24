@@ -2,11 +2,11 @@
 # Run an npm script in the frontend, from anywhere in the repository.
 # Ported from Turva.
 #
-#   s/frontend install     install the locked packages
-#   s/frontend dev         the Vite dev server, on 5273 (JUTTU_FRONTEND_PORT)
-#   s/frontend storybook   Storybook, on 6106 (JUTTU_STORYBOOK_PORT)
-#   s/frontend test:ci     Vitest, once
-#   s/frontend <script>    any other script in frontend/package.json
+#   scripts/frontend.sh install     install the locked packages
+#   scripts/frontend.sh dev         the Vite dev server, on 5273 (JUTTU_FRONTEND_PORT)
+#   scripts/frontend.sh storybook   Storybook, on 6106 (JUTTU_STORYBOOK_PORT)
+#   scripts/frontend.sh test:ci     Vitest, once
+#   scripts/frontend.sh <script>    any other script in frontend/package.json
 #
 # With no arguments, runs the whole frontend gate, in the order CI runs it:
 # types, lint, format, tests, the build and the Storybook build.

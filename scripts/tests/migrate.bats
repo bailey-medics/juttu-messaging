@@ -1,17 +1,17 @@
 #!/usr/bin/env bats
-# Tests for s/migrate. A stand-in docker records each call and, for a `run`,
-# answers as Django's makemigrations would, so no container is started.
+# Tests for scripts/migrate.sh. A stand-in docker records each call and, for a
+# `run`, answers as Django's makemigrations would, so no container is started.
 bats_require_minimum_version 1.5.0
 
 setup() {
 	repo="${BATS_TEST_TMPDIR}/repo"
 	bin="${BATS_TEST_TMPDIR}/bin"
-	mkdir -p "${repo}/s/utils" "${repo}/backend/app/migrations" "${bin}"
-	cp "${BATS_TEST_DIRNAME}/../migrate" "${repo}/s/migrate"
-	cp "${BATS_TEST_DIRNAME}/../utils/project-name.sh" "${repo}/s/utils/project-name.sh"
+	mkdir -p "${repo}/scripts/utils" "${repo}/backend/app/migrations" "${bin}"
+	cp "${BATS_TEST_DIRNAME}/../migrate.sh" "${repo}/scripts/migrate.sh"
+	cp "${BATS_TEST_DIRNAME}/../utils/project-name.sh" "${repo}/scripts/utils/project-name.sh"
 
-	# shellcheck source=s/migrate
-	source "${BATS_TEST_DIRNAME}/../migrate"
+	# shellcheck source=scripts/migrate.sh
+	source "${BATS_TEST_DIRNAME}/../migrate.sh"
 }
 
 # A stand-in docker. With MAKEMIGRATIONS=writes, a `run` writes a migration
@@ -32,7 +32,7 @@ STUB
 }
 
 migrate_with() {
-	run env PATH="${bin}:/usr/bin:/bin" MAKEMIGRATIONS="$1" "${repo}/s/migrate" "${@:2}"
+	run env PATH="${bin}:/usr/bin:/bin" MAKEMIGRATIONS="$1" "${repo}/scripts/migrate.sh" "${@:2}"
 }
 
 @test "a message becomes a migration name Django accepts" {
@@ -97,13 +97,13 @@ migrate_with() {
 }
 
 @test "new without a message is refused" {
-	run "${repo}/s/migrate" new
+	run "${repo}/scripts/migrate.sh" new
 
 	[ "$status" -eq 2 ]
 }
 
 @test "an unknown command is refused" {
-	run "${repo}/s/migrate" squash
+	run "${repo}/scripts/migrate.sh" squash
 
 	[ "$status" -eq 2 ]
 }

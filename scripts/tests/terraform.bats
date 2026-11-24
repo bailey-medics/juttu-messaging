@@ -1,17 +1,17 @@
 #!/usr/bin/env bats
-# Tests for s/terraform, which runs Terraform on the repository's GitHub
-# settings. Stand-ins for terraform and gh record what s/terraform asked of
-# them, so nothing reaches GitHub.
+# Tests for scripts/terraform.sh, which runs Terraform on the repository's
+# GitHub settings. Stand-ins for terraform and gh record what
+# scripts/terraform.sh asked of them, so nothing reaches GitHub.
 bats_require_minimum_version 1.5.0
 
 setup() {
 	repo="${BATS_TEST_TMPDIR}/juttu"
 	bin="${BATS_TEST_TMPDIR}/bin"
 	tools="${BATS_TEST_TMPDIR}/tools"
-	mkdir -p "${repo}/s" "${repo}/terraform/github" "${bin}" "${tools}"
-	cp "${BATS_TEST_DIRNAME}/../terraform" "${repo}/s/terraform"
+	mkdir -p "${repo}/scripts" "${repo}/terraform/github" "${bin}" "${tools}"
+	cp "${BATS_TEST_DIRNAME}/../terraform.sh" "${repo}/scripts/terraform.sh"
 
-	# Only the tools s/terraform needs, so a gh or terraform installed on
+	# Only the tools scripts/terraform.sh needs, so a gh or terraform installed on
 	# this machine is never found in place of a stand-in.
 	local tool
 
@@ -33,14 +33,14 @@ EOF
 	chmod +x "${bin}/gh"
 }
 
-# Runs s/terraform with a token set by hand.
+# Runs scripts/terraform.sh with a token set by hand.
 terraform_with_token() {
-	run env PATH="${bin}:${tools}" GITHUB_TOKEN=set-by-hand "${repo}/s/terraform" "$@"
+	run env PATH="${bin}:${tools}" GITHUB_TOKEN=set-by-hand "${repo}/scripts/terraform.sh" "$@"
 }
 
-# Runs s/terraform with no token, so it has to borrow gh's.
+# Runs scripts/terraform.sh with no token, so it has to borrow gh's.
 terraform_without_token() {
-	run env -u GITHUB_TOKEN PATH="${bin}:${tools}" "${repo}/s/terraform" "$@"
+	run env -u GITHUB_TOKEN PATH="${bin}:${tools}" "${repo}/scripts/terraform.sh" "$@"
 }
 
 calls() {
@@ -51,7 +51,7 @@ calls() {
 	terraform_with_token
 
 	[ "$status" -eq 2 ]
-	[[ "$output" == *"Usage: s/terraform <command>"* ]]
+	[[ "$output" == *"Usage: scripts/terraform.sh <command>"* ]]
 	[ ! -e "${BATS_TEST_TMPDIR}/calls" ]
 }
 

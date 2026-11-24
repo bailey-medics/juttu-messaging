@@ -2,7 +2,7 @@
 # Make a sibling worktree on a branch, ready to work in. Ported from Quill
 # Medical's `just worktree-create`.
 #
-#   s/worktree feature/<name>
+#   scripts/worktree.sh feature/<name>
 #
 # The worktree goes beside this checkout, as <folder>-2, <folder>-3 and so
 # on. It gets:
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 usage() {
-	echo "Usage: s/worktree feature/<name>" >&2
+	echo "Usage: scripts/worktree.sh feature/<name>" >&2
 	exit 2
 }
 

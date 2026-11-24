@@ -15,8 +15,8 @@
 # Every port is published on this machine only, unless JUTTU_BIND names
 # another address to listen on.
 #
-# Usage: s/up, s/down and s/rebuild, or `just up`, `just down` and
-# `just rebuild`.
+# Usage: scripts/up.sh, scripts/down.sh and scripts/rebuild.sh, or `just up`,
+# `just down` and `just rebuild`.
 
 name: juttu
 
@@ -53,7 +53,7 @@ services:
       DB_NAME: juttu
       DB_USER: juttu
       DB_PASSWORD: ${JUTTU_POSTGRES_PASSWORD:-juttu_dev_only}
-    # As the host user on Linux, where s/up sets HOST_UID, so what the
+    # As the host user on Linux, where scripts/up.sh sets HOST_UID, so what the
     # backend writes into the worktree stays the host user's.
     user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
     # Bring the database up to the latest migration, then serve with

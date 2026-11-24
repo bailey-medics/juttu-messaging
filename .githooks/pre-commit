@@ -11,8 +11,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# The same pre-commit as s/lint: the repository's .venv copy first, then
-# the one on PATH.
+# The same pre-commit as scripts/lint.sh: the repository's .venv copy first,
+# then the one on PATH.
 find_pre_commit() {
 	if [ -x "${root}/.venv/bin/pre-commit" ]; then
 		echo "${root}/.venv/bin/pre-commit"
@@ -44,7 +44,7 @@ run_lint_staged() {
 
 	if [ ! -x "${lint_staged}" ]; then
 		echo "lint-staged not found, so the commit was stopped. Install the frontend's packages with:" >&2
-		echo "  ./s/frontend install" >&2
+		echo "  ./scripts/frontend.sh install" >&2
 		exit 1
 	fi
 

@@ -1,14 +1,15 @@
 #!/usr/bin/env bats
-# Tests for s/up, s/down, s/rebuild and s/first-account. A stand-in docker records what each
-# asked for, so no container is started.
+# Tests for scripts/up.sh, scripts/down.sh, scripts/rebuild.sh and
+# scripts/first-account.sh. A stand-in docker records what each asked for, so no
+# container is started.
 bats_require_minimum_version 1.5.0
 
 setup() {
 	repo="${BATS_TEST_TMPDIR}/repo"
 	bin="${BATS_TEST_TMPDIR}/bin"
-	mkdir -p "${repo}/s/utils" "${bin}"
-	for script in up down rebuild first-account utils/dev-stack.sh; do
-		cp "${BATS_TEST_DIRNAME}/../${script}" "${repo}/s/${script}"
+	mkdir -p "${repo}/scripts/utils" "${bin}"
+	for script in up.sh down.sh rebuild.sh first-account.sh utils/dev-stack.sh; do
+		cp "${BATS_TEST_DIRNAME}/../${script}" "${repo}/scripts/${script}"
 	done
 
 	cat >"${bin}/docker" <<STUB
@@ -23,10 +24,10 @@ calls() {
 }
 
 run_script() {
-	run env PATH="${bin}:/usr/bin:/bin" "${repo}/s/$1" "${@:2}"
+	run env PATH="${bin}:/usr/bin:/bin" "${repo}/scripts/$1.sh" "${@:2}"
 }
 
-@test "s/up starts the dev stack and waits for it to be healthy" {
+@test "scripts/up.sh starts the dev stack and waits for it to be healthy" {
 	run_script up
 
 	[ "$status" -eq 0 ]
@@ -34,15 +35,15 @@ run_script() {
 	[[ "$output" == *"http://localhost:8180"* ]]
 }
 
-@test "s/up passes its arguments on to Compose" {
+@test "scripts/up.sh passes its arguments on to Compose" {
 	run_script up --build backend
 
 	[ "$status" -eq 0 ]
 	[[ "$(calls)" == *"up --detach --wait --build backend" ]]
 }
 
-@test "s/up names the HTTP port .env moved it to" {
-	run env PATH="${bin}:/usr/bin:/bin" JUTTU_HTTP_PORT=9180 "${repo}/s/up"
+@test "scripts/up.sh names the HTTP port .env moved it to" {
+	run env PATH="${bin}:/usr/bin:/bin" JUTTU_HTTP_PORT=9180 "${repo}/scripts/up.sh"
 
 	[[ "$output" == *"http://localhost:9180"* ]]
 }
@@ -53,20 +54,20 @@ run_script() {
 	[[ "$(calls)" == "HOST_UID=$(id -u) docker"* ]]
 }
 
-@test "s/down stops the stack and keeps the volumes" {
+@test "scripts/down.sh stops the stack and keeps the volumes" {
 	run_script down
 
 	[ "$status" -eq 0 ]
 	[[ "$(calls)" == *"docker compose -f compose.dev.yml down" ]]
 }
 
-@test "s/down --volumes passes the flag on" {
+@test "scripts/down.sh --volumes passes the flag on" {
 	run_script down --volumes
 
 	[[ "$(calls)" == *"down --volumes" ]]
 }
 
-@test "s/rebuild pulls, rebuilds, drops the frontend's packages and starts again" {
+@test "scripts/rebuild.sh pulls, rebuilds, drops the frontend's packages and starts again" {
 	run_script rebuild
 
 	[ "$status" -eq 0 ]
@@ -76,7 +77,7 @@ run_script() {
 	[[ "$(calls | sed -n 4p)" == *"up --detach --wait" ]]
 }
 
-@test "s/rebuild backend keeps the frontend's packages" {
+@test "scripts/rebuild.sh backend keeps the frontend's packages" {
 	run_script rebuild backend
 
 	[ "$status" -eq 0 ]
@@ -85,7 +86,7 @@ run_script() {
 	[ "$output" = "0" ]
 }
 
-@test "s/first-account asks the dev stack's backend to make the first account" {
+@test "scripts/first-account.sh asks the dev stack's backend to make the first account" {
 	run_script first-account
 
 	[ "$status" -eq 0 ]

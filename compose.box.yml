@@ -11,7 +11,7 @@
 # written here: the box's own settings live in local/box.env, which git
 # ignores.
 #
-# Usage: s/box deploy, or `just box-deploy`.
+# Usage: scripts/box.sh deploy, or `just box-deploy`.
 
 name: juttu-box
 
@@ -47,13 +47,13 @@ services:
       DB_USER: juttu
       DB_PASSWORD: ${JUTTU_BOX_POSTGRES_PASSWORD:?set it in local/box.env}
       JUTTU_SECRET_KEY: ${JUTTU_BOX_SECRET_KEY:?set it in local/box.env}
-      # s/box works this out from JUTTU_BOX_ADDRESS on every call, so no
-      # address is written here.
-      JUTTU_ALLOWED_HOSTS: ${JUTTU_BOX_ALLOWED_HOSTS:?run this through s/box}
+      # scripts/box.sh works this out from JUTTU_BOX_ADDRESS on every call, so
+      # no address is written here.
+      JUTTU_ALLOWED_HOSTS: ${JUTTU_BOX_ALLOWED_HOSTS:?run this through scripts/box.sh}
       # The HTTPS address phones open, so Django's CSRF check accepts a
       # sign-in from it. Empty until JUTTU_BOX_ADDRESS is set.
-      JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through s/box}
-      # The Web Push signing keys, made by s/box push-keys. Push
+      JUTTU_CSRF_TRUSTED_ORIGINS: ${JUTTU_BOX_TRUSTED_ORIGINS?run this through scripts/box.sh}
+      # The Web Push signing keys, made by scripts/box.sh push-keys. Push
       # notifications stay off until they are set.
       JUTTU_VAPID_PUBLIC_KEY: ${JUTTU_BOX_VAPID_PUBLIC_KEY:-}
       JUTTU_VAPID_PRIVATE_KEY: ${JUTTU_BOX_VAPID_PRIVATE_KEY:-}
