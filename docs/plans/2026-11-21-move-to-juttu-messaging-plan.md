@@ -19,12 +19,13 @@ The outcome is one checkout at `~/github/juttu-messaging`, pushing to
 ## Before running /f
 
 - [x] Create `bailey-medics/juttu-messaging` on GitHub. Done 21 November 2026.
-- [ ] Give the `bailey-medics` fine-grained token access to
+- [x] Give the `bailey-medics` fine-grained token access to
       `juttu-messaging`. Until then, `gh` and `git` on the dev box cannot
       see the repository: `gh repo view` could not resolve it on 21
-      November 2026.
-- [ ] Delete or archive `bailey-medics/bode-messaging`. It holds no
-      commits. **Irreversible** if deleted.
+      November 2026. Done: `gh` reaches it, checked 24 November 2026.
+- [x] Delete or archive `bailey-medics/bode-messaging`. It holds no
+      commits. **Irreversible** if deleted. Done: GitHub no longer finds
+      it, checked 24 November 2026.
 
 ## Phase 1: Rename the checkout
 
@@ -62,10 +63,12 @@ The outcome is one checkout at `~/github/juttu-messaging`, pushing to
 ## Phase 4: Switch over
 
 - [x] Reload tmux with `tmux source-file ~/.tmux.conf`. Done 21 November 2026, after the `juttu` tabs were found showing only the session name.
-- [ ] Close the old `bode` session, and open `juttu` with `t c` from
-      `~/github/juttu-messaging`.
-- [ ] Commit the changes in `mark-house-style` and to the box's restart
-      config.
+- [x] Close the old `bode` session, and open `juttu` with `t c` from
+      `~/github/juttu-messaging`. Done: no `bode` session runs, checked
+      24 November 2026.
+- [x] Commit the changes in `mark-house-style` and to the box's restart
+      config. Done: `mark-house-style` has nothing uncommitted, checked
+      24 November 2026.
 - [x] Make the first commit here, on `main`. Done 21 November 2026.
 
 ## Decisions
