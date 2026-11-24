@@ -88,3 +88,10 @@ setup() {
 	run just --dry-run box-first-account
 	[[ "$output" == *"./s/box first-account"* ]]
 }
+
+@test "just terraform passes its arguments to s/terraform" {
+	run just --dry-run terraform plan -no-color
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"./s/terraform plan -no-color"* ]]
+}

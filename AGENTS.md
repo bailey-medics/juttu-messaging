@@ -17,18 +17,21 @@ anything. `CLAUDE.md` only points here.
   empty shell every later phase stands on.
 - [The copy on the dev box](docs/dev-box.md): deploying it, and installing
   Juttu on a phone.
+- [The GitHub settings in Terraform](docs/terraform.md): planning and
+  applying a change to the repository's settings.
 
 ## Layout
 
-| Path          | What it is                                                                 |
-| ------------- | -------------------------------------------------------------------------- |
-| `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py` |
-| `frontend/`   | The React, Mantine and Vite app, with Storybook                            |
-| `caddy/dev/`  | Caddy in front of the dev stack: one origin for app and API                |
-| `docs/plans/` | Plan documents: what is being built, and the decisions made                |
-| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them              |
-| `s/tests/`    | bats tests for the scripts and the git hook                                |
-| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone            |
+| Path          | What it is                                                                  |
+| ------------- | --------------------------------------------------------------------------- |
+| `backend/`    | The Django app, with DRF. Each test sits beside its module, as `*_test.py`  |
+| `frontend/`   | The React, Mantine and Vite app, with Storybook                             |
+| `caddy/dev/`  | Caddy in front of the dev stack: one origin for app and API                 |
+| `docs/plans/` | Plan documents: what is being built, and the decisions made                 |
+| `s/`          | Scripts, one for each repeated job. The `justfile` wraps them               |
+| `s/tests/`    | bats tests for the scripts and the git hook                                 |
+| `terraform/`  | The repository's own GitHub settings, in Terraform. See `docs/terraform.md` |
+| `.githooks/`  | The tracked git hook. `just setup` switches it on, once a clone             |
 
 ## Core invariants
 
@@ -141,6 +144,7 @@ just migrate "<message>"   # write a migration for a model change
 just first-account   # make the first account on the dev stack, once
 ./s/frontend  # the frontend gate: types, lint, format, tests, both builds
 just storybook   # Storybook, on port 6106
+just tf plan     # what Terraform would change in the GitHub settings
 ```
 
 Each `just` recipe is a thin wrapper over a script in `s/`. Each phase of

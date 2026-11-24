@@ -144,6 +144,14 @@ repos:
 
   - repo: local
     hooks:
+      # Terraform's own formatter, over the GitHub settings in terraform/.
+      # It needs terraform on the machine, as s/terraform does.
+      - id: terraform-fmt
+        name: terraform fmt
+        entry: terraform fmt -check -diff
+        language: system
+        files: \.tf$
+
       # The repository is public, so a private network address, a private
       # network's name or a MAC address must not reach it. Each machine can
       # also list its own literals, such as device names, in
