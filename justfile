@@ -99,3 +99,9 @@ box-first-account:
 # the contact push services may write to: mailto:<address> or an https:// origin
 box-push-keys contact:
     @./s/box push-keys "{{ contact }}"
+
+
+alias tf := terraform
+# Run Terraform on the repository's GitHub settings (e.g. 'just tf plan')
+terraform *args:
+    @./s/terraform {{args}}
