@@ -20,13 +20,17 @@ describe("routes", () => {
   it("shows the home page at /", async () => {
     renderSignedInAt("/");
 
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Conversations" }),
+    ).toBeInTheDocument();
   });
 
   it("shows every page inside the root layout's header", async () => {
     renderSignedInAt("/");
 
-    expect(await screen.findByRole("banner")).toHaveTextContent("Juttu");
+    expect(
+      within(await screen.findByRole("banner")).getByRole("img", { name: "Juttu" }),
+    ).toBeInTheDocument();
   });
 
   it("puts Quill's top ribbon in the header, with Juttu's name linking home", async () => {
@@ -71,7 +75,9 @@ describe("routes", () => {
 
     renderWithTheme(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole("banner")).toHaveTextContent("Juttu");
+    expect(
+      within(await screen.findByRole("banner")).getByRole("img", { name: "Juttu" }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("error-boundary-fallback")).toBeInTheDocument();
   });
 
@@ -127,7 +133,9 @@ describe("signing in and out", () => {
   it("sends somebody already signed in from the sign-in page to home", async () => {
     renderSignedInAt("/sign-in");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Conversations" }),
+    ).toBeInTheDocument();
   });
 
   it("signs out from the side navigation, back to the sign-in page", async () => {

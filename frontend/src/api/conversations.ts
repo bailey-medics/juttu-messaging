@@ -4,22 +4,76 @@
  */
 
 import { ApiError, apiRequest, isRecord } from "@/api/client";
-import { listOf } from "@/api/spaces";
+import { isSpaceKind, listOf, type SpaceKind } from "@/api/spaces";
+
+/** The friendly icons a conversation may be given, by name. */
+export const CONVERSATION_ICONS = [
+  "anchor",
+  "bolt",
+  "cloud",
+  "coffee",
+  "compass",
+  "flame",
+  "leaf",
+  "music",
+  "planet",
+  "rocket",
+  "star",
+  "sun",
+] as const;
+
+export type ConversationIconName = (typeof CONVERSATION_ICONS)[number];
+
+export function isConversationIconName(value: unknown): value is ConversationIconName {
+  return CONVERSATION_ICONS.some((name) => name === value);
+}
 
 export interface ConversationSummary {
   id: number;
   kind: "channel" | "direct";
   /** A channel's name, or the other people in a direct conversation. */
   title: string;
-  /** Messages from others the person has not read yet. */
+  /** Messages and new cards the person has not read yet. */
   unread_count: number;
+  /** The icon picked for it at random, and kept. */
+  icon: ConversationIconName;
+  /** Which of the profile pictures' gradients the icon sits on. */
+  icon_colour: number;
+  /** Whether Home may show its people's circles. */
+  shows_people: boolean;
+  /** Where an uploaded icon is, which replaces the random one, or null. */
+  icon_url: string | null;
 }
 
 /** A conversation as Home lists it, across every space. */
+/** Somebody Home draws as a round icon with their initials. */
+export interface ShownPerson {
+  id: number;
+  name: string;
+}
+
+/** The newest message or card change, as Home previews it. */
+export interface LastItem {
+  text: string;
+  at: string;
+}
+
 export interface HomeConversation extends ConversationSummary {
-  space: { id: number; name: string };
-  /** When its newest message was sent, or when it was started. */
+  space: { id: number; name: string; kind: SpaceKind };
+  /** When its newest message or card was made, or when it was started. */
   last_active_at: string;
+  /** The newest message or card change, or null for neither. */
+  last_item: LastItem | null;
+  /** The others drawn as circles, or none, when it shows its icon instead. */
+  people: ShownPerson[];
+}
+
+function isShownPerson(value: unknown): value is ShownPerson {
+  return isRecord(value) && typeof value.id === "number" && typeof value.name === "string";
+}
+
+function isLastItem(value: unknown): value is LastItem {
+  return isRecord(value) && typeof value.text === "string" && typeof value.at === "string";
 }
 
 export interface ChatMessage {
@@ -41,7 +95,11 @@ export function isConversationSummary(value: unknown): value is ConversationSumm
     typeof value.id === "number" &&
     (value.kind === "channel" || value.kind === "direct") &&
     typeof value.title === "string" &&
-    typeof value.unread_count === "number"
+    typeof value.unread_count === "number" &&
+    isConversationIconName(value.icon) &&
+    typeof value.icon_colour === "number" &&
+    typeof value.shows_people === "boolean" &&
+    (value.icon_url === null || typeof value.icon_url === "string")
   );
 }
 
@@ -56,7 +114,11 @@ export function isHomeConversation(value: unknown): value is HomeConversation {
     isRecord(record.space) &&
     typeof record.space.id === "number" &&
     typeof record.space.name === "string" &&
-    typeof record.last_active_at === "string"
+    isSpaceKind(record.space.kind) &&
+    typeof record.last_active_at === "string" &&
+    (record.last_item === null || isLastItem(record.last_item)) &&
+    Array.isArray(record.people) &&
+    record.people.every(isShownPerson)
   );
 }
 
@@ -86,6 +148,58 @@ export async function listMyConversations(): Promise<HomeConversation[]> {
   const body = await apiRequest("GET", "/conversations");
 
   return listOf(body, "conversations", isHomeConversation);
+}
+
+/** One conversation the caller may read. */
+export async function getConversation(id: number): Promise<ConversationSummary> {
+  const body = await apiRequest("GET", `/conversations/${id}`);
+
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
+}
+
+/** Show or hide a channel's people's circles on Home, for everybody. Admins only. */
+export async function setShowsPeople(
+  id: number,
+  showsPeople: boolean,
+): Promise<ConversationSummary> {
+  const body = await apiRequest("POST", `/conversations/${id}/shows-people`, {
+    shows_people: showsPeople,
+  });
+
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
+}
+
+/** A conversation, from an answer that should be one. */
+function conversationFrom(body: unknown): ConversationSummary {
+  if (!isConversationSummary(body)) {
+    throw new ApiError(502, "The backend's answer about a conversation was not understood");
+  }
+
+  return body;
+}
+
+/** Make *image* a conversation's icon, in place of its random one. Admins only. */
+export async function uploadConversationIcon(
+  id: number,
+  image: File,
+): Promise<ConversationSummary> {
+  const form = new FormData();
+  form.append("image", image);
+
+  return conversationFrom(await apiRequest("PUT", `/conversations/${id}/icon`, form));
+}
+
+/** Take a conversation's uploaded icon away, so its random one shows. Admins only. */
+export async function removeConversationIcon(id: number): Promise<ConversationSummary> {
+  return conversationFrom(await apiRequest("DELETE", `/conversations/${id}/icon`));
 }
 
 /** The channels in a space, and the caller's own direct conversations. */
@@ -161,7 +275,22 @@ export async function listReplies(messageId: number): Promise<ChatMessage[]> {
   );
 }
 
-/** Say the person has seen everything up to message *messageId*. */
-export async function markRead(conversationId: number, messageId: number): Promise<void> {
-  await apiRequest("POST", `/conversations/${conversationId}/read`, { message_id: messageId });
+/** The newest message and the newest card the person has seen: either, or both. */
+export interface Seen {
+  messageId?: number;
+  cardId?: number;
+}
+
+/** Say the person has seen everything up to these. */
+export async function markRead(conversationId: number, seen: Seen): Promise<void> {
+  const body: Record<string, number> = {};
+
+  if (seen.messageId !== undefined) {
+    body.message_id = seen.messageId;
+  }
+  if (seen.cardId !== undefined) {
+    body.card_id = seen.cardId;
+  }
+
+  await apiRequest("POST", `/conversations/${conversationId}/read`, body);
 }

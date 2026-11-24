@@ -25,6 +25,7 @@ import {
   IconMail,
   IconMessageReport,
   IconShieldCheck,
+  IconWebhook,
 } from "@/components/icons/appIcons";
 
 /** Available icon types */
@@ -46,7 +47,8 @@ export type IconName =
   | "database"
   | "mail"
   | "feedback"
-  | "safety";
+  | "safety"
+  | "webhook";
 
 /** Available icon sizes */
 type IconSize = "xs" | "sm" | "md" | "lg" | "xl";
@@ -81,6 +83,8 @@ const iconMap = {
   mail: IconMail,
   feedback: IconMessageReport,
   safety: IconShieldCheck,
+  // A sender: an outside tool posting events to Juttu.
+  webhook: IconWebhook,
 } as const;
 
 // Map size to icon pixel dimensions

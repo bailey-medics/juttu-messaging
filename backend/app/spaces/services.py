@@ -14,7 +14,13 @@ from app.audit.models import AuditAction
 from app.audit.record import record
 from app.organisations.models import OrgUnit
 from app.organisations.services import is_member as is_organisation_member
-from app.spaces.models import Space, SpaceMember
+from app.spaces.models import (
+    KIND_ORDER,
+    Space,
+    SpaceKind,
+    SpaceMember,
+    SpaceOrder,
+)
 
 
 class SpaceRefused(Exception):
@@ -49,12 +55,15 @@ def members_of(space: Space) -> QuerySet[User]:
 
 @transaction.atomic
 def create_space(
-    organisation: OrgUnit, name: str, *, is_clinical: bool, by: User
+    organisation: OrgUnit, name: str, *, kind: SpaceKind, by: User
 ) -> Space:
-    """Make a space, with its maker as its first member."""
+    """Make a space of *kind*, with its maker as its first member. A
+    Clinical space is clinical, and no other kind is."""
+    is_clinical = kind == SpaceKind.CLINICAL
     space = Space.objects.create(
         organisation=organisation,
         name=name,
+        kind=kind,
         is_clinical=is_clinical,
         created_by=by,
     )
@@ -62,7 +71,11 @@ def create_space(
     record(
         AuditAction.SPACE_CREATED,
         actor=by,
-        detail={"space": space.pk, "is_clinical": is_clinical},
+        detail={
+            "space": space.pk,
+            "kind": str(kind),
+            "is_clinical": is_clinical,
+        },
     )
     add_to_space(space, by, by=by)
 
@@ -116,3 +129,64 @@ def remove_from_space(space: Space, user: User, *, by: User) -> None:
         actor=by,
         detail={"space": space.pk, "user": user.pk},
     )
+
+
+class SpaceOrderRefused(Exception):
+    """An order that names a space the person is not in, or one twice."""
+
+
+def kind_then_name(space: Space) -> tuple[int, str, int]:
+    """Where *space* comes before anybody orders it: kind order, then A to Z."""
+    return (
+        KIND_ORDER.index(SpaceKind(space.kind)),
+        space.name.casefold(),
+        space.pk,
+    )
+
+
+def space_order_for(user: User) -> list[Space]:
+    """The spaces *user* is in now, in their own order.
+
+    Spaces they have placed come first, by their positions. Any other, such
+    as one they joined since, follows in kind order, Dev, then Personal,
+    then Clinical, and A to Z within a kind.
+    """
+    spaces = list(spaces_of(user))
+    positions = dict(
+        SpaceOrder.objects.filter(user=user).values_list(
+            "space_id", "position"
+        )
+    )
+
+    placed = sorted(
+        (s for s in spaces if s.pk in positions), key=lambda s: positions[s.pk]
+    )
+    unplaced = sorted(
+        (s for s in spaces if s.pk not in positions), key=kind_then_name
+    )
+
+    return placed + unplaced
+
+
+@transaction.atomic
+def set_space_order(user: User, space_ids: list[int]) -> list[Space]:
+    """Keep *space_ids* as *user*'s order of their spaces, replacing any
+    before, and answer their spaces in it.
+
+    Raises:
+        SpaceOrderRefused: If it names a space they are not in, or one twice.
+    """
+    theirs = {s.pk for s in spaces_of(user)}
+
+    if len(set(space_ids)) != len(space_ids):
+        raise SpaceOrderRefused("Each space can come only once.")
+    if not set(space_ids) <= theirs:
+        raise SpaceOrderRefused("You can only order the spaces you are in.")
+
+    SpaceOrder.objects.filter(user=user).delete()
+    SpaceOrder.objects.bulk_create(
+        SpaceOrder(user=user, space_id=space_id, position=position)
+        for position, space_id in enumerate(space_ids)
+    )
+
+    return space_order_for(user)

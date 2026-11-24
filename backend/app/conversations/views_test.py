@@ -1,13 +1,18 @@
 """Conversations and messages: who may read and post, and that nothing changes."""
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager as ContextManager
 from typing import TYPE_CHECKING
 
 import pytest
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, connection, transaction
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 
 from app.accounts.models import User
 from app.audit.models import AuditEvent
+from app.cards.models import Card
+from app.cards.services import receive
 from app.conversations.models import PROTECTION_NONE, Conversation, Message
 from app.conversations.services import post, start_channel, start_direct
 from app.organisations.services import (
@@ -15,7 +20,7 @@ from app.organisations.services import (
     make_first_admin,
     the_organisation,
 )
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import add_to_space, create_space
 
 if TYPE_CHECKING:
@@ -54,7 +59,7 @@ def priya() -> User:
 @pytest.fixture
 def release(sam: User, alex: User, priya: User) -> Space:
     space = create_space(
-        the_organisation(), "Release", is_clinical=False, by=sam
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(space, alex, by=sam)
     add_to_space(space, priya, by=sam)
@@ -444,6 +449,103 @@ def test_nobody_marks_a_conversation_they_cannot_read(
     assert response.status_code == 404
 
 
+def run_card(conversation: Conversation, run: str, line: str) -> Card:
+    """A living card, as the GitHub watcher sends one, made or changed."""
+    event = receive(
+        conversation,
+        "outside",
+        {
+            "sender": 1,
+            "key": run,
+            "title": f"Run {run}",
+            "line": line,
+            "needs_somebody": False,
+        },
+    )
+
+    return event.card
+
+
+def mark(client: Client, conversation: Conversation, **seen: int) -> int:
+    response = client.post(
+        f"/api/conversations/{conversation.pk}/read",
+        seen,
+        content_type="application/json",
+    )
+
+    return response.status_code
+
+
+def test_a_new_card_counts_as_unread_once_however_it_changes(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    run_card(general, "41", "Running")
+    run_card(general, "41", "Passed")
+    run_card(general, "42", "Running")
+
+    assert unread_of(signed_in(priya), release)[general.pk] == 2
+
+
+def test_cards_and_messages_add_up_until_both_are_marked(
+    alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    message = post(general, "Deploying now.", by=alex)
+    card = run_card(general, "41", "Running")
+    client = signed_in(priya)
+
+    assert unread_of(client, release)[general.pk] == 2
+
+    assert mark(client, general, card_id=card.pk) == 204
+    assert unread_of(client, release)[general.pk] == 1
+
+    assert mark(client, general, message_id=message.pk, card_id=card.pk) == 204
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_a_seen_card_changing_is_not_unread_again(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    card = run_card(general, "41", "Running")
+    client = signed_in(priya)
+    mark(client, general, card_id=card.pk)
+
+    run_card(general, "41", "Passed")
+
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_the_card_read_point_never_moves_back(
+    priya: User, release: Space, general: Conversation
+) -> None:
+    first = run_card(general, "41", "Running")
+    second = run_card(general, "42", "Running")
+    client = signed_in(priya)
+
+    for card in (second, first):
+        mark(client, general, card_id=card.pk)
+
+    assert unread_of(client, release).get(general.pk, 0) == 0
+
+
+def test_a_card_from_another_conversation_moves_nothing(
+    sam: User, priya: User, release: Space, general: Conversation
+) -> None:
+    other = start_channel(release, "ci", by=sam)
+    run_card(general, "41", "Running")
+    elsewhere = run_card(other, "99", "Running")
+    client = signed_in(priya)
+
+    mark(client, general, card_id=elsewhere.pk)
+
+    assert unread_of(client, release)[general.pk] == 1
+
+
+def test_marking_read_needs_a_message_or_a_card(
+    priya: User, general: Conversation
+) -> None:
+    assert mark(signed_in(priya), general) == 400
+
+
 def home_list(user: User) -> list[dict[str, object]]:
     response = signed_in(user).get("/api/conversations")
     assert response.status_code == 200
@@ -457,7 +559,7 @@ def test_home_lists_every_conversation_across_spaces_newest_first(
     sam: User, alex: User, release: Space, general: Conversation
 ) -> None:
     design = create_space(
-        the_organisation(), "Design", is_clinical=False, by=sam
+        the_organisation(), "Design", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(design, alex, by=sam)
     ideas = start_channel(design, "ideas", by=sam)
@@ -466,11 +568,19 @@ def test_home_lists_every_conversation_across_spaces_newest_first(
     found = home_list(alex)
 
     assert [c["id"] for c in found] == [general.pk, ideas.pk]
-    assert found[0]["space"] == {"id": release.pk, "name": "Release"}
+    assert found[0]["space"] == {
+        "id": release.pk,
+        "name": "Release",
+        "kind": "dev",
+    }
     assert found[0]["title"] == "general"
     assert found[0]["kind"] == "channel"
     assert found[0]["unread_count"] == 1
-    assert found[1]["space"] == {"id": design.pk, "name": "Design"}
+    assert found[1]["space"] == {
+        "id": design.pk,
+        "name": "Design",
+        "kind": "dev",
+    }
 
 
 def test_home_leaves_out_a_direct_conversation_somebody_is_not_in(
@@ -504,3 +614,140 @@ def test_home_lists_a_conversation_once_however_it_is_reached(
 
 def test_home_needs_somebody_signed_in(client: Client) -> None:
     assert client.get("/api/conversations").status_code == 403
+
+
+def test_home_puts_a_conversation_with_a_new_card_first(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    ci = start_channel(release, "ci", by=sam)
+    post(general, "Morning.", by=sam)
+
+    run_card(ci, "41", "Running")
+
+    assert [c["id"] for c in home_list(alex)][:2] == [ci.pk, general.pk]
+
+
+def test_a_card_changing_does_not_move_its_conversation_up(
+    sam: User, alex: User, release: Space, general: Conversation
+) -> None:
+    ci = start_channel(release, "ci", by=sam)
+    run_card(ci, "41", "Running")
+    post(general, "Morning.", by=sam)
+
+    run_card(ci, "41", "Passed")
+
+    assert [c["id"] for c in home_list(alex)][:2] == [general.pk, ci.pk]
+
+
+def home_entry(user: User, conversation: Conversation) -> dict[str, object]:
+    return next(c for c in home_list(user) if c["id"] == conversation.pk)
+
+
+def test_home_previews_the_newest_message(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    post(general, "Morning.", by=sam)
+    post(general, "Deploying now.", by=sam)
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Deploying now."
+
+
+def test_home_previews_a_newer_card_change_by_its_title_and_line(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    post(general, "Morning.", by=sam)
+    run_card(general, "41", "Running")
+    run_card(general, "41", "Passed")
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Run 41: Passed"
+
+
+def test_home_previews_a_correction_as_corrected(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    wrong = post(general, "Deploy at 3.", by=sam)
+    post(general, "Deploy at 4.", by=sam, amends=wrong)
+
+    item = home_entry(alex, general)["last_item"]
+
+    assert isinstance(item, dict)
+    assert item["text"] == "Deploy at 4."
+
+
+def test_home_previews_nothing_for_a_quiet_conversation(
+    alex: User, general: Conversation
+) -> None:
+    assert home_entry(alex, general)["last_item"] is None
+
+
+def test_a_channel_shows_up_to_four_others(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    for name in ("dana", "eli"):
+        add_to_space(release, person(name), by=sam)
+
+    people = home_entry(alex, general)["people"]
+
+    assert isinstance(people, list)
+    assert sorted(p["name"] for p in people) == ["dana", "eli", "priya", "sam"]
+
+
+def test_a_channel_with_five_others_shows_its_icon(
+    sam: User, alex: User, priya: User, release: Space, general: Conversation
+) -> None:
+    for name in ("dana", "eli", "fran"):
+        add_to_space(release, person(name), by=sam)
+
+    assert home_entry(alex, general)["people"] == []
+
+
+def test_a_channel_with_its_circles_off_shows_its_icon(
+    sam: User, alex: User, general: Conversation
+) -> None:
+    general.shows_people = False
+    general.save(update_fields=["shows_people"])
+
+    assert home_entry(alex, general)["people"] == []
+
+
+def test_a_direct_conversation_shows_the_others(
+    sam: User, alex: User, release: Space
+) -> None:
+    direct = start_direct(release, [alex], by=sam)
+
+    people = home_entry(alex, direct)["people"]
+
+    assert people == [{"id": sam.pk, "name": sam.display_name}]
+
+
+def test_home_takes_the_same_queries_however_many_conversations(
+    sam: User,
+    alex: User,
+    priya: User,
+    release: Space,
+    general: Conversation,
+    django_assert_num_queries: Callable[[int], ContextManager[object]],
+) -> None:
+    # One of each kind to start with: Django skips a prefetch's second
+    # query when the first found nothing, such as no direct conversations.
+    post(general, "One.", by=sam)
+    start_direct(release, [alex], by=sam)
+    client = signed_in(alex)
+
+    with CaptureQueriesContext(connection) as few:
+        client.get("/api/conversations")
+
+    for name in ("ops", "design", "random"):
+        channel = start_channel(release, name, by=sam)
+        post(channel, "Hello.", by=sam)
+        run_card(channel, name, "Running")
+    start_direct(release, [alex, priya], by=sam)
+
+    with django_assert_num_queries(len(few.captured_queries)):
+        client.get("/api/conversations")

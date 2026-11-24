@@ -10,26 +10,27 @@ import { stubFetchJson } from "@/test/render";
 
 describe("the spaces and conversations clients", () => {
   it("lists spaces and refuses an answer it does not understand", async () => {
-    stubFetchJson({ spaces: [{ id: 1, name: "Release", is_clinical: false }] });
+    stubFetchJson({ spaces: [{ id: 1, name: "Release", is_clinical: false, kind: "dev" }] });
     await expect(listSpaces()).resolves.toHaveLength(1);
 
     stubFetchJson({ spaces: [{ id: 1 }] });
     await expect(listSpaces()).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("makes a space with only its name", async () => {
-    stubFetchJson({ id: 1, name: "Release", is_clinical: false }, 201);
+  it("makes a space with its name and kind", async () => {
+    stubFetchJson({ id: 1, name: "Release", is_clinical: false, kind: "personal" }, 201);
 
-    await createSpace("Release");
+    await createSpace("Release", "personal");
 
     expect(fetch).toHaveBeenCalledWith(
       "/api/spaces",
-      expect.objectContaining({ body: JSON.stringify({ name: "Release" }) }),
+      expect.objectContaining({ body: JSON.stringify({ name: "Release", kind: "personal" }) }),
     );
   });
 
   it("checks conversations and messages", async () => {
     expect(isSpace({ id: 1, name: "R", is_clinical: "no" })).toBe(false);
+    expect(isSpace({ id: 1, name: "R", is_clinical: false, kind: "social" })).toBe(false);
     expect(isConversationSummary({ id: 1, kind: "group", title: "x" })).toBe(false);
     expect(
       isChatMessage({
@@ -44,10 +45,30 @@ describe("the spaces and conversations clients", () => {
     ).toBe(true);
 
     stubFetchJson({
-      conversations: [{ id: 3, kind: "direct", title: "Sam Patel", unread_count: 0 }],
+      conversations: [
+        {
+          id: 3,
+          kind: "direct",
+          title: "Sam Patel",
+          unread_count: 0,
+          icon: "rocket",
+          icon_colour: 0,
+          shows_people: true,
+          icon_url: null,
+        },
+      ],
     });
     await expect(listConversations(1)).resolves.toEqual([
-      { id: 3, kind: "direct", title: "Sam Patel", unread_count: 0 },
+      {
+        id: 3,
+        kind: "direct",
+        title: "Sam Patel",
+        unread_count: 0,
+        icon: "rocket",
+        icon_colour: 0,
+        shows_people: true,
+        icon_url: null,
+      },
     ]);
   });
 

@@ -4,119 +4,22 @@ import userEvent from "@testing-library/user-event";
 import { API_UNREACHABLE } from "@/pages/apiFailure";
 import HomePage from "@/pages/HomePage";
 import { latestStream, stubEventSource } from "@/test/eventSource";
-import { renderAt, SIGNED_IN, stubFetchJson, stubFetchRoutes } from "@/test/render";
+import { renderAt, SIGNED_IN, stubFetchRoutes } from "@/test/render";
 import { renderWithRouter } from "@/test/test-utils";
 
 describe("HomePage", () => {
-  it("says the backend is up when the health check answers", async () => {
-    stubFetchJson({ status: "ok" });
-
-    renderWithRouter(<HomePage />);
-
-    expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeInTheDocument();
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
-  });
-
-  it("says the backend is down when the health check fails", async () => {
-    stubFetchJson({ detail: "unavailable" }, 502);
-
-    renderWithRouter(<HomePage />);
-
-    expect(await screen.findByText("Backend down")).toBeInTheDocument();
-  });
-
-  it("shows that it is checking before the answer comes", () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => new Promise<Response>(() => {})),
-    );
-
-    renderWithRouter(<HomePage />);
-
-    expect(screen.getByText("Checking")).toBeInTheDocument();
-  });
-
-  it("says when this browser cannot show notifications", async () => {
-    stubFetchJson({ status: "ok" });
+  it("is titled Conversations, with nothing above the list", async () => {
+    stubFetchRoutes({ "/api/conversations": { body: { conversations: [] } } });
 
     renderWithRouter(<HomePage />);
 
     expect(
-      await screen.findByText("This browser cannot show notifications.", { exact: false }),
+      screen.getByRole("heading", { level: 1, name: "Conversations" }),
     ).toBeInTheDocument();
-  });
-
-  it("turns notifications on for this device", async () => {
-    const subscription = {
-      endpoint: "https://fcm.googleapis.com/fcm/send/abc",
-      toJSON: () => ({
-        endpoint: "https://fcm.googleapis.com/fcm/send/abc",
-        keys: { p256dh: "BKey", auth: "secret" },
-      }),
-    };
-    const pushManager = {
-      getSubscription: vi.fn(async () => null),
-      subscribe: vi.fn(async () => subscription),
-    };
-    vi.stubGlobal("PushManager", class {});
-    vi.stubGlobal("Notification", {
-      permission: "default",
-      requestPermission: vi.fn(async () => "granted"),
-    });
-    Object.defineProperty(navigator, "serviceWorker", {
-      configurable: true,
-      value: { ready: Promise.resolve({ pushManager }) },
-    });
-    stubFetchRoutes({
-      "/api/health": { body: { status: "ok" } },
-      "/api/push/key": { body: { public_key: "AQID" } },
-      "POST /api/push/subscriptions": { body: { count: 1 }, status: 201 },
-    });
-
-    renderWithRouter(<HomePage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Enable notifications" }));
-
-    expect(
-      await screen.findByText("This device gets a notification when a message arrives."),
-    ).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/push/subscriptions",
-      expect.objectContaining({ method: "POST" }),
-    );
-    Reflect.deleteProperty(navigator, "serviceWorker");
-  });
-
-  it("changes what notifies the person, on every device", async () => {
-    stubFetchRoutes({
-      "/api/health": { body: { status: "ok" } },
-      "/api/push/settings": { body: { level: "quiet" } },
-      "POST /api/push/settings": { body: { level: "nothing" } },
-    });
-
-    renderWithRouter(<HomePage />);
-    await userEvent.click(await screen.findByRole("radio", { name: /Nothing/ }));
-
-    expect(await screen.findByRole("radio", { name: /Nothing/ })).toBeChecked();
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/push/settings",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ level: "nothing" }) }),
-    );
-  });
-
-  it("puts the choice back when it does not save", async () => {
-    stubFetchRoutes({
-      "/api/health": { body: { status: "ok" } },
-      "/api/push/settings": { body: { level: "quiet" } },
-      "POST /api/push/settings": { body: { detail: "Unavailable." }, status: 503 },
-    });
-
-    renderWithRouter(<HomePage />);
-    await userEvent.click(await screen.findByRole("radio", { name: /Every message/ }));
-
-    expect(
-      await screen.findByText("Your choice was not saved. Try again."),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Direct messages and mentions/ })).toBeChecked();
+    expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
+    expect(screen.queryByText(/A quiet place/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Backend up")).not.toBeInTheDocument();
+    expect(await screen.findByText(/No conversations yet/)).toBeInTheDocument();
   });
 
   describe("your conversations", () => {
@@ -125,16 +28,28 @@ describe("HomePage", () => {
       kind: "channel",
       title: "general",
       unread_count: 3,
-      space: { id: 7, name: "Release" },
+      icon: "rocket",
+      icon_colour: 0,
+      shows_people: true,
+      icon_url: null,
+      space: { id: 7, name: "Release", kind: "dev" },
       last_active_at: "2026-11-21T20:30:00Z",
+      last_item: null,
+      people: [],
     };
     const withAlex = {
       id: 12,
       kind: "direct",
       title: "Alex Morgan",
       unread_count: 0,
-      space: { id: 9, name: "Design" },
+      icon: "rocket",
+      icon_colour: 0,
+      shows_people: true,
+      icon_url: null,
+      space: { id: 9, name: "Design", kind: "dev" },
       last_active_at: "2026-11-21T18:05:00Z",
+      last_item: null,
+      people: [],
     };
 
     function routes(conversations: unknown[]) {
@@ -145,19 +60,70 @@ describe("HomePage", () => {
       };
     }
 
-    it("lists every conversation with its space and unread count, in order", async () => {
-      stubFetchRoutes(routes([general, withAlex]));
+    it("lists each space's conversations under its name, Dev spaces first", async () => {
+      stubFetchRoutes(
+        routes([{ ...withAlex, space: { id: 9, name: "Design", kind: "personal" } }, general]),
+      );
 
       renderWithRouter(<HomePage />);
-      await screen.findAllByText("Alex Morgan");
 
-      const rows = screen.getAllByRole("row");
-      expect(rows.map((row) => row.textContent)).toEqual([
-        expect.stringContaining("Name"),
-        expect.stringMatching(/general.*Release.*Channel/),
-        expect.stringMatching(/Alex Morgan.*Design.*Direct/),
-      ]);
-      expect(screen.getAllByLabelText("3 unread")[0]).toBeInTheDocument();
+      const design = await screen.findByRole("heading", { name: "Design" });
+      const release = screen.getByRole("heading", { name: "Release" });
+      expect(
+        release.compareDocumentPosition(design) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(screen.getByLabelText("3 unread")).toBeInTheDocument();
+    });
+
+    it("follows the person's own order of spaces", async () => {
+      const design = { ...withAlex, space: { id: 9, name: "Design", kind: "dev" } };
+      stubFetchRoutes({
+        ...routes([general, design]),
+        "/api/me/space-order": {
+          body: {
+            spaces: [
+              { id: 9, name: "Design", is_clinical: false, kind: "dev" },
+              { id: 7, name: "Release", is_clinical: false, kind: "dev" },
+            ],
+          },
+        },
+      });
+
+      renderWithRouter(<HomePage />);
+      await screen.findByRole("heading", { name: "Release" });
+
+      await waitFor(() => {
+        const first = screen.getByRole("heading", { name: "Design" });
+        const second = screen.getByRole("heading", { name: "Release" });
+        expect(
+          first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      });
+    });
+
+    it("previews each conversation's newest item", async () => {
+      stubFetchRoutes(
+        routes([
+          { ...general, last_item: { text: "Run 4512: Passed", at: "2026-11-21T20:30:00Z" } },
+          withAlex,
+        ]),
+      );
+
+      renderWithRouter(<HomePage />);
+
+      expect(await screen.findByText("Run 4512: Passed")).toBeInTheDocument();
+      expect(screen.getByText("No messages yet")).toBeInTheDocument();
+    });
+
+    it("draws the others' initials, or the conversation's own icon", async () => {
+      stubFetchRoutes(
+        routes([general, { ...withAlex, people: [{ id: 2, name: "Alex Morgan" }] }]),
+      );
+
+      renderWithRouter(<HomePage />);
+
+      expect(await screen.findByText("AM")).toBeInTheDocument();
+      expect(screen.getByRole("img", { name: "general" })).toBeInTheDocument();
     });
 
     it("says how to get a conversation when there are none", async () => {
@@ -165,10 +131,9 @@ describe("HomePage", () => {
 
       renderWithRouter(<HomePage />);
 
+      expect(await screen.findByText("No conversations yet")).toBeInTheDocument();
       expect(
-        await screen.findByText(
-          "No conversations yet. Once an admin adds you to a space, its channels show here.",
-        ),
+        screen.getByText("Once an admin adds you to a space, its channels show here."),
       ).toBeInTheDocument();
     });
 
@@ -231,6 +196,35 @@ describe("HomePage", () => {
           vi.mocked(fetch).mock.calls.filter(([url]) => url === "/api/conversations").length,
         ).toBe(before.length + 1),
       );
+    });
+
+    it("shows a new card's unread count without a refresh", async () => {
+      stubEventSource();
+      stubFetchRoutes(routes([{ ...general, unread_count: 0 }]));
+      renderAt("/");
+      await screen.findByText("general");
+
+      stubFetchRoutes(routes([{ ...general, unread_count: 1 }]));
+      latestStream().emit(
+        "card",
+        {
+          conversation: 11,
+          space: 7,
+          card: {
+            id: 5,
+            kind: "outside",
+            title: "Run 4512",
+            state: { line: "Running" },
+            needs_attention: false,
+            created_at: "2026-11-21T20:31:00Z",
+            updated_at: "2026-11-21T20:31:00Z",
+            events: [{ id: 1, summary: "Running", received_at: "2026-11-21T20:31:00Z" }],
+          },
+        },
+        "0.1",
+      );
+
+      expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
     });
   });
 });

@@ -21,7 +21,7 @@ from app.organisations.services import (
     make_first_admin,
     the_organisation,
 )
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import (
     add_to_space,
     create_space,
@@ -90,7 +90,7 @@ def outsider() -> User:
 @pytest.fixture
 def release(sam: User, alex: User, priya: User) -> Space:
     space = create_space(
-        the_organisation(), "Release", is_clinical=False, by=sam
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(space, alex, by=sam)
     add_to_space(space, priya, by=sam)

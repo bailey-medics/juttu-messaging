@@ -5,10 +5,26 @@
 
 import { ApiError, apiRequest, isRecord } from "@/api/client";
 
+/** What a space is for, chosen when it is made and fixed after. */
+export type SpaceKind = "dev" | "personal" | "clinical";
+
+/** The kinds, in the order Home lists them, with how each is named. */
+export const SPACE_KINDS: readonly { value: SpaceKind; label: string }[] = [
+  { value: "dev", label: "Dev" },
+  { value: "personal", label: "Personal" },
+  { value: "clinical", label: "Clinical" },
+];
+
+export function isSpaceKind(value: unknown): value is SpaceKind {
+  return SPACE_KINDS.some((kind) => kind.value === value);
+}
+
 export interface Space {
   id: number;
   name: string;
+  /** True exactly when the kind is "clinical". */
   is_clinical: boolean;
+  kind: SpaceKind;
 }
 
 /** One person in a space. */
@@ -23,7 +39,8 @@ export function isSpace(value: unknown): value is Space {
     isRecord(value) &&
     typeof value.id === "number" &&
     typeof value.name === "string" &&
-    typeof value.is_clinical === "boolean"
+    typeof value.is_clinical === "boolean" &&
+    isSpaceKind(value.kind)
   );
 }
 
@@ -60,15 +77,29 @@ export async function listSpaces(): Promise<Space[]> {
   return listOf(await apiRequest("GET", "/spaces"), "spaces", isSpace);
 }
 
-/** Make a space, not clinical, with the caller as its first member. */
-export async function createSpace(name: string): Promise<Space> {
-  const body = await apiRequest("POST", "/spaces", { name });
+/** Make a space of *kind*, with the caller as its first member. */
+export async function createSpace(name: string, kind: SpaceKind): Promise<Space> {
+  const body = await apiRequest("POST", "/spaces", { name, kind });
 
   if (!isSpace(body)) {
     throw notUnderstood();
   }
 
   return body;
+}
+
+/** The caller's spaces, in their own order for Home. */
+export async function getSpaceOrder(): Promise<Space[]> {
+  return listOf(await apiRequest("GET", "/me/space-order"), "spaces", isSpace);
+}
+
+/** Keep *spaceIds* as the caller's order of their spaces, first to last. */
+export async function setSpaceOrder(spaceIds: number[]): Promise<Space[]> {
+  return listOf(
+    await apiRequest("PUT", "/me/space-order", { space_ids: spaceIds }),
+    "spaces",
+    isSpace,
+  );
 }
 
 /** One space the caller is in. */

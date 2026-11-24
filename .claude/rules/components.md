@@ -14,8 +14,8 @@ the components it brings, such as cards, icons, buttons and the spinner.
 - **Use the typography components from `components/typography/` for all
   text.** Never use Mantine's `<Text>` or `<Title>`, or plain HTML text
   elements, directly. If none of them fits, ask a person before creating a
-  new one. The one exception is `TopRibbon`'s name, which stands in for a
-  wordmark image Juttu does not have yet.
+  new one. `TopRibbon`'s name is not text: it is the wordmark image,
+  `frontend/public/wordmark-white.svg`.
 - **`<PageHeader>` is for the page title, and only for that**: every page
   has exactly one, and it is the page's only `h1` and its browser-tab
   title. Section headings within a page use **`<Heading>`**, always an

@@ -5,17 +5,30 @@
  * Ported from Quill Medical's TopRibbon, without the patient details and
  * the patient search, which Juttu does not have. On a narrow screen the
  * burger opens the side navigation, and the name gives way to it, so the
- * burger and the name never show together, as in Quill. Quill
- * shows its wordmark image; Juttu's name is set in text until it has one.
+ * burger and the name never show together, as in Quill. Juttu's name is
+ * its wordmark: "Juttu" in Finlandica Headline 700, Finland's
+ * country-brand typeface, drawn as a white SVG with each letter a path, so
+ * no font loads. It is drawn as Turva's wordmark was.
  */
 
-import { Text } from "@mantine/core";
+import { Image } from "@mantine/core";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import BurgerButton from "@/components/button/BurgerButton";
 import { appIdentity } from "@/theme";
 import classes from "./TopRibbon.module.css";
+
+/** The wordmark, in `frontend/public/`. */
+const WORDMARK_SRC = "/wordmark-white.svg";
+
+/**
+ * The wordmark's height. The name was 24px text in Atkinson Hyperlegible
+ * Next, whose capitals are 0.668 of its size: 16.0px. Asked for 40% bigger,
+ * the J stands 22.4px. The drawing's box is 770 units tall around a
+ * 700-unit capital, so the image is 24.7px, 1.543rem.
+ */
+const WORDMARK_HEIGHT = "1.543rem";
 
 export interface TopRibbonProps {
   /** Opens the side navigation drawer, on a narrow screen. */
@@ -48,9 +61,13 @@ export default function TopRibbon({
       )}
       {!isNarrow && (
         <Link to="/" className={brandClasses}>
-          <Text component="span" fw={700} size="lg" c="white">
-            {appIdentity.name}
-          </Text>
+          <Image
+            src={WORDMARK_SRC}
+            alt={appIdentity.name}
+            h={WORDMARK_HEIGHT}
+            w="auto"
+            fit="contain"
+          />
         </Link>
       )}
       <div className={classes.middle}>{children}</div>

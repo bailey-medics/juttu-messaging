@@ -14,7 +14,7 @@ const hello = {
   reply_count: 0,
 };
 
-const release = { id: 7, name: "Release", is_clinical: false };
+const release = { id: 7, name: "Release", is_clinical: false, kind: "dev" };
 
 function spaceRoutes(conversations: unknown[]) {
   return {
@@ -68,7 +68,18 @@ describe("the conversation page", () => {
 
   it("opens a conversation from its space, with its title", async () => {
     stubFetchRoutes({
-      ...spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 0 }]),
+      ...spaceRoutes([
+        {
+          id: 11,
+          kind: "channel",
+          title: "general",
+          unread_count: 0,
+          icon: "rocket",
+          icon_colour: 0,
+          shows_people: true,
+          icon_url: null,
+        },
+      ]),
       "/api/conversations/11/messages": { body: { messages: [hello] } },
     });
     renderAt("/spaces/7");
@@ -84,7 +95,16 @@ describe("the conversation page", () => {
     stubFetchRoutes({
       ...spaceRoutes([]),
       "POST /api/spaces/7/conversations": {
-        body: { id: 12, kind: "direct", title: "Alex Morgan", unread_count: 0 },
+        body: {
+          id: 12,
+          kind: "direct",
+          title: "Alex Morgan",
+          unread_count: 0,
+          icon: "rocket",
+          icon_colour: 0,
+          shows_people: true,
+          icon_url: null,
+        },
         status: 201,
       },
       "/api/conversations/12/messages": { body: { messages: [] } },
@@ -109,7 +129,18 @@ describe("the conversation page", () => {
 
   it("reopens a direct conversation that already exists", async () => {
     stubFetchRoutes({
-      ...spaceRoutes([{ id: 12, kind: "direct", title: "Alex Morgan", unread_count: 0 }]),
+      ...spaceRoutes([
+        {
+          id: 12,
+          kind: "direct",
+          title: "Alex Morgan",
+          unread_count: 0,
+          icon: "rocket",
+          icon_colour: 0,
+          shows_people: true,
+          icon_url: null,
+        },
+      ]),
       "/api/conversations/12/messages": { body: { messages: [] } },
     });
     renderAt("/spaces/7");
@@ -202,7 +233,18 @@ describe("the conversation page", () => {
 
   it("shows each conversation's unread count in its space", async () => {
     stubFetchRoutes(
-      spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 3 }]),
+      spaceRoutes([
+        {
+          id: 11,
+          kind: "channel",
+          title: "general",
+          unread_count: 3,
+          icon: "rocket",
+          icon_colour: 0,
+          shows_people: true,
+          icon_url: null,
+        },
+      ]),
     );
 
     renderAt("/spaces/7");
@@ -303,15 +345,92 @@ describe("the conversation page", () => {
     it("refreshes a space's unread counts when a message arrives in it", async () => {
       stubEventSource();
       stubFetchRoutes(
-        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 0 }]),
+        spaceRoutes([
+          {
+            id: 11,
+            kind: "channel",
+            title: "general",
+            unread_count: 0,
+            icon: "rocket",
+            icon_colour: 0,
+            shows_people: true,
+            icon_url: null,
+          },
+        ]),
       );
       renderAt("/spaces/7");
       await screen.findByText("general");
 
       stubFetchRoutes(
-        spaceRoutes([{ id: 11, kind: "channel", title: "general", unread_count: 1 }]),
+        spaceRoutes([
+          {
+            id: 11,
+            kind: "channel",
+            title: "general",
+            unread_count: 1,
+            icon: "rocket",
+            icon_colour: 0,
+            shows_people: true,
+            icon_url: null,
+          },
+        ]),
       );
       latestStream().emit("message", { conversation: 11, space: 7, message: fromAlex }, "40");
+
+      expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
+    });
+
+    it("refreshes a space's unread counts when a card arrives in it", async () => {
+      stubEventSource();
+      stubFetchRoutes(
+        spaceRoutes([
+          {
+            id: 11,
+            kind: "channel",
+            title: "general",
+            unread_count: 0,
+            icon: "rocket",
+            icon_colour: 0,
+            shows_people: true,
+            icon_url: null,
+          },
+        ]),
+      );
+      renderAt("/spaces/7");
+      await screen.findByText("general");
+
+      stubFetchRoutes(
+        spaceRoutes([
+          {
+            id: 11,
+            kind: "channel",
+            title: "general",
+            unread_count: 1,
+            icon: "rocket",
+            icon_colour: 0,
+            shows_people: true,
+            icon_url: null,
+          },
+        ]),
+      );
+      latestStream().emit(
+        "card",
+        {
+          conversation: 11,
+          space: 7,
+          card: {
+            id: 5,
+            kind: "outside",
+            title: "Run 4512",
+            state: { line: "Running" },
+            needs_attention: false,
+            created_at: "2026-11-21T10:05:00Z",
+            updated_at: "2026-11-21T10:05:00Z",
+            events: [{ id: 1, summary: "Running", received_at: "2026-11-21T10:05:00Z" }],
+          },
+        },
+        "0.1",
+      );
 
       expect(await screen.findByLabelText("1 unread")).toBeInTheDocument();
     });
@@ -388,6 +507,35 @@ describe("the conversation page", () => {
       expect(screen.getAllByText("Build 41 on main")).toHaveLength(1);
     });
 
+    it("marks the cards read up to the newest on opening", async () => {
+      openWithCards([failing, { ...failing, id: 8, title: "Build 42" }]);
+
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          "/api/conversations/11/read",
+          expect.objectContaining({ method: "POST", body: JSON.stringify({ card_id: 8 }) }),
+        ),
+      );
+    });
+
+    it("marks a new card read as it arrives live", async () => {
+      openWithCards([]);
+      await screen.findByText("Later.");
+
+      latestStream().emit(
+        "card",
+        { conversation: 11, space: 7, card: { ...failing, id: 6, title: "Build 42" } },
+        "0.2",
+      );
+
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          "/api/conversations/11/read",
+          expect.objectContaining({ body: JSON.stringify({ card_id: 6 }) }),
+        ),
+      );
+    });
+
     it("adds a new card that arrives live, but not one from elsewhere", async () => {
       openWithCards([]);
       await screen.findByText("Later.");
@@ -401,6 +549,99 @@ describe("the conversation page", () => {
 
       expect(await screen.findByText("Build 42")).toBeInTheDocument();
       expect(screen.queryByText("Build 41 on main")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("the channel menu", () => {
+    const general = {
+      id: 11,
+      kind: "channel",
+      title: "general",
+      unread_count: 0,
+      icon: "rocket",
+      icon_colour: 0,
+      shows_people: true,
+      icon_url: null,
+    };
+
+    function openChannel(me: unknown, conversation: unknown = general) {
+      stubFetchRoutes({
+        "/api/auth/me": { body: me },
+        "/api/conversations/11": { body: conversation },
+        "/api/conversations/11/messages": { body: { messages: [hello] } },
+        "POST /api/conversations/11/read": { body: null, status: 204 },
+        "POST /api/conversations/11/shows-people": {
+          body: { ...general, shows_people: false },
+        },
+        "PUT /api/conversations/11/icon": {
+          body: { ...general, icon_url: "/api/conversations/11/icon?v=1" },
+        },
+        "DELETE /api/conversations/11/icon": { body: general },
+      });
+      renderAt("/conversations/11");
+    }
+
+    it("lets an admin hide a channel's people on Home", async () => {
+      openChannel(SIGNED_IN);
+
+      await userEvent.click(await screen.findByRole("button", { name: "Channel actions" }));
+      await userEvent.click(
+        await screen.findByRole("menuitem", { name: "Hide people's circles" }),
+      );
+
+      expect(
+        await screen.findByText("Home shows this channel's icon instead of its people"),
+      ).toBeInTheDocument();
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/conversations/11/shows-people",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ shows_people: false }),
+        }),
+      );
+    });
+
+    it("lets an admin upload the channel's own icon", async () => {
+      openChannel(SIGNED_IN);
+      const image = new File(["png"], "icon.png", { type: "image/png" });
+
+      await screen.findByRole("button", { name: "Channel actions" });
+      await userEvent.upload(screen.getByLabelText("Channel icon image"), image);
+
+      expect(await screen.findByText("Icon uploaded")).toBeInTheDocument();
+      const sent = vi
+        .mocked(fetch)
+        .mock.calls.find(
+          ([url, init]) => url === "/api/conversations/11/icon" && init?.method === "PUT",
+        );
+      expect(sent?.[1]?.body).toBeInstanceOf(FormData);
+    });
+
+    it("lets an admin remove an uploaded icon, once confirmed", async () => {
+      openChannel(SIGNED_IN, { ...general, icon_url: "/api/conversations/11/icon?v=1" });
+
+      await userEvent.click(await screen.findByRole("button", { name: "Channel actions" }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Remove icon" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Remove icon" }));
+
+      expect(await screen.findByText("Icon removed")).toBeInTheDocument();
+    });
+
+    it("offers a member no menu", async () => {
+      openChannel({ ...SIGNED_IN, user: { ...SIGNED_IN.user, is_admin: false } });
+
+      expect(await screen.findByText("Release notes are ready.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Channel actions" })).not.toBeInTheDocument();
+    });
+
+    it("offers no menu on a direct conversation, which always shows its people", async () => {
+      openChannel(SIGNED_IN, { ...general, kind: "direct", title: "Alex Morgan" });
+
+      expect(await screen.findByText("Release notes are ready.")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith("/api/conversations/11", expect.anything()),
+      );
+      expect(screen.queryByRole("button", { name: "Channel actions" })).not.toBeInTheDocument();
     });
   });
 });

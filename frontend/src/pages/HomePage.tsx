@@ -2,36 +2,47 @@ import { Stack } from "@mantine/core";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { listMyConversations, type HomeConversation } from "@/api/conversations";
+import {
+  listMyConversations,
+  type HomeConversation,
+  type ShownPerson,
+} from "@/api/conversations";
 
-import { checkHealth } from "@/api/health";
-import { getNotifyLevel, setNotifyLevel, type NotifyLevel } from "@/api/push";
-import { UnreadBadge } from "@/components/badge";
-import BaseCard from "@/components/base-card/BaseCard";
-import HealthStatus, { type HealthState } from "@/components/health-status/HealthStatus";
-import { NotificationsCard } from "@/components/notifications";
-import DataTable from "@/components/tables/DataTable";
-import { BodyText, Heading, PageHeader } from "@/components/typography";
-import { useLiveMessages } from "@/live/LiveContext";
-import { browserPush, enablePush, pushState, type PushState } from "@/pwa/push";
+import { getSpaceOrder } from "@/api/spaces";
+import { IconAlertCircle, IconMessage } from "@/components/icons/appIcons";
+import StateMessage from "@/components/message-cards/StateMessage";
+import { MessagesList, type MessageThread } from "@/components/messaging";
+import { ConversationIcon, type StackedParticipant } from "@/components/profile-pic";
+import { AVATAR_GRADIENTS } from "@/components/profile-pic/gradients";
+import { Heading, PageHeader } from "@/components/typography";
+import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
 
 import { apiFailure } from "./apiFailure";
+import { groupBySpace } from "./homeGroups";
 
 /**
- * The first page: every conversation the person may read, most recently
- * active first, then whether the backend is up and whether this device
- * shows notifications.
+ * The first page, titled "Conversations": every conversation the person
+ * may read, under its space's name, as Quill Medical lists patient
+ * conversations. Spaces come in the person's own order, set on the
+ * Settings page, or else Dev, then Personal, then Clinical; each space's
+ * conversations most recently active first. Each row shows the
+ * other people's initials, or the conversation's own icon, then its newest
+ * message or card change. Notifications are set on the Settings page.
  */
 export default function HomePage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<HomeConversation[] | null>(null);
   const [conversationsFailed, setConversationsFailed] = useState<string | null>(null);
-  const [state, setState] = useState<HealthState>("checking");
-  const [push, setPush] = useState<PushState | "checking">("checking");
-  const [enabling, setEnabling] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [level, setLevel] = useState<NotifyLevel | null>(null);
-  const [levelFailed, setLevelFailed] = useState(false);
+
+  // The person's own order of their spaces. Until it loads, or if it
+  // cannot, spaces come in kind order.
+  const [spaceOrder, setSpaceOrderIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    getSpaceOrder()
+      .then((spaces) => setSpaceOrderIds(spaces.map((space) => space.id)))
+      .catch(() => setSpaceOrderIds([]));
+  }, []);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -48,9 +59,10 @@ export default function HomePage() {
     void loadConversations();
   }, [loadConversations]);
 
-  // Any new message changes an unread count and the order, and may be the
-  // first in a direct conversation just started.
+  // Any new message or card changes an unread count and the order, and a
+  // message may be the first in a direct conversation just started.
   useLiveMessages(() => void loadConversations());
+  useLiveCards(() => void loadConversations());
 
   function open(conversation: HomeConversation) {
     void navigate(`/conversations/${conversation.id}`, {
@@ -58,84 +70,79 @@ export default function HomePage() {
     });
   }
 
-  useEffect(() => {
-    pushState(browserPush)
-      .then(setPush)
-      .catch(() => setPush("unsupported"));
-    getNotifyLevel()
-      .then(setLevel)
-      .catch(() => setLevel(null));
-  }, []);
-
-  async function changeLevel(chosen: NotifyLevel) {
-    const before = level;
-    setLevel(chosen);
-    setLevelFailed(false);
-
-    try {
-      setLevel(await setNotifyLevel(chosen));
-    } catch {
-      setLevel(before);
-      setLevelFailed(true);
-    }
+  /** One conversation, as a row of `MessagesList`. */
+  function asThread(conversation: HomeConversation): MessageThread {
+    return {
+      id: String(conversation.id),
+      displayName: conversation.title,
+      profiles: conversation.people.map(asParticipant),
+      lastMessage: conversation.last_item?.text ?? "No messages yet",
+      lastMessageTime: conversation.last_item?.at ?? conversation.last_active_at,
+      unreadCount: conversation.unread_count,
+      // No people to draw: too many of them, or its circles turned off.
+      icon:
+        conversation.people.length === 0 ? (
+          <ConversationIcon
+            icon={conversation.icon}
+            colour={conversation.icon_colour}
+            label={conversation.title}
+            src={conversation.icon_url}
+            size="lg"
+          />
+        ) : undefined,
+    };
   }
 
-  async function enable() {
-    setEnabling(true);
-    setFailed(false);
+  function openThread(thread: MessageThread) {
+    const chosen = conversations?.find((c) => String(c.id) === thread.id);
 
-    try {
-      setPush(await enablePush(browserPush));
-    } catch {
-      setFailed(true);
-    } finally {
-      setEnabling(false);
+    if (chosen !== undefined) {
+      open(chosen);
     }
   }
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    checkHealth(controller.signal)
-      .then((up) => setState(up ? "up" : "down"))
-      .catch(() => {
-        // Aborted because the page went away: nothing to show.
-      });
-
-    return () => controller.abort();
-  }, []);
 
   return (
     <Stack gap="lg">
-      <PageHeader title="Home" />
-      <BodyText>A quiet place for a team, its pipeline and its agents to talk.</BodyText>
-      <Heading>Your conversations</Heading>
-      <DataTable
-        data={conversations ?? []}
-        columns={[
-          { header: "Name", render: (c) => c.title },
-          { header: "Space", render: (c) => c.space.name },
-          { header: "Kind", render: (c) => (c.kind === "channel" ? "Channel" : "Direct") },
-          { header: "Unread", render: (c) => <UnreadBadge count={c.unread_count} /> },
-        ]}
-        getRowKey={(c) => c.id}
-        onRowClick={open}
-        loading={conversations === null && conversationsFailed === null}
-        error={conversationsFailed}
-        emptyMessage="No conversations yet. Once an admin adds you to a space, its channels show here."
-      />
-      <BaseCard>
-        <HealthStatus state={state} />
-      </BaseCard>
-      <NotificationsCard
-        state={push}
-        busy={enabling}
-        failed={failed}
-        onEnable={() => void enable()}
-        level={level}
-        onLevelChange={(chosen) => void changeLevel(chosen)}
-        levelFailed={levelFailed}
-      />
+      <PageHeader title="Conversations" />
+      {conversationsFailed !== null ? (
+        <StateMessage
+          icon={<IconAlertCircle />}
+          title="Your conversations could not be loaded"
+          description={conversationsFailed}
+          colour="alert"
+        />
+      ) : conversations === null ? (
+        <MessagesList threads={[]} isLoading onThreadClick={() => {}} />
+      ) : conversations.length === 0 ? (
+        <StateMessage
+          icon={<IconMessage />}
+          title="No conversations yet"
+          description="Once an admin adds you to a space, its channels show here."
+          colour="info"
+        />
+      ) : (
+        groupBySpace(conversations, spaceOrder).map((group) => (
+          <Stack key={group.space.id} gap="sm">
+            <Heading>{group.space.name}</Heading>
+            <MessagesList
+              threads={group.conversations.map(asThread)}
+              onThreadClick={openThread}
+            />
+          </Stack>
+        ))
+      )}
     </Stack>
   );
+}
+
+/** One person Home draws, as `ProfilePic` takes a name: their first word, then the rest. */
+function asParticipant(person: ShownPerson): StackedParticipant {
+  const [givenName = "", ...rest] = person.name.trim().split(/\s+/);
+
+  return {
+    givenName,
+    familyName: rest.join(" ") || undefined,
+    // From the person's id, so the same person keeps the same colour everywhere.
+    gradientIndex: person.id % AVATAR_GRADIENTS.length,
+  };
 }

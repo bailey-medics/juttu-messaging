@@ -1,20 +1,20 @@
 import { Stack } from "@mantine/core";
 import { useNavigate } from "react-router";
 
-import { createSpace } from "@/api/spaces";
+import { createSpace, type SpaceKind } from "@/api/spaces";
 import type { FormSubmitResult } from "@/components/form/Form";
-import { NameForm } from "@/components/spaces";
+import { NewSpaceForm } from "@/components/spaces";
 import { PageHeader } from "@/components/typography";
 
 import { apiFailure } from "./apiFailure";
 
-/** Make a space, at `/spaces/new`, for an organisation admin. */
+/** Make a space, with its name and kind, at `/spaces/new`, for an organisation admin. */
 export default function NewSpacePage() {
   const navigate = useNavigate();
 
-  async function handleSubmit(name: string): Promise<FormSubmitResult> {
+  async function handleSubmit(name: string, kind: SpaceKind): Promise<FormSubmitResult> {
     try {
-      const space = await createSpace(name);
+      const space = await createSpace(name, kind);
 
       void navigate(`/spaces/${space.id}`, {
         state: { flash: { variant: "success", title: `${space.name} made` } },
@@ -29,12 +29,7 @@ export default function NewSpacePage() {
   return (
     <Stack gap="lg">
       <PageHeader title="New space" />
-      <NameForm
-        label="Space name"
-        submitLabel="Make space"
-        maxLength={100}
-        onSubmit={handleSubmit}
-      />
+      <NewSpaceForm onSubmit={handleSubmit} />
     </Stack>
   );
 }

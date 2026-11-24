@@ -28,6 +28,10 @@ describe("TopRibbon", () => {
     renderRibbon(<TopRibbon />);
 
     expect(screen.getByRole("link", { name: "Juttu" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("img", { name: "Juttu" })).toHaveAttribute(
+      "src",
+      "/wordmark-white.svg",
+    );
   });
 
   it("renders a right section beside the name", () => {

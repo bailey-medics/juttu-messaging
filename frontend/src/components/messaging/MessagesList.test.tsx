@@ -89,6 +89,18 @@ describe("MessagesList", () => {
   });
 
   describe("Unread badge", () => {
+    it("draws a thread's own icon in place of its profiles", () => {
+      const withIcon: MessageThread = {
+        ...mockThreads[0]!,
+        icon: <span aria-label="The channel's icon" role="img" />,
+      };
+
+      renderWithMantine(<MessagesList threads={[withIcon]} onThreadClick={() => {}} />);
+
+      expect(screen.getByRole("img", { name: "The channel's icon" })).toBeInTheDocument();
+      expect(screen.queryByText("SJ")).not.toBeInTheDocument();
+    });
+
     it("displays unread badge when count > 0", () => {
       renderWithMantine(<MessagesList threads={mockThreads} onThreadClick={vi.fn()} />);
 

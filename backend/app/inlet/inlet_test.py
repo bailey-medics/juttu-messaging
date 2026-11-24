@@ -17,7 +17,7 @@ from app.organisations.services import (
     make_first_admin,
     the_organisation,
 )
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import add_to_space, create_space
 
 if TYPE_CHECKING:
@@ -47,7 +47,7 @@ def alex() -> User:
 @pytest.fixture
 def release(sam: User, alex: User) -> Space:
     space = create_space(
-        the_organisation(), "Release", is_clinical=False, by=sam
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(space, alex, by=sam)
 
@@ -289,7 +289,7 @@ class TestSenders:
         self, sam: User, alex: User, deploys: Conversation
     ) -> None:
         elsewhere = create_space(
-            the_organisation(), "Design", is_clinical=False, by=sam
+            the_organisation(), "Design", kind=SpaceKind.DEV, by=sam
         )
         ideas = start_channel(elsewhere, "ideas", by=sam)
         start_direct(deploys.space, [alex], by=sam)

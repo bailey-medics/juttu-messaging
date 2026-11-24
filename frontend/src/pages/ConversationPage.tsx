@@ -5,16 +5,21 @@ import { useLocation, useParams } from "react-router";
 import { listCards, type LivingCard } from "@/api/cards";
 import { ApiError, isRecord } from "@/api/client";
 import {
+  getConversation,
   listMessages,
   listReplies,
   markRead,
   sendMessage,
+  removeConversationIcon,
+  setShowsPeople,
+  uploadConversationIcon,
   type ChatMessage,
+  type ConversationSummary,
 } from "@/api/conversations";
 import { useAuth } from "@/auth/AuthContext";
 import { LivingCardView } from "@/components/cards";
 import NotFoundLayout from "@/components/layouts/NotFoundLayout";
-import { Messaging, ThreadPanel, type Message } from "@/components/messaging";
+import { ChannelMenu, Messaging, ThreadPanel, type Message } from "@/components/messaging";
 import { usePageMessage } from "@/components/page-message";
 import { PageHeader } from "@/components/typography";
 import { useLiveCards, useLiveMessages } from "@/live/LiveContext";
@@ -35,7 +40,20 @@ function markSeen(conversationId: number, seen: ChatMessage[]) {
   const newest = Math.max(0, ...seen.map((m) => m.id));
 
   if (newest > 0) {
-    markRead(conversationId, newest).catch(() => {});
+    markRead(conversationId, { messageId: newest }).catch(() => {});
+  }
+}
+
+/**
+ * Say the person has seen these cards, by the newest of them. A card
+ * counts as unread once, when it is made, so a card changing needs no
+ * marking: the newest card id has not moved.
+ */
+function markCardsSeen(conversationId: number, seen: LivingCard[]) {
+  const newest = Math.max(0, ...seen.map((c) => c.id));
+
+  if (newest > 0) {
+    markRead(conversationId, { cardId: newest }).catch(() => {});
   }
 }
 
@@ -127,11 +145,13 @@ export default function ConversationPage() {
   const [threadId, setThreadId] = useState<number | null>(null);
   const [replies, setReplies] = useState<ChatMessage[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(false);
+  const [summary, setSummary] = useState<ConversationSummary | null>(null);
   // Replies already counted in their message's "N replies", so one that
   // arrives both live and as the answer to sending it counts once.
   const counted = useRef(new Set<number>());
 
   const currentUserId = state.status === "authenticated" ? String(state.user.id) : "";
+  const isAdmin = state.status === "authenticated" && state.user.is_admin;
 
   const load = useCallback(async () => {
     try {
@@ -140,7 +160,10 @@ export default function ConversationPage() {
       markSeen(id, found);
       // Cards only add to the page, so one that fails to load is left out.
       listCards(id)
-        .then(setCards)
+        .then((found) => {
+          setCards(found);
+          markCardsSeen(id, found);
+        })
         .catch(() => setCards([]));
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 404) {
@@ -159,6 +182,18 @@ export default function ConversationPage() {
     void load();
   }, [load]);
 
+  // What the conversation is, for its menu. Only an admin has a menu, so
+  // nobody else asks.
+  useEffect(() => {
+    if (!isAdmin || !Number.isInteger(id)) {
+      return;
+    }
+
+    getConversation(id)
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [id, isAdmin]);
+
   const countReply = useCallback((sent: ChatMessage) => {
     if (sent.thread === null || counted.current.has(sent.id)) {
       return;
@@ -176,6 +211,7 @@ export default function ConversationPage() {
   useLiveCards(({ conversation, card }) => {
     if (conversation === id) {
       setCards((current) => withCard(current, card));
+      markCardsSeen(id, [card]);
     }
   });
 
@@ -232,6 +268,52 @@ export default function ConversationPage() {
 
   const root = messages.find((m) => m.id === threadId);
 
+  async function toggleShowsPeople(current: ConversationSummary) {
+    try {
+      const changed = await setShowsPeople(id, !current.shows_people);
+      setSummary(changed);
+      showMessage({
+        variant: "success",
+        title: changed.shows_people
+          ? "Home shows this channel's people"
+          : "Home shows this channel's icon instead of its people",
+      });
+    } catch (failure) {
+      showMessage({ variant: "error", title: apiFailure(failure) });
+    }
+  }
+
+  async function uploadIcon(image: File) {
+    try {
+      setSummary(await uploadConversationIcon(id, image));
+      showMessage({ variant: "success", title: "Icon uploaded" });
+    } catch (failure) {
+      showMessage({ variant: "error", title: `Not uploaded. ${apiFailure(failure)}` });
+    }
+  }
+
+  async function removeIcon() {
+    try {
+      setSummary(await removeConversationIcon(id));
+      showMessage({ variant: "success", title: "Icon removed" });
+    } catch (failure) {
+      showMessage({ variant: "error", title: apiFailure(failure) });
+    }
+  }
+
+  // An organisation admin's menu, on a channel: a direct conversation
+  // always shows its people.
+  const menu =
+    summary !== null && summary.kind === "channel" ? (
+      <ChannelMenu
+        showsPeople={summary.shows_people}
+        hasUploadedIcon={summary.icon_url !== null}
+        onToggleShowsPeople={() => void toggleShowsPeople(summary)}
+        onUploadIcon={(image) => void uploadIcon(image)}
+        onRemoveIcon={removeIcon}
+      />
+    ) : undefined;
+
   async function send(text: string) {
     try {
       const sent = await sendMessage(id, text);
@@ -243,7 +325,7 @@ export default function ConversationPage() {
 
   return (
     <Stack gap="md" h="100%">
-      <PageHeader title={titleFrom(location.state)} />
+      <PageHeader title={titleFrom(location.state)} action={menu} />
       {/* The thread sits beside the conversation on a wide screen, and
           beneath it on a phone. */}
       <SimpleGrid cols={{ base: 1, md: threadId === null ? 1 : 2 }} spacing="md">

@@ -7,12 +7,21 @@ Quill Medical's messaging.
 """
 
 from django.db import transaction
-from django.db.models import Count, F, OuterRef, Q, QuerySet, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models import (
+    Count,
+    F,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Subquery,
+)
+from django.db.models.functions import Coalesce, Greatest
 
 from app.accounts.models import User
 from app.audit.models import AuditAction
 from app.audit.record import record
+from app.cards.models import Card, CardEvent
 from app.conversations.live import announce, hold_post_lock
 from app.conversations.models import (
     Conversation,
@@ -22,7 +31,7 @@ from app.conversations.models import (
     ReadPoint,
 )
 from app.push.services import notify_about
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceMember
 from app.spaces.services import is_in
 
 #: The longest message, in characters. Far longer than any chat message,
@@ -57,17 +66,33 @@ def all_conversations_for(user: User) -> QuerySet[Conversation]:
 
     The rule of ``can_read``, in the database: a space they are in today,
     and a channel or a direct conversation they take part in. The most
-    recently active comes first, by its newest message, or by when it was
-    started if it has none. Nothing, for a closed account.
+    recently active comes first, by its newest message or newest living
+    card, or by when it was started if it has neither. A card changing in
+    place does not move it: only a new card does, as only a new card counts
+    as unread. Nothing, for a closed account.
     """
     if not user.is_active:
         return Conversation.objects.none()
 
-    newest = (
+    newest_message = (
         Message.objects.filter(conversation=OuterRef("pk"))
         .order_by("-pk")
         .values("created_at")[:1]
     )
+    newest_card = (
+        Card.objects.filter(conversation=OuterRef("pk"))
+        .order_by("-pk")
+        .values("created_at")[:1]
+    )
+    # The newest message, whatever it is: a correction is a new message,
+    # so the newest is already the corrected text.
+    newest_message_row = Message.objects.filter(
+        conversation=OuterRef("pk")
+    ).order_by("-pk")
+    # The newest change to any of its cards, with the card's title.
+    newest_card_event = CardEvent.objects.filter(
+        card__conversation=OuterRef("pk")
+    ).order_by("-pk")
     readable = Conversation.objects.filter(
         Q(space__memberships__user=user)
         & Q(space__memberships__left_at__isnull=True)
@@ -77,52 +102,162 @@ def all_conversations_for(user: User) -> QuerySet[Conversation]:
     return (
         Conversation.objects.filter(pk__in=readable)
         .select_related("space")
-        .prefetch_related("participants__user")
-        .annotate(last_active_at=Coalesce(Subquery(newest), F("created_at")))
+        .prefetch_related(
+            "participants__user",
+            # Everybody in each space today, for a channel's circles.
+            Prefetch(
+                "space__memberships",
+                queryset=SpaceMember.objects.filter(
+                    left_at__isnull=True, user__is_active=True
+                )
+                .select_related("user")
+                .order_by("user__username"),
+                to_attr="current_members",
+            ),
+        )
+        .annotate(
+            newest_message_body=Subquery(
+                newest_message_row.values("body")[:1]
+            ),
+            newest_message_at=Subquery(
+                newest_message_row.values("created_at")[:1]
+            ),
+            newest_card_title=Subquery(
+                newest_card_event.values("card__title")[:1]
+            ),
+            newest_card_line=Subquery(newest_card_event.values("summary")[:1]),
+            newest_card_at=Subquery(
+                newest_card_event.values("received_at")[:1]
+            ),
+        )
+        # Postgres's GREATEST passes over a NULL, which is what a
+        # conversation with no messages or no cards has.
+        .annotate(
+            last_active_at=Greatest(
+                Subquery(newest_message),
+                Subquery(newest_card),
+                F("created_at"),
+            )
+        )
         .order_by("-last_active_at", "-pk")
     )
 
 
 def unread_counts(user: User, conversation_ids: list[int]) -> dict[int, int]:
-    """How many messages *user* has not read, in each conversation named.
+    """How many messages and new cards *user* has not read, in each
+    conversation named.
 
-    One query for all of them: messages by somebody else, newer than the
-    person's read point in that conversation, or every one if they have
-    none. Replies in threads count too. A conversation with none unread is
-    left out of the answer.
+    Two queries for all of them, whatever their number. Messages by somebody
+    else newer than the person's read point in that conversation, or every
+    one if they have none; replies in threads count too. And living cards
+    made since the newest card they have seen: a card counts once, when it
+    is made, and never again as it changes. A conversation with none unread
+    is left out of the answer.
     """
     read_to = ReadPoint.objects.filter(
         user=user, conversation_id=OuterRef("conversation_id")
-    ).values("last_read_message_id")[:1]
+    )
 
-    counted = (
+    messages = (
         Message.objects.filter(conversation_id__in=conversation_ids)
         .exclude(author=user)
-        .annotate(read_to=Coalesce(Subquery(read_to), 0))
+        .annotate(
+            read_to=Coalesce(
+                Subquery(read_to.values("last_read_message_id")[:1]), 0
+            )
+        )
+        .filter(id__gt=F("read_to"))
+        .values("conversation_id")
+        .annotate(unread=Count("id"))
+    )
+    cards = (
+        Card.objects.filter(conversation_id__in=conversation_ids)
+        .annotate(
+            read_to=Coalesce(
+                Subquery(read_to.values("last_read_card_id")[:1]), 0
+            )
+        )
         .filter(id__gt=F("read_to"))
         .values("conversation_id")
         .annotate(unread=Count("id"))
     )
 
-    return {row["conversation_id"]: row["unread"] for row in counted}
+    found: dict[int, int] = {}
+
+    for row in [*messages, *cards]:
+        conversation_id = row["conversation_id"]
+        found[conversation_id] = found.get(conversation_id, 0) + row["unread"]
+
+    return found
 
 
-def mark_read(user: User, conversation: Conversation, message_id: int) -> None:
-    """Move *user*'s read point in *conversation* up to *message_id*.
+def mark_read(
+    user: User,
+    conversation: Conversation,
+    *,
+    message_id: int | None = None,
+    card_id: int | None = None,
+) -> None:
+    """Move *user*'s read point in *conversation* up to *message_id*, and
+    up to *card_id*, whichever are given.
 
     Never back: reading an older message on a second device leaves the
-    point where it was. A message id from another conversation is ignored.
+    point where it was. A message or card from another conversation is
+    ignored.
     """
-    belongs = conversation.messages.filter(pk=message_id).exists()
-    if not belongs:
-        return
-
+    moved: list[str] = []
     point, _ = ReadPoint.objects.get_or_create(
         user=user, conversation=conversation
     )
-    if message_id > point.last_read_message_id:
+
+    if (
+        message_id is not None
+        and message_id > point.last_read_message_id
+        and conversation.messages.filter(pk=message_id).exists()
+    ):
         point.last_read_message_id = message_id
-        point.save(update_fields=["last_read_message_id", "updated_at"])
+        moved.append("last_read_message_id")
+
+    if (
+        card_id is not None
+        and card_id > point.last_read_card_id
+        and conversation.cards.filter(pk=card_id).exists()
+    ):
+        point.last_read_card_id = card_id
+        moved.append("last_read_card_id")
+
+    if moved:
+        point.save(update_fields=[*moved, "updated_at"])
+
+
+class ShowsPeopleRefused(Exception):
+    """A direct conversation always shows its people."""
+
+
+@transaction.atomic
+def set_shows_people(
+    conversation: Conversation, shows_people: bool, *, by: User
+) -> None:
+    """Show or hide a channel's people on Home, for everybody, audited.
+
+    The caller has already checked *by* is an organisation admin.
+
+    Raises:
+        ShowsPeopleRefused: For a direct conversation.
+    """
+    if conversation.kind != ConversationKind.CHANNEL:
+        raise ShowsPeopleRefused(
+            "A direct conversation always shows its people."
+        )
+
+    conversation.shows_people = shows_people
+    conversation.save(update_fields=["shows_people"])
+
+    record(
+        AuditAction.CONVERSATION_SHOWS_PEOPLE_CHANGED,
+        actor=by,
+        detail={"conversation": conversation.pk, "shows_people": shows_people},
+    )
 
 
 def can_read(user: User, conversation: Conversation) -> bool:

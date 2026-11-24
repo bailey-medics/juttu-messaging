@@ -35,6 +35,9 @@ class AuditAction(StrEnum):
     SENDER_REGISTERED = "sender_registered"
     SENDER_CHANNEL_CHANGED = "sender_channel_changed"
     SENDER_CLOSED = "sender_closed"
+    CONVERSATION_SHOWS_PEOPLE_CHANGED = "conversation_shows_people_changed"
+    CONVERSATION_ICON_UPLOADED = "conversation_icon_uploaded"
+    CONVERSATION_ICON_REMOVED = "conversation_icon_removed"
 
 
 class AuditEvent(models.Model):

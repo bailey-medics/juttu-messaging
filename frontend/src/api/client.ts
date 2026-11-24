@@ -7,6 +7,37 @@
 /** The cookie Django keeps its CSRF token in. Matches `CSRF_COOKIE_NAME`. */
 export const CSRF_COOKIE = "juttu_csrftoken";
 
+/**
+ * Sent on `window` when a request cannot reach the backend, and when one
+ * gets an answer from it. `ConnectivityProvider` listens for both, as
+ * Quill Medical's does, to show the app offline and back again.
+ */
+export const NETWORK_ERROR_EVENT = "app:network-error";
+export const API_SUCCESS_EVENT = "app:api-success";
+
+/**
+ * Statuses a proxy in front of the backend answers when the backend is
+ * down: 502 bad gateway, 503 unavailable, 504 timed out, and 530 when a
+ * tunnel's other end has gone.
+ */
+const GATEWAY_STATUSES = new Set([502, 503, 504, 530]);
+
+/**
+ * Whether this answer came from in front of the backend, saying the
+ * backend cannot be reached. Every answer of the backend's own is JSON,
+ * so a gateway status counts only when it carries none.
+ */
+function isBackendUnreachable(response: Response): boolean {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  return GATEWAY_STATUSES.has(response.status) && !contentType.includes("application/json");
+}
+
+/** Tell the connectivity context what happened, on `window`. */
+function announce(event: string): void {
+  window.dispatchEvent(new CustomEvent(event));
+}
+
 /** A request the backend answered with an error status. */
 export class ApiError extends Error {
   readonly status: number;
@@ -55,28 +86,45 @@ async function jsonOrNull(response: Response): Promise<unknown> {
  *
  * @throws ApiError when the backend answers with an error status.
  * @throws TypeError when nothing answers at all, as `fetch` does.
+ *
+ * Sends `NETWORK_ERROR_EVENT` when nothing answers, or a proxy answers
+ * that the backend is down, and `API_SUCCESS_EVENT` for any other answer.
  */
 export async function apiRequest(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
 ): Promise<unknown> {
   const headers: Record<string, string> = { Accept: "application/json" };
+  // A file goes as a form, whose type the browser sets with its boundary.
+  const isForm = body instanceof FormData;
 
   if (method !== "GET") {
     headers["X-CSRFToken"] = csrfToken();
   }
 
-  if (body !== undefined) {
+  if (body !== undefined && !isForm) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`/api${path}`, {
-    method,
-    headers,
-    credentials: "same-origin",
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`/api${path}`, {
+      method,
+      headers,
+      credentials: "same-origin",
+      body: body === undefined || body instanceof FormData ? body : JSON.stringify(body),
+    });
+  } catch (failure) {
+    announce(NETWORK_ERROR_EVENT);
+    throw failure;
+  }
+
+  // An error status from the backend is still an answer: only a proxy
+  // saying the backend is down counts as a lost connection.
+  announce(isBackendUnreachable(response) ? NETWORK_ERROR_EVENT : API_SUCCESS_EVENT);
+
   const parsed = await jsonOrNull(response);
 
   if (!response.ok) {

@@ -19,23 +19,48 @@ from rest_framework.views import APIView
 from app.accounts.models import User
 from app.organisations.competencies import Competency
 from app.organisations.services import holds, the_organisation
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import (
+    SpaceOrderRefused,
     SpaceRefused,
     add_to_space,
     create_space,
     is_in,
     members_of,
     remove_from_space,
+    set_space_order,
+    space_order_for,
     spaces_of,
 )
 
 
 class NewSpaceSerializer(serializers.Serializer[dict[str, Any]]):
-    """A new space's name, and whether it is clinical (no, unless said)."""
+    """A new space's name and kind, Dev unless said.
+
+    ``is_clinical`` is still taken from an older form: ``true`` means
+    Clinical. Sent with a kind that disagrees, it is refused.
+    """
 
     name = serializers.CharField(max_length=100, trim_whitespace=True)
-    is_clinical = serializers.BooleanField(default=False)
+    kind = serializers.ChoiceField(choices=SpaceKind.choices, required=False)
+    is_clinical = serializers.BooleanField(required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        is_clinical = attrs.pop("is_clinical", None)
+        kind = attrs.get("kind")
+
+        if kind is None:
+            kind = SpaceKind.CLINICAL if is_clinical else SpaceKind.DEV
+        elif is_clinical is not None and is_clinical != (
+            kind == SpaceKind.CLINICAL
+        ):
+            raise serializers.ValidationError(
+                "A space is clinical exactly when its kind is Clinical."
+            )
+
+        attrs["kind"] = SpaceKind(kind)
+
+        return attrs
 
 
 class AddToSpaceSerializer(serializers.Serializer[dict[str, Any]]):
@@ -58,6 +83,7 @@ def space_body(space: Space) -> dict[str, object]:
         "id": space.pk,
         "name": space.name,
         "is_clinical": space.is_clinical,
+        "kind": space.kind,
     }
 
 
@@ -98,7 +124,7 @@ class SpacesView(APIView):
         space = create_space(
             the_organisation(),
             serializer.validated_data["name"],
-            is_clinical=serializer.validated_data["is_clinical"],
+            kind=serializer.validated_data["kind"],
             by=user,
         )
 
@@ -172,3 +198,42 @@ class RemoveSpaceMemberView(APIView):
             return refused(error)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SpaceOrderSerializer(serializers.Serializer[dict[str, Any]]):
+    """The whole of a person's order: their space ids, first to last."""
+
+    space_ids = serializers.ListField(
+        child=serializers.IntegerField(), allow_empty=True
+    )
+
+
+class SpaceOrderView(APIView):
+    """The caller's own order of their spaces, for Home.
+
+    ``GET`` answers their spaces in it, and ``PUT`` replaces it. Each person
+    reads and changes only their own.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        spaces = space_order_for(caller(request))
+
+        return Response({"spaces": [space_body(s) for s in spaces]})
+
+    def put(self, request: Request) -> Response:
+        user = caller(request)
+        serializer = SpaceOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            spaces = set_space_order(
+                user, serializer.validated_data["space_ids"]
+            )
+        except SpaceOrderRefused as error:
+            return Response(
+                {"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({"spaces": [space_body(s) for s in spaces]})

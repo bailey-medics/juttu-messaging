@@ -7,11 +7,13 @@ as one that does not exist would.
 
 import json
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.request import Request
@@ -22,10 +24,18 @@ from app.accounts.models import User
 from app.cards.bodies import card_body
 from app.cards.models import CardEvent
 from app.conversations import live
+from app.conversations.icons import (
+    MAX_UPLOAD_BYTES,
+    IconRefused,
+    icon_image,
+    remove_icon_image,
+    set_icon_image,
+)
 from app.conversations.models import Conversation, ConversationKind, Message
 from app.conversations.services import (
     MAX_MESSAGE_LENGTH,
     ConversationRefused,
+    ShowsPeopleRefused,
     all_conversations_for,
     can_read,
     conversations_for,
@@ -33,12 +43,17 @@ from app.conversations.services import (
     messages_in,
     post,
     replies_to,
+    set_shows_people,
     start_channel,
     start_direct,
     unread_counts,
 )
 from app.organisations.competencies import Competency
-from app.organisations.services import holds
+from app.organisations.services import (
+    holds,
+    is_organisation_admin,
+    the_organisation,
+)
 from app.spaces.models import Space
 from app.spaces.services import is_in
 
@@ -111,7 +126,19 @@ def conversation_body(
         "kind": conversation.kind,
         "title": title,
         "unread_count": unread,
+        "icon": conversation.icon,
+        "icon_colour": conversation.icon_colour,
+        "shows_people": conversation.shows_people,
+        "icon_url": icon_url(conversation),
     }
+
+
+def icon_url(conversation: Conversation) -> str | None:
+    """Where its uploaded icon is, with its version, or None for none."""
+    if conversation.icon_version is None:
+        return None
+
+    return f"/api/conversations/{conversation.pk}/icon?v={conversation.icon_version}"
 
 
 def message_body(message: Message) -> dict[str, object]:
@@ -142,11 +169,71 @@ def refused(error: ConversationRefused) -> Response:
     return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+#: The most people a conversation shows as circles on Home, besides the
+#: person looking. With more, it shows its icon instead.
+MAX_PEOPLE_SHOWN = 4
+
+
+def last_item(conversation: Conversation) -> dict[str, str] | None:
+    """The newer of the newest message and the newest card change, as Home
+    previews it, or None for a conversation with neither.
+
+    Reads what ``all_conversations_for`` annotated, so it costs no query.
+    """
+    message_at: datetime | None = getattr(
+        conversation, "newest_message_at", None
+    )
+    card_at: datetime | None = getattr(conversation, "newest_card_at", None)
+
+    if card_at is not None and (message_at is None or card_at > message_at):
+        title = getattr(conversation, "newest_card_title", "")
+        line = getattr(conversation, "newest_card_line", "")
+
+        return {"text": f"{title}: {line}", "at": card_at.isoformat()}
+
+    if message_at is not None:
+        body = getattr(conversation, "newest_message_body", "")
+
+        return {"text": body, "at": message_at.isoformat()}
+
+    return None
+
+
+def people_shown(
+    conversation: Conversation, user: User
+) -> list[dict[str, object]]:
+    """The others Home draws as circles, or none, when it shows the icon.
+
+    A channel's people are everybody in its space today, from what
+    ``all_conversations_for`` prefetched; a direct one's are its
+    participants. Either way, more than ``MAX_PEOPLE_SHOWN`` besides the
+    person looking shows the icon, and so does a channel with its circles
+    turned off.
+    """
+    if conversation.kind == ConversationKind.CHANNEL:
+        if not conversation.shows_people:
+            return []
+
+        members = getattr(conversation.space, "current_members", [])
+        others = [m.user for m in members if m.user_id != user.pk]
+    else:
+        others = [
+            p.user
+            for p in conversation.participants.all()
+            if p.user_id != user.pk
+        ]
+
+    if len(others) > MAX_PEOPLE_SHOWN:
+        return []
+
+    return [{"id": u.pk, "name": u.display_name} for u in others]
+
+
 def home_conversation_body(
     conversation: Conversation, user: User, unread: int
 ) -> dict[str, object]:
-    """A conversation as Home lists it: with its space, and when it was last
-    active, since the list spans every space."""
+    """A conversation as Home lists it: with its space and the space's kind,
+    when it was last active, its newest item, and the people it shows."""
     last_active_at = getattr(
         conversation, "last_active_at", conversation.created_at
     )
@@ -156,8 +243,11 @@ def home_conversation_body(
         "space": {
             "id": conversation.space_id,
             "name": conversation.space.name,
+            "kind": conversation.space.kind,
         },
         "last_active_at": last_active_at.isoformat(),
+        "last_item": last_item(conversation),
+        "people": people_shown(conversation, user),
     }
 
 
@@ -303,9 +393,19 @@ class RepliesView(APIView):
 
 
 class ReadSerializer(serializers.Serializer[dict[str, Any]]):
-    """The newest message the person has seen."""
+    """The newest message and the newest card the person has seen: either,
+    or both."""
 
-    message_id = serializers.IntegerField(min_value=1)
+    message_id = serializers.IntegerField(min_value=1, required=False)
+    card_id = serializers.IntegerField(min_value=1, required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if "message_id" not in attrs and "card_id" not in attrs:
+            raise serializers.ValidationError(
+                "Say the newest message or card seen."
+            )
+
+        return attrs
 
 
 class MarkReadView(APIView):
@@ -319,9 +419,142 @@ class MarkReadView(APIView):
         serializer = ReadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        mark_read(user, conversation, serializer.validated_data["message_id"])
+        seen = serializer.validated_data
+
+        mark_read(
+            user,
+            conversation,
+            message_id=seen.get("message_id"),
+            card_id=seen.get("card_id"),
+        )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ConversationView(APIView):
+    """``GET`` one conversation the caller may read: its title, kind, icon
+    and whether it shows its people. One they cannot read answers 404."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        unread = unread_counts(user, [conversation.pk]).get(conversation.pk, 0)
+
+        return Response(conversation_body(conversation, user, unread))
+
+
+class ShowsPeopleSerializer(serializers.Serializer[dict[str, Any]]):
+    """Whether a channel shows its people's circles on Home."""
+
+    shows_people = serializers.BooleanField()
+
+
+class ShowsPeopleView(APIView):
+    """``POST`` shows or hides a channel's people on Home, for everybody.
+
+    Only an organisation admin may, in a conversation they can read; a
+    conversation they cannot read answers 404, as everywhere else.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+
+        if not is_organisation_admin(user, the_organisation()):
+            raise PermissionDenied(
+                "Only an organisation admin can change what a channel shows."
+            )
+
+        serializer = ShowsPeopleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            set_shows_people(
+                conversation,
+                serializer.validated_data["shows_people"],
+                by=user,
+            )
+        except ShowsPeopleRefused as refused:
+            return Response(
+                {"detail": str(refused)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(conversation_body(conversation, user))
+
+
+def require_organisation_admin(user: User) -> None:
+    if not is_organisation_admin(user, the_organisation()):
+        raise PermissionDenied(
+            "Only an organisation admin can change a conversation's icon."
+        )
+
+
+class IconView(APIView):
+    """A conversation's uploaded icon.
+
+    ``GET`` answers the PNG to anybody who may read the conversation.
+    ``PUT`` takes one image, as the form field ``image``, and ``DELETE``
+    removes it, for an organisation admin. A conversation the caller cannot
+    read answers 404, as everywhere else.
+    """
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def get(self, request: Request, conversation_id: int) -> HttpResponse:
+        conversation = readable_conversation(caller(request), conversation_id)
+        image = icon_image(conversation)
+
+        if image is None:
+            raise Http404
+
+        response = HttpResponse(image, content_type="image/png")
+        # The address carries the icon's version, so a cached copy is
+        # never out of date. Private: only people who may read it get it.
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+
+        return response
+
+    def put(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        require_organisation_admin(user)
+        upload = request.FILES.get("image")
+
+        if upload is None:
+            return Response(
+                {"detail": "Send the image as the form field image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Refused before it is read, so a big file never fills memory.
+        if upload.size is None or upload.size > MAX_UPLOAD_BYTES:
+            return Response(
+                {"detail": "The image must be 1 MB or smaller."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            set_icon_image(conversation, upload.read(), by=user)
+        except IconRefused as refused:
+            return Response(
+                {"detail": str(refused)}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(conversation_body(conversation, user))
+
+    def delete(self, request: Request, conversation_id: int) -> Response:
+        user = caller(request)
+        conversation = readable_conversation(user, conversation_id)
+        require_organisation_admin(user)
+
+        remove_icon_image(conversation, by=user)
+
+        return Response(conversation_body(conversation, user))
 
 
 class EventStreamRenderer(BaseRenderer):

@@ -38,7 +38,7 @@ from app.push.models import (
     PushSubscription,
 )
 from app.push.services import Push, deliver, forget, push_for, subscribe
-from app.spaces.models import Space
+from app.spaces.models import Space, SpaceKind
 from app.spaces.services import add_to_space, create_space, remove_from_space
 
 pytestmark = pytest.mark.django_db
@@ -89,7 +89,7 @@ def priya() -> User:
 @pytest.fixture
 def release(sam: User, alex: User, priya: User) -> Space:
     space = create_space(
-        the_organisation(), "Release", is_clinical=False, by=sam
+        the_organisation(), "Release", kind=SpaceKind.DEV, by=sam
     )
     add_to_space(space, alex, by=sam)
     add_to_space(space, priya, by=sam)

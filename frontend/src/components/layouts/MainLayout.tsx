@@ -6,8 +6,9 @@
  * narrow one), and the page, with its status messages.
  *
  * Ported from Quill Medical's MainLayout, without what Juttu does not have:
- * the patient in the ribbon, search, the connectivity strips, the forced
- * reload strip, exam mode and the footer.
+ * the patient in the ribbon, search, the forced reload strip, exam mode
+ * and the footer. Its connectivity strips and offline modal came across
+ * with Quill's `ConnectivityProvider`, in `connectivity/`.
  */
 
 import { Box, Container, Flex, Skeleton, Stack, useMantineTheme } from "@mantine/core";
@@ -22,7 +23,10 @@ import { asksForOpenDrawer } from "@/components/navigation/navDrawerState";
 import SideNav from "@/components/navigation/SideNav";
 import { SkipLink, SkipLinkTarget } from "@/components/navigation/skip-link";
 import { PageMessageDisplay, PageMessageProvider } from "@/components/page-message";
+import OfflineModal from "@/components/offline-modal/OfflineModal";
 import TopRibbon from "@/components/ribbon/TopRibbon";
+import StatusStrip from "@/components/status-strip/StatusStrip";
+import { useConnectivity } from "@/connectivity";
 
 import {
   LAYOUT_PADDING_BOTTOM,
@@ -64,10 +68,32 @@ export default function MainLayout({
   const navCollapsed = useNavCollapsed();
   const mainRef = useRef<HTMLDivElement>(null);
 
+  const {
+    isOnline,
+    isReconnected,
+    lastSyncedAt,
+    showOfflineModal,
+    dismissOfflineModal,
+    clearReconnected,
+  } = useConnectivity();
+
   // A new page starts at its top.
   useEffect(() => {
     mainRef.current?.scrollTo?.(0, 0);
   }, [location.pathname]);
+
+  // "Back online" shows until the next page, as in Quill.
+  useEffect(() => {
+    if (isReconnected) {
+      clearReconnected();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on a page change
+  }, [location.pathname]);
+
+  // Only once something has synced, as in Quill: an app that never
+  // reached the backend has no "last synced" time to give.
+  const showOfflineStrip = !isOnline && lastSyncedAt !== null;
+  const showReconnectedStrip = isReconnected && isOnline && lastSyncedAt !== null;
 
   return (
     <Flex
@@ -93,6 +119,9 @@ export default function MainLayout({
           rightSection={rightSection}
         />
       </Box>
+      {showOfflineStrip && <StatusStrip variant="offline" lastSyncedAt={lastSyncedAt} />}
+      {showReconnectedStrip && <StatusStrip variant="reconnected" />}
+      <OfflineModal opened={showOfflineModal} onClose={dismissOfflineModal} />
       <Flex flex={1} style={{ overflow: "hidden", position: "relative" }}>
         <NavigationDrawer
           opened={opened}

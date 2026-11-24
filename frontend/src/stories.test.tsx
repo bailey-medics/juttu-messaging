@@ -8,7 +8,6 @@ import { composeStories, setProjectAnnotations } from "@storybook/react-vite";
 import { screen } from "@testing-library/react";
 
 import * as previewAnnotations from "../.storybook/preview";
-import * as installButtonStories from "@/components/install-button/InstallButton.stories";
 import * as homePageStories from "@/pages/HomePage.stories";
 
 setProjectAnnotations(previewAnnotations);
@@ -52,21 +51,11 @@ it.each(everyStory)("%s renders", async (_name, Story) => {
 });
 
 describe("HomePage stories", () => {
-  it("BackendUp shows the backend as up", async () => {
-    const { BackendUp } = composeStories(homePageStories);
+  it("Conversations lists the conversations", async () => {
+    const { Conversations } = composeStories(homePageStories);
 
-    await BackendUp.run();
+    await Conversations.run();
 
-    expect(await screen.findByText("Backend up")).toBeInTheDocument();
-  });
-});
-
-describe("InstallButton stories", () => {
-  it("Offered shows the install button", async () => {
-    const { Offered } = composeStories(installButtonStories);
-
-    await Offered.run();
-
-    expect(screen.getByRole("button", { name: "Install Juttu" })).toBeInTheDocument();
+    expect(await screen.findByText("dev-CI")).toBeInTheDocument();
   });
 });
