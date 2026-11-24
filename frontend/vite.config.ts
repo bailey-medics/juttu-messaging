@@ -24,6 +24,7 @@ export default defineConfig({
         globPatterns: [
           "assets/*.{js,css,woff2}",
           "*.png",
+          "*.svg",
           "offline.html",
           "manifest.webmanifest",
         ],
